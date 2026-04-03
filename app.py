@@ -31,10 +31,7 @@ def home():
                 subscriber = Subscriber(email=email)
                 db.session.add(subscriber)
                 db.session.commit()
-                c = connect.cursor()
-                c.execute("INSERT INTO subscribers (email) VALUES (?)", (email,))
                 
-                sqlite3.Connection.close()
 
                 # 📧 SEND EMAIL
                 msg = Message(
