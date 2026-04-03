@@ -1,5 +1,4 @@
 import sqlite3
-from MySQLdb import Connect
 from flask_mail import Mail, Message
 from flask import Flask, render_template, request, jsonify, session, redirect
 from pymysql import connect
@@ -34,7 +33,7 @@ def home():
                 db.session.commit()
                 c = connect.cursor()
                 c.execute("INSERT INTO subscribers (email) VALUES (?)", (email,))
-                Connect.commit()
+                
                 sqlite3.Connection.close()
 
                 # 📧 SEND EMAIL
