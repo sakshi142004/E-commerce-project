@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="cart-container">
+
+    <h1 class="title">🛒 Your Shopping Cart</h1>
+
+    {% if products|length == 0 %}
+        <div class="empty">
+            <h2>Your cart is empty 😔</h2>
+            <p>Start adding some premium belts!</p>
+            <a href="/shop" class="shop-btn">Shop Now</a>
+        </div>
+    {% else %}
+
+    <div class="cart-grid">
+
+        <!-- LEFT: PRODUCTS -->
+        <div class="cart-items">
+            {% for p in products %}
+            <div class="cart-card">
+
+                <img src="{{ p.image_url or '/static/images/default.png' }}" class="product-img">
+
+                <div class="details">
+                    <h3>{{ p.name }}</h3>
+                    <p class="price">₹{{ p.price }}</p>
+                    <div class="qty-box">
+    <button class="qty-btn minus" data-id="{{ p.id }}">−</button>
+    <span class="qty-number" id="qty-{{ p.id }}">{{ p.quantity }}</span>
+    <button class="qty-btn plus" data-id="{{ p.id }}">+</button>
+</div>
+<!-- CHECKOUT MODAL -->
+<div id="checkoutModal" class="checkout-modal">
+
+    <div class="checkout-content">
+
+        <h2>Select Delivery Address</h2>
+
+        <div id="addressList"></div>
+
+        <button onclick="showAddressForm()">+ Add New Address</button>
+
+        <!-- ADDRESS FORM -->
+        <div id="addressForm" style="display:none;">
+            <input placeholder="Full Name" id="full_name">
+            <input placeholder="Phone" id="phone">
+            <input placeholder="Address" id="address_line">
+            <input placeholder="City" id="city">
+            <input placeholder="State" id="state">
+            <input placeholder="Pincode" id="pincode">
+
+            <button onclick="saveAddress()">Save Address</button>
+        </div>
+
+        <hr>
+
+        <h2>Payment Method</h2>
+
+        <div class="payment-options">
+            <label><input type="radio" name="payment" value="cod" checked> Cash on Delivery</label>
+            <label><input type="radio" name="payment" value="upi"> UPI</label>
+            <label><input type="radio" name="payment" value="card"> Card</label>
+        </div>
+
+        <button class="confirm-btn" onclick="placeOrder()">Confirm Order</button>
+
+    </div>
+</div>
+                    <div class="actions">
+                        <button class="removeBtn" data-id="{{ p.id }}">Remove</button>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- RIGHT: SUMMARY -->
+        <div class="cart-summary">
+
+            <h2>Order Summary</h2>
+
+            <div class="summary-row">
+                <span>Total Items</span>
+                <span>{{ products|length }}</span>
+            </div>
+
+           {% set total = 0 %}
+{% for p in products %}
+    {% set total = total + (p.price * p.quantity) %}
+{% endfor %}
+
+<div class="summary-row total">
+    <span>Total Price</span>
+    <span>₹{{ total }}</span>
+</div>
+
+<p class="subtotal">
+    Subtotal: ₹{{ total }}
+</p>
+
+                </span>
+            </div>
+
+            <button class="checkout-btn" onclick="openCheckout()">Buy Now</button>
+        </div>
+
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- JS -->
+ <script>
+
+let selectedAddress = null;
+
+// OPEN CHECKOUT
+function openCheckout(){
+    document.getElementById("checkoutModal").style.display = "flex";
+    loadAddresses();
+}
+
+// LOAD ADDRESSES
+function loadAddresses(){
+    fetch('/get_addresses')
+    .then(res=>res.json())
+    .then(data=>{
+        let html = "";
+
+        if(data.length === 0){
+            html = "<p>No address found. Please add one.</p>";
+        } else {
+            data.forEach((a, i)=>{
+                html += `
+                <div class="address-card" onclick="selectAddress(${i})">
+                    <p><b>${a.full_name}</b></p>
+                    <p>${a.city} - ${a.pincode}</p>
+                </div>`;
+            });
+        }
+
+        document.getElementById("addressList").innerHTML = html;
+    });
+}
+
+// SELECT ADDRESS
+function selectAddress(index){
+    selectedAddress = index;
+    alert("Address selected");
+}
+
+// SHOW FORM
+function showAddressForm(){
+    document.getElementById("addressForm").style.display = "block";
+}
+
+// SAVE ADDRESS
+function saveAddress(){
+    fetch('/add_address',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            full_name: document.getElementById("full_name").value,
+            phone: document.getElementById("phone").value,
+            address_line: document.getElementById("address_line").value,
+            city: document.getElementById("city").value,
+            state: document.getElementById("state").value,
+            pincode: document.getElementById("pincode").value
+        })
+    })
+    .then(res=>res.json())
+    .then(d=>{
+        alert(d.message);
+        loadAddresses();
+    });
+}
+
+// PLACE ORDER
+function placeOrder(){
+
+    if(selectedAddress === null){
+        alert("Please select address!");
+        return;
+    }
+
+    fetch('/checkout',{method:'POST'})
+    .then(res=>res.json())
+    .then(d=>{
+        alert(d.message);
+        location.reload();
+    });
+}
+
+</script>
+<script>
+
+// CHECKOUT
+function checkout(){
+    fetch('/checkout',{method:'POST'})
+    .then(res=>res.json())
+    .then(d=>{
+        alert(d.message);
+        location.reload();
+    })
+}
+
+// REMOVE ITEM
+document.querySelectorAll(".removeBtn").forEach(btn=>{
+    btn.addEventListener("click", function(){
+        let id = this.getAttribute("data-id");
+
+        fetch('/remove_cart/' + id)
+        .then(()=> location.reload());
+    });
+});
+
+// ✅ QUANTITY BUTTONS
+document.querySelectorAll(".qty-btn").forEach(btn=>{
+    btn.addEventListener("click", function(){
+
+        let id = this.getAttribute("data-id");
+        let action = this.classList.contains("plus") ? "plus" : "minus";
+
+        fetch(`/update_quantity/${id}/${action}`)
+        .then(res => res.json())
+        .then(data => {
+
+            if(data.status === "ok"){
+
+                // update quantity UI
+                if(data.quantity <= 0){
+                    location.reload();
+                    return;
+                }
+
+                document.getElementById("qty-"+id).innerText = data.quantity;
+
+                // update navbar cart count
+                document.getElementById("cartCount").innerText = data.cart_count;
+
+                // reload total (simple way)
+                location.reload(); 
+            }
+        });
+
+    });
+});
+
+</script>
+
+<!-- PREMIUM CSS -->
+<style>
+
+.checkout-modal {
+    display: none;
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+}
+
+.checkout-content {
+    background: white;
+    padding: 30px;
+    width: 400px;
+    border-radius: 12px;
+}
+
+.address-card {
+    border:1px solid #eee;
+    padding:10px;
+    margin:10px 0;
+    cursor:pointer;
+}
+
+.address-card:hover {
+    background:#f5f5f5;
+}
+
+.confirm-btn {
+    width:100%;
+    padding:12px;
+    background:#00bcd4;
+    color:white;
+    border:none;
+    border-radius:8px;
+}
+.qty-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.qty-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: #00bcd4;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.2s;
+}
+
+.qty-btn:hover {
+    background: #0097a7;
+}
+
+.qty-number {
+    font-weight: bold;
+    font-size: 16px;
+    min-width: 20px;
+    text-align: center;
+}
+
+body
+{ font-family: 'Cormorant Garamond', serif;}
+.cart-container {
+    padding: 40px;
+    background: #f5f7fa;
+    min-height: 80vh;
+}
+
+.title {
+    margin-bottom: 30px;
+    font-size: 28px;
+}
+
+/* GRID */
+.cart-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+}
+
+/* CART ITEMS */
+.cart-card {
+    display: flex;
+    gap: 20px;
+    background: white;
+    padding: 20px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    transition: 0.3s;
+}
+
+.cart-card:hover {
+    transform: translateY(-3px);
+}
+
+.product-img {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #f1f1f1;
+}
+
+/* DETAILS */
+.details h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.price {
+    color: #B12704;
+    font-weight: bold;
+    margin: 8px 0;
+}
+
+.qty {
+    color: #555;
+    font-size: 14px;
+}
+
+/* BUTTONS */
+.actions {
+    margin-top: 10px;
+}
+
+.removeBtn {
+    background: #eee;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.removeBtn:hover {
+    background: #ddd;
+}
+
+/* SUMMARY */
+.cart-summary {
+    background: white;
+    padding: 25px;
+    border-radius: 14px;
+    height: fit-content;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 15px 0;
+    font-size: 16px;
+}
+
+.total {
+    font-size: 18px;
+    font-weight: bold;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+/* CHECKOUT */
+.checkout-btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    background: #00bcd4;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.checkout-btn:hover {
+    background: #0097a7;
+}
+
+/* EMPTY */
+.empty {
+    text-align: center;
+    margin-top: 100px;
+}
+
+.shop-btn {
+    display: inline-block;
+    margin-top: 20px;
+    background: #00bcd4;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+}
+
+/* RESPONSIVE */
+@media(max-width: 768px){
+    .cart-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+</style>
+
+{% endblock %}

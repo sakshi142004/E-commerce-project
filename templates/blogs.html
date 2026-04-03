@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+body
+{
+ font-family: 'Cormorant Garamond', serif;
+}
+.blogs-container {
+    padding: 50px;
+    background: #f4f6f9;
+}
+
+.blog-title {
+    font-size: 32px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.blog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
+    gap: 30px;
+}
+
+.blog-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: 0.35s ease;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+}
+
+.blog-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.blog-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.blog-content {
+    padding: 20px;
+}
+
+.blog-content h3 {
+    margin: 10px 0;
+    font-size: 20px;
+}
+
+.blog-content p {
+    color: #777;
+    font-size: 14px;
+}
+
+.read-more {
+    margin-top: 10px;
+    display: inline-block;
+    color: #00bcd4;
+    font-weight: bold;
+    font-size: 14px;
+}
+</style>
+
+<div class="blogs-container">
+
+    <h1 class="blog-title">Latest Articles</h1>
+
+    <div class="blog-grid">
+        {% for b in blogs %}
+        <div class="blog-card" onclick="window.location='/blog/{{ b.slug }}'">
+
+            <img src="{{ b.image or '/static/images/default.png' }}">
+
+            <div class="blog-content">
+                <p>{{ b.author }} • {{ b.created_at.strftime('%d %b %Y') }}</p>
+                <h3>{{ b.title }}</h3>
+
+                <span class="read-more">Read More →</span>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,642 @@
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+   
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Cormorant Garamond', serif;
+    
+}
+
+    /* 🔝 NAVBAR */
+    .navbar {
+    height: 80px; /* FIX HEIGHT */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px; /* remove vertical padding */
+    background: linear-gradient(90deg,#021f24, #03363d);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+}
+
+    .nav-left, .nav-center, .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+    }
+
+    /* 🔥 LOGO */
+    .logo {
+    height: 80px;
+    display: flex;
+    align-items: center;
+}
+
+.logo img {
+    max-height: 80px; /* fits inside navbar */
+    width: auto;
+    object-fit: contain;
+}
+
+    /* NAV LINKS */
+    .nav-center a {
+        color: #e0f7fa;
+        text-decoration: none;
+        font-size: 16px;
+        transition: 0.3s;
+        font-size: 16px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .nav-center a:hover {
+        color: #00e5ff;
+    }
+
+    /* SEARCH */
+    .search-bar input {
+        background: #0a2e33;
+        color: white;
+        padding: 7px 12px;
+        border-radius: 20px;
+        border: 1px  solid #00bcd4;
+        outline: none;
+        width: 180px;
+    }
+
+    /* ICONS */
+    .icon-box {
+        position: relative;
+        cursor: pointer;
+        font-size: 20px;
+    }
+
+    /* 🔴 BADGE */
+    .badge {
+        position: absolute;
+        top: -8px;
+        right: -10px;
+        background: red;
+        color: white;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 50%;
+    }
+
+    /* 👤 AVATAR */
+    .avatar {
+        background:#00bcd4;
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .username {
+        font-size: 14px;
+    }
+
+    /* 🔻 FOOTER */
+    .footer {
+        background: #111;
+        color: white;
+        padding: 40px;
+        display: flex;
+        justify-content: space-around;
+        margin-top: 40px;
+    }
+
+    .footer h3 {
+        margin-bottom: 10px;
+    }
+
+    .footer p {
+        margin: 5px 0;
+        color: #ccc;
+    }
+/* 🔍 PREMIUM SEARCH DROPDOWN */
+.search-dropdown {
+    position: absolute;
+    top: 40px;
+    width: 300px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    max-height: 350px;
+    overflow-y: auto;
+    display: none;
+    z-index: 9999;
+}
+
+.search-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: 0.2s;
+}
+
+.search-item:hover {
+    background: #f5f5f5;
+}
+
+.search-item img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.search-item div {
+    font-size: 14px;
+    color: black;
+}
+    </style>
+
+</head>
+
+<body>
+
+
+
+   
+<div id="blurBg"></div>
+
+<div class="popup" id="popup">
+
+    <span id="closeBtn">&times;</span>
+
+    <h2>Welcome</h2>
+
+    <input type="text" id="name" placeholder="Name (Register)">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+
+    <button onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+
+</div>
+
+
+
+
+<header class="navbar">
+
+   
+    <div class="nav-left">
+        <div class="logo">
+            <a href="/">
+                <img src="/static/images/Belt-Purse_logo-01.png" alt="Logo">
+            </a>
+        </div>
+    </div>
+
+   
+    <div class="nav-center">
+        <a href="/">Home</a>
+        <a href="/blogs">Blogs</a>
+        <a href="#about">About Us</a>
+        <a href="#contact">Contact</a>
+    </div>
+
+   
+    <div class="nav-right">
+
+<div class="search-bar" style="position:relative;">
+
+    <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="Search products..."
+        autocomplete="off"
+    >
+
+   
+    <div id="searchDropdown" class="search-dropdown"></div>
+
+</div>
+       
+        <div class="icon-box" onclick="window.location='/wishlist'">
+            <i class="fa-solid fa-heart"></i>
+            <span class="badge" id="wishlistCount">{{ wishlist_count }}</span>
+        </div>
+
+        <div class="icon-box" onclick="window.location='/cart'">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span class="badge" id="cartCount">{{ cart_count }}</span>
+        </div>
+
+       
+        <a href="/account" style="color:white;">My Account</a>
+
+        
+        {% if user %}
+            <div class="avatar">{{ user[0] }}</div>
+            <span class="username">{{ user }}</span>
+        {% else %}
+           <a href="#" id="loginBtn" style="color:white;">Login</a>
+        {% endif %}
+
+    </div>
+
+</header>
+
+
+
+
+
+<footer class="footer">
+
+    <div>
+        <h3>BELT STORE</h3>
+        <p>Premium fashion belts for every style.</p>
+    </div>
+
+    <div>
+        <h3>Quick Links</h3>
+        <p><a href="/">Home</a></p>
+        <p><a href="/blogs">Blogs</a></p>
+        <p><a href="#about">About Us</a></p>
+        <p><a href="#contact">Contact</a></p>
+    </div>
+
+    <div>
+        <h3>Support</h3>
+        <p><a href="#faq">FAQs</a></p>
+       <p><a href="/shipping-policy">Shipping Policy</a></p>
+<p><a href="/return-policy">Return Policy</a></p>
+<p><a href="/privacy-policy">Privacy Policy</a></p>
+<p><a href="/terms">Terms & Conditions</a></p>
+    </div>
+
+    <div>
+        <h3>Contact</h3>
+        <p>support@beltstore.com</p>
+        <p>+91 9876xxxx</p>
+    </div>
+
+</footer>
+
+</body>
+<script src="/static/js/script.js"></script>
+</html>
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{% block title %}Belt Store{% endblock %}</title>
+
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Cormorant Garamond', serif;
+    
+}
+/* 🔥 PREMIUM ICON STYLE */
+.premium-icon {
+    position: relative;
+    font-size: 18px;
+    color: white;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.premium-icon:hover {
+    transform: translateY(-2px) scale(1.1);
+    background: rgba(0,188,212,0.2);
+}
+
+/* 🔴 BADGE FIXED */
+.badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: linear-gradient(135deg,#ff416c,#ff4b2b);
+    color: white;
+    font-size: 11px;
+    padding: 3px 7px;
+    border-radius: 50%;
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(255,0,0,0.5);
+}
+
+/* 👤 PREMIUM AVATAR */
+.premium-avatar {
+    background: linear-gradient(135deg,#00bcd4,#00e5ff);
+    box-shadow: 0 0 10px rgba(0,188,212,0.5);
+}
+
+/* ACCOUNT LINK */
+.account-link {
+    color: white;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+.account-link:hover {
+    color: #00e5ff;
+}
+    /* 🔝 NAVBAR */
+    .navbar {
+    height: 80px; /* FIX HEIGHT */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px; /* remove vertical padding */
+    background: linear-gradient(90deg,#021f24, #03363d);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+}
+
+    .nav-left, .nav-center, .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+    }
+
+    /* 🔥 LOGO */
+    .logo {
+    height: 80px;
+    display: flex;
+    align-items: center;
+}
+
+.logo img {
+    max-height: 80px; /* fits inside navbar */
+    width: auto;
+    object-fit: contain;
+}
+
+    /* NAV LINKS */
+    .nav-center a {
+        color: #e0f7fa;
+        text-decoration: none;
+        font-size: 16px;
+        transition: 0.3s;
+        font-size: 16px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .nav-center a:hover {
+        color: #00e5ff;
+    }
+
+    /* SEARCH */
+    .search-bar input {
+        background: #0a2e33;
+        color: white;
+        padding: 7px 12px;
+        border-radius: 20px;
+        border: 1px  solid #00bcd4;
+        outline: none;
+        width: 180px;
+    }
+
+    /* ICONS */
+    .icon-box {
+        position: relative;
+        cursor: pointer;
+        font-size: 20px;
+    }
+
+    /* 🔴 BADGE */
+    .badge {
+        position: absolute;
+        top: -8px;
+        right: -10px;
+        background: red;
+        color: white;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 50%;
+    }
+
+    /* 👤 AVATAR */
+    .avatar {
+        background:#00bcd4;
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .username {
+        font-size: 14px;
+    }
+
+    /* 🔻 FOOTER */
+    .footer {
+        background: #111;
+        color: white;
+        padding: 40px;
+        display: flex;
+        justify-content: space-around;
+        margin-top: 40px;
+    }
+
+    .footer h3 {
+        margin-bottom: 10px;
+    }
+
+    .footer p {
+        margin: 5px 0;
+        color: #ccc;
+    }
+/* 🔍 PREMIUM SEARCH DROPDOWN */
+.search-dropdown {
+    position: absolute;
+    top: 40px;
+    width: 300px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    max-height: 350px;
+    overflow-y: auto;
+    display: none;
+    z-index: 9999;
+}
+
+.search-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: 0.2s;
+}
+
+.search-item:hover {
+    background: #f5f5f5;
+}
+
+.search-item img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.search-item div {
+    font-size: 14px;
+    color: black;
+}
+    </style>
+
+</head>
+
+<body>
+
+
+
+   
+<div id="blurBg"></div>
+
+<div class="popup" id="popup">
+
+    <span id="closeBtn">&times;</span>
+
+    <h2>Welcome</h2>
+
+    <input type="text" id="name" placeholder="Name (Register)">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+
+    <button onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+
+</div>
+
+
+
+
+<header class="navbar">
+
+    <!-- LEFT: LOGO -->
+    <div class="nav-left">
+        <div class="logo">
+            <a href="/">
+                <img src="/static/images/Belt-Purse_logo-01.png" alt="Logo">
+            </a>
+        </div>
+    </div>
+
+    <!-- CENTER: LINKS -->
+    <div class="nav-center">
+        <a href="/">Home</a>
+        <a href="/blogs">Blogs</a>
+        <a href="#about">About Us</a>
+        <a href="#contact">Contact</a>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="nav-right">
+
+        <!-- 🔍 SEARCH -->
+        <div class="search-bar" style="position:relative;">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search products..."
+                autocomplete="off"
+            >
+            <div id="searchDropdown" class="search-dropdown"></div>
+        </div>
+
+        <!-- ❤️ WISHLIST -->
+        <div class="icon-box premium-icon" onclick="window.location='/wishlist'">
+            <i class="fa-solid fa-heart"></i>
+            <span class="badge" id="wishlistCount">{{ cart_count }}</span>
+        </div>
+
+        <!-- 🛒 CART -->
+        <div class="icon-box premium-icon" onclick="window.location='/cart'">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span class="badge" id="cartCount">{{ cart_count }}</span>
+        </div>
+
+        <!-- ACCOUNT -->
+        <a href="/account" class="account-link">My Account</a>
+
+        <!-- USER -->
+        {% if user %}
+            <div class="avatar premium-avatar">{{ user[0] }}</div>
+            <span class="username">{{ user }}</span>
+        {% else %}
+           <a href="#" id="loginBtn" class="account-link">Login</a>
+        {% endif %}
+
+    </div>
+
+</header>
+
+
+{% block content %}{% endblock %}
+
+
+<footer class="footer">
+
+    <div>
+        <h3>BELT STORE</h3>
+        <p>Premium fashion belts for every style.</p>
+    </div>
+
+    <div>
+        <h3>Quick Links</h3>
+        <p><a href="/">Home</a></p>
+        <p><a href="/blogs">Blogs</a></p>
+        <p><a href="#about">About Us</a></p>
+        <p><a href="#contact">Contact</a></p>
+    </div>
+
+    <div>
+        <h3>Support</h3>
+        <p><a href="#faq">FAQs</a></p>
+       <p><a href="/shipping-policy">Shipping Policy</a></p>
+<p><a href="/return-policy">Return Policy</a></p>
+<p><a href="/privacy-policy">Privacy Policy</a></p>
+<p><a href="/terms">Terms & Conditions</a></p>
+    </div>
+
+    <div>
+        <h3>Contact</h3>
+        <p>support@beltstore.com</p>
+        <p>+91 9876xxxx</p>
+    </div>
+
+</footer>
+
+</body>
+<script src="/static/js/script.js"></script>
+</html>
+

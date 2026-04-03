@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ product.name }}</title>
+
+<link rel="stylesheet" href="/static/css/style.css">
+
+<style>
+body {
+     font-family: 'Cormorant Garamond', serif;
+    margin: 0;
+    background: #f5f5f5;
+}
+
+.container {
+    display: flex;
+    padding: 30px;
+    background: white;
+}
+
+.left {
+    width: 50%;
+}
+
+.right {
+    width: 50%;
+    padding: 20px;
+}
+
+.slider img {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+}
+
+.small-images img {
+    width: 70px;
+    margin: 5px;
+    cursor: pointer;
+    border: 2px solid #ddd;
+}
+
+button {
+    padding: 12px 20px;
+    margin: 10px 0;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.cart-btn {
+    background: orange;
+}
+
+.wishlist-btn {
+    background: red;
+    color: white;
+}
+
+.reviews, .related {
+    margin: 30px;
+    background: white;
+    padding: 20px;
+}
+
+.related-items {
+    display: flex;
+    gap: 20px;
+}
+
+.related-items div {
+    background: #fafafa;
+    padding: 10px;
+    width: 200px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- PRODUCT SECTION -->
+<div class="container">
+
+    <!-- LEFT: IMAGE SLIDER -->
+    <div class="left">
+        <div class="slider">
+            <img id="mainImage" src="{{ images[0].image_url if images else '' }}">
+        </div>
+
+        <div class="small-images">
+            {% for img in images %}
+                <img src="{{ img.image_url }}" onclick="changeImage(this.src)">
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- RIGHT: DETAILS -->
+    <div class="right">
+
+        <h1>{{ product.name }}</h1>
+
+        <h2>₹{{ product.price }}</h2>
+        <p><b>{{ product.offer }}</b></p>
+
+        <p>{{ product.description }}</p>
+
+        <p><b>Material:</b> {{ product.material }}</p>
+        <p><b>Guarantee:</b> {{ product.guarantee }}</p>
+
+        <!-- BUTTONS -->
+        <button class="cart-btn" onclick="addToCart()">🛒 Add to Cart</button>
+        <button class="wishlist-btn" onclick="addToWishlist()">❤️ Wishlist</button>
+
+        <p>Cart Count: <span id="cartCount">0</span></p>
+        <p>Wishlist Count: <span id="wishlistCount">0</span></p>
+
+    </div>
+</div>
+
+<!-- REVIEWS -->
+<div class="reviews">
+    <h2>Customer Reviews</h2>
+
+    <p>⭐⭐⭐⭐☆ - "Very good quality!"</p>
+    <p>⭐⭐⭐⭐⭐ - "Loved it, worth money!"</p>
+    <p>⭐⭐⭐☆☆ - "Average product"</p>
+
+    <textarea placeholder="Write your review"></textarea>
+    <button>Submit Review</button>
+</div>
+
+<!-- RELATED PRODUCTS -->
+<div class="related">
+    <h2>Related Products</h2>
+
+    <div class="related-items">
+        {% for p in related_products %}
+        <div>
+            <img src="{{ p.image }}" width="100%">
+            <h4>{{ p.name }}</h4>
+            <p>₹{{ p.price }}</p>
+            <a href="/product/{{ p.id }}">View</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+
+function changeImage(src) {
+    document.getElementById("mainImage").src = src;
+}
+
+// ADD TO CART
+function addToCart() {
+    fetch('/add_to_cart/{{ product.id }}')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("cartCount").innerText = data.count;
+    });
+}
+
+function addToWishlist() {
+    fetch('/add_to_wishlist/{{ product.id }}')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("wishlistCount").innerText = data.count;
+    });
+}
+
+</script>
+
+</body>
+</html>

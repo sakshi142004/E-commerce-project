@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+
+body
+{
+     font-family: 'Cormorant Garamond', serif;
+}
+.products-page {
+    padding: 40px;
+    background: #f8f9fc;
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 25px;
+}
+
+.product-card {
+    background: #fff;
+    border-radius: 15px;
+    padding: 15px;
+    transition: 0.3s;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    position: relative;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.product-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.product-info {
+    margin-top: 10px;
+}
+
+.product-info h4 {
+    font-size: 16px;
+    margin: 5px 0;
+}
+
+.product-info p {
+    font-size: 14px;
+    color: #555;
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.icon-btn {
+    border: none;
+    background: #f1f1f1;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.icon-btn:hover {
+    background: black;
+    color: white;
+}
+</style>
+
+<div class="products-page">
+
+    <h2>All Products</h2>
+
+    <div id="allProducts" class="products-grid"></div>
+
+</div>
+
+<script>
+function loadAllProducts() {
+    fetch("/products")
+    .then(res => res.json())
+    .then(data => {
+
+        const container = document.getElementById("allProducts");
+        container.innerHTML = "";
+
+        data.forEach(product => {
+
+            const image = product.images.length > 0 
+                ? product.images[0] 
+                : "/static/images/default.png";
+
+            const div = document.createElement("div");
+            div.className = "product-card";
+
+            div.innerHTML = `
+                <img src="${image}">
+                
+                <div class="product-info">
+                    <h4>${product.name}</h4>
+                    <p>₹${product.price}</p>
+                </div>
+
+                <div class="actions">
+                    <button class="icon-btn" onclick="event.stopPropagation(); addToCart(${product.id})">🛒</button>
+                    <button class="icon-btn" onclick="event.stopPropagation(); addToWishlist(${product.id})">❤️</button>
+                </div>
+            `;
+
+            // 👉 OPEN PRODUCT PAGE
+            div.onclick = () => {
+                window.location.href = "/product/" + product.id;
+            };
+
+            container.appendChild(div);
+        });
+
+    });
+}
+
+// ADD TO CART
+function addToCart(id) {
+    fetch('/add_to_cart/' + id)
+    .then(res => res.json())
+    .then(data => {
+        alert("Added to cart");
+    });
+}
+
+// WISHLIST
+function addToWishlist(id) {
+    fetch('/add_to_wishlist/' + id)
+    .then(res => res.json())
+    .then(data => {
+        alert("Added to wishlist");
+    });
+}
+
+document.addEventListener("DOMContentLoaded", loadAllProducts);
+</script>
+
+{% endblock %}
