@@ -1,7 +1,7 @@
-import sqlite3
+
 from flask_mail import Mail, Message
 from flask import Flask, render_template, request, jsonify, session, redirect
-from pymysql import connect
+
 from sqlalchemy import text
 from models import Address, Blog, Order, OrderItem, Subscriber, db, User, Product, ProductImage, ProductVideo, ProductTag
 from config import Config
@@ -81,7 +81,7 @@ def home():
 
                 message = "Subscribed + Email sent 🎉"
 
-            except sqlite3.IntegrityError:
+            except Exception:
                 message = "Email already registered!"
 
     return render_template("coming_soon.html", message=message)
