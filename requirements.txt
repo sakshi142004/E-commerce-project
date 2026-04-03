@@ -1,8 +1,7 @@
 Flask==2.3.3
 Flask-Mail==0.9.1
 Flask-SQLAlchemy==3.1.1
-pymysql
+pymysql==1.1.2
 SQLAlchemy==2.0.25
 gunicorn==21.2.0
 Werkzeug==3.0.1
-python-3.11.9
