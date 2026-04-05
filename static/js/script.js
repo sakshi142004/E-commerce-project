@@ -15,12 +15,19 @@ window.onload = function () {
 
     function closePopup() {
         if (popup && blurBg) {
-            popup.classList.add("show");
+            popup.classList.remove("show");
             blurBg.style.display = "none";
             document.body.style.overflow="";
         }
     }
+ // ✅ AUTO POPUP AFTER 3 SEC (ONLY IF NOT LOGGED IN)
+    const isLoggedIn = document.querySelector(".avatar") !== null;
 
+    if (!isLoggedIn) {
+        setTimeout(() => {
+            openPopup();
+        }, 3000);
+    }
     // AUTO SHOW AFTER 3s (ONLY IF USER NOT LOGGED IN)
     if (loginBtn) {
         loginBtn.addEventListener("click", function(e) {
@@ -32,14 +39,7 @@ window.onload = function () {
     setTimeout(openPopup, 3000);
 }
 
-    // ✅ AUTO POPUP AFTER 3 SEC (ONLY IF NOT LOGGED IN)
-    const isLoggedIn = document.querySelector(".avatar") !== null;
-
-    if (!isLoggedIn) {
-        setTimeout(() => {
-            openPopup();
-        }, 3000);
-    }
+   
 
     // CLOSE BUTTON
     const closeBtn = document.getElementById("closeBtn");
@@ -48,6 +48,17 @@ window.onload = function () {
     // LOAD PRODUCTS
     loadProducts();
 };
+
+function handleAccountClick(e) {
+    const isLoggedIn = document.querySelector(".avatar") !== null;
+
+    if (!isLoggedIn) {
+        e.preventDefault();
+        openPopup();
+    } else {
+        window.location.href = "/account";
+    }
+}
 
 
 
@@ -135,6 +146,13 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 // ADD TO CART
 function addToCart(productId) {
+    const isLoggedIn = document.querySelector(".avatar") !== null;
+
+    if (!isLoggedIn) {
+        openPopup();
+        return;
+    }
+
     fetch(`/add_to_cart/${productId}`)
     .then(res => res.json())
     .then(data => {
@@ -144,6 +162,13 @@ function addToCart(productId) {
 
 // ADD TO WISHLIST
 function addToWishlist(productId) {
+    const isLoggedIn = document.querySelector(".avatar") !== null;
+
+    if (!isLoggedIn) {
+        openPopup();
+        return;
+    }
+
     fetch(`/add_to_wishlist/${productId}`)
     .then(res => res.json())
     .then(data => {
@@ -279,5 +304,20 @@ document.addEventListener("DOMContentLoaded", () => {
         item.addEventListener("click", () => {
             item.classList.toggle("active");
         });
+    });
+});
+
+// 🧲 MAGNETIC ICON EFFECT
+document.querySelectorAll(".premium-icon").forEach(icon => {
+    icon.addEventListener("mousemove", e => {
+        const rect = icon.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+
+        icon.style.transform = `translate(${x*0.2}px, ${y*0.2}px) scale(1.15)`;
+    });
+
+    icon.addEventListener("mouseleave", () => {
+        icon.style.transform = "translate(0,0) scale(1)";
     });
 });

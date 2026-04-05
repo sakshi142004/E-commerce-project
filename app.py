@@ -1,96 +1,98 @@
-
-from flask_mail import Mail, Message
-from flask import Flask, render_template, request, jsonify, session, redirect
-
+from flask import Flask, render_template, request, jsonify, session, redirect, abort
 from sqlalchemy import text
-from models import Address, Blog, Order, OrderItem, Subscriber, db, User, Product, ProductImage, ProductVideo, ProductTag
+from models import Address, Blog, Order, OrderItem, db, User, Product, ProductImage, ProductVideo, ProductTag
 from config import Config
+from flask_login import LoginManager, login_user, current_user
+from functools import wraps
 
-app = Flask(__name__)
+app = Flask(__name__)   # ✅ FIRST create app
 app.config.from_object(Config)
 
-app.secret_key = "your_secret_key"
-mail = Mail(app)
 db.init_app(app)
+
+# ✅ Login Manager AFTER app
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
 
 with app.app_context():
     db.create_all()
 
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+
+        # ✅ session based check (tumhara system safe rahe)
+        email = session.get("email")
+
+        if not email:
+            abort(404)
+
+        user = User.query.filter_by(email=email).first()
+
+        if not user or not user.is_admin:
+            abort(404)
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+@app.route("/admin-login", methods=["GET", "POST"])
+def admin_login():
+
+    if request.method == "POST":
+        data = request.get_json()
+
+        user = User.query.filter_by(email=data.get("email")).first()
+
+        from werkzeug.security import check_password_hash
+
+        if user and check_password_hash(user.password, data.get("password")) and user.is_admin:
+            session['admin'] = True   # ✅ admin session
+            session['email'] = user.email
+
+            return jsonify({"message": "Admin login success"})
+
+        return jsonify({"message": "Invalid admin credentials"}), 401
+
+    return render_template("admin/login.html")
+
+
+@app.route("/secure-admin-portal-9821")
+@admin_required
+def admin_dashboard():
+    return render_template("admin/dashboard.html")
+
+
+@app.route("/admin-logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect("/")
 # ================= HOME =================
-SHOW_COMING_SOON = True
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    message = ""
 
-    if request.method == "POST":
-        email = request.form.get("email")
+    user_data = None
 
-        if email:
-            try:
-                subscriber = Subscriber(email=email)
-                db.session.add(subscriber)
-                db.session.commit()
-                
+    # ✅ check if user logged in
+    if 'user' in session:
+        user_data = {
+            "username": session.get('user'),
+            "email": session.get('email')
+        }
 
-                # 📧 SEND EMAIL
-                msg = Message(
-                    subject="You're on the list 🎉",
-                    sender=app.config["MAIL_USERNAME"],
-                    recipients=[email]
-                )
-
-                msg.html = f"""
-<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#0f0f0f;font-family:Poppins,Arial;">
-
-<div style="max-width:600px;margin:auto;background:#1a1a1a;padding:40px;text-align:center;color:#fff;border-radius:10px;">
-
-    <img src="https://belt-parse.com/static/images/Belt-Purse_logo-01.png" width="150" style="margin-bottom:20px;">
-
-    <h2 style="letter-spacing:2px;">WELCOME TO BELTPURSE</h2>
-
-    <p style="color:#ccc;font-size:14px;">
-        Thank you for subscribing. You're now on our exclusive launch list.
-    </p>
-
-    <div style="margin:25px 0;padding:15px;background:#000;border-radius:8px;">
-        <p style="color:#d4af37;font-size:18px;margin:0;">
-            Luxury is arriving soon ✨
-        </p>
-    </div>
-
-    <p style="font-size:13px;color:#aaa;">
-        We'll notify you when we go live.
-    </p>
-
-    <hr style="border:none;border-top:1px solid #333;margin:30px 0;">
-
-    <p style="font-size:12px;color:#777;">
-        © 2026 BeltPurse. All rights reserved.
-    </p>
-
-</div>
-
-</body>
-</html>
-"""
-
-                mail.send(msg)
-
-                message = "Subscribed + Email sent 🎉"
-
-            except Exception:
-                message = "Email already registered!"
-
-    return render_template("coming_soon.html", message=message)
+    return render_template("index.html", user=user_data)
 
 
-# 🔥 ADD THIS ROUTE (IMPORTANT)
-@app.route("/preview")
-def preview():
-    return render_template("index.html")
+    
 # ================= REGISTER =================
 from werkzeug.security import generate_password_hash
 
@@ -233,19 +235,26 @@ def products_page():
 def inject_counts():
     if 'email' in session:
         user = User.query.filter_by(email=session['email']).first()
+        if user:
+            cart_count = db.session.execute(text("""
+                SELECT SUM(quantity) FROM cart WHERE user_id=:uid
+            """), {"uid": user.id}).scalar() or 0
 
-        cart_count = db.session.execute(text("""
-            SELECT SUM(quantity) FROM cart WHERE user_id=:uid
-        """), {"uid": user.id}).scalar() or 0
+            wishlist_count = db.session.execute(text("""
+                SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
+            """), {"uid": user.id}).scalar() or 0
 
-        wishlist_count = db.session.execute(text("""
-            SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
-        """), {"uid": user.id}).scalar() or 0
+            # ✅ FIX: object bhej, string nahi
+            return dict(
+                cart_count=cart_count,
+                wishlist_count=wishlist_count,
+                user={
+                    "username": user.username,
+                    "email": user.email
+                }
+            )
 
-        return dict(cart_count=cart_count, wishlist_count=wishlist_count)
-
-    return dict(cart_count=0, wishlist_count=0)
-
+    return dict(cart_count=0, wishlist_count=0, user=None)
 # ================= CART =================
 
 
@@ -258,18 +267,45 @@ def cart_page():
 
     items = db.session.execute(text("""
     SELECT 
-        p.*, 
+        p.id,
+        p.name,
+        p.price,
         (SELECT image_url 
          FROM product_images 
          WHERE product_id = p.id 
          LIMIT 1) AS image_url,
         c.quantity
-        FROM cart c
-        JOIN products p ON c.product_id = p.id
-        WHERE c.user_id = :uid
-        """), {"uid": user.id}).fetchall()
-    
-    return render_template("cart.html", products=items)
+    FROM cart c
+    JOIN products p ON c.product_id = p.id
+    WHERE c.user_id = :uid
+    """), {"uid": user.id}).fetchall()
+
+    # 🔥 FIX: force int conversion
+    total = 0
+    total_items = 0
+
+    clean_items = []
+    for p in items:
+        price = int(p.price) if p.price else 0
+        qty = int(p.quantity) if p.quantity else 0
+
+        total += price * qty
+        total_items += qty
+
+        clean_items.append({
+            "id": p.id,
+            "name": p.name,
+            "price": price,
+            "quantity": qty,
+            "image_url": p.image_url
+        })
+
+    return render_template(
+        "cart.html",
+        products=clean_items,
+        total=total,
+        total_items=total_items
+    )
 
 @app.route('/remove_cart/<int:id>')
 def remove_cart(id):
@@ -285,6 +321,31 @@ def remove_cart(id):
 
     return "Removed"
 
+
+@app.route('/decrease_cart/<int:id>')
+def decrease_cart(id):
+    if 'email' not in session:
+        return "Unauthorized", 401
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    item = db.session.execute(text("""
+        SELECT quantity FROM cart WHERE user_id=:uid AND product_id=:pid
+    """), {"uid": user.id, "pid": id}).fetchone()
+
+    if item:
+        if item.quantity > 1:
+            db.session.execute(text("""
+                UPDATE cart SET quantity = quantity - 1
+                WHERE user_id=:uid AND product_id=:pid
+            """), {"uid": user.id, "pid": id})
+        else:
+            db.session.execute(text("""
+                DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
+            """), {"uid": user.id, "pid": id})
+
+    db.session.commit()
+    return "Updated"
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'email' not in session:
@@ -589,12 +650,14 @@ def track(tracking):
 # ================= AVATAR =================
 import os
 from werkzeug.utils import secure_filename
+import time
 
 @app.route('/upload_avatar', methods=['POST'])
 def upload_avatar():
     file = request.files['file']
 
-    filename = secure_filename(file.filename)
+    
+    filename = str(int(time.time())) + "_" + secure_filename(file.filename)
     path = os.path.join('static/images', filename)
     file.save(path)
 

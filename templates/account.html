@@ -3,63 +3,73 @@
 
 <div class="account">
 
-```
-<!-- SIDEBAR -->
-<div class="sidebar">
-    <h3>My Account</h3>
-    <p onclick="showSection('profile')">👤 Profile</p>
-    <p onclick="showSection('orders')">📦 Orders</p>
-    <p onclick="showSection('address')">📍 Addresses</p>
-    <p onclick="location='/wishlist'">❤️ Wishlist</p>
-    <p onclick="location='/cart'">🛒 Cart</p>
-    <p onclick="location='/logout'">🚪 Logout</p>
-</div>
-
-<!-- CONTENT -->
-<div class="content">
-
-    <!-- PROFILE -->
-    <div id="profile" class="section">
-        <h2>Profile</h2>
-
-        <img id="preview" src="/static/images/default.png" class="avatar">
-
-        <input id="name" value="{{ user.username }}" placeholder="Name">
-        <input id="email" value="{{ user.email }}" disabled>
-
-        <input type="file" id="avatar">
-        <button onclick="uploadAvatar()">Upload Image</button>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h3>My Account</h3>
+        <p onclick="showSection('profile')">Profile</p>
+        <p onclick="showSection('orders')">Orders</p>
+        <p onclick="showSection('address')">Addresses</p>
+        <p onclick="location='/wishlist'">Wishlist</p>
+        <p onclick="location='/cart'">Cart</p>
+        <p onclick="location='/logout'">Logout</p>
     </div>
 
-    <!-- ORDERS -->
-    <div id="orders" class="section" style="display:none;">
-        <h2>Your Orders</h2>
-        <div id="orderList"></div>
-    </div>
+    <!-- CONTENT -->
+    <div class="content">
 
-    <!-- ADDRESS -->
-    <div id="address" class="section" style="display:none;">
-        <h2>Saved Address</h2>
+        <!-- PROFILE -->
+        <div id="profile" class="section active">
+            <h2>Profile</h2>
 
-        <input id="full_name" placeholder="Full Name">
-        <input id="phone" placeholder="Phone">
-        <input id="city" placeholder="City">
-        <input id="state" placeholder="State">
-        <input id="pincode" placeholder="Pincode">
-        <textarea id="address_line" placeholder="Full Address"></textarea>
+            <div class="apple-card">
 
-        <button onclick="saveAddress()">Save Address</button>
-    </div>
+                <div class="avatar-wrapper">
+    <img 
+        id="preview" 
+        src="{% if user.avatar %}/static/images/{{ user.avatar }}{% else %}/static/images/default.png{% endif %}" 
+        width="120"
+        style="border-radius:50%; object-fit:cover;"
+    >
 
-</div>
-```
-
+    <input type="file" id="avatar" onchange="uploadAvatar()">
+    <div class="online-dot"></div>
 </div>
 
-<!-- JS -->
+<input id="name" value="{{ user.username }}">
+<input id="email" value="{{ user.email }}" disabled>
 
+<button onclick="uploadAvatar()">Update Photo</button>
+
+            </div>
+        </div>
+
+        <!-- ORDERS -->
+        <div id="orders" class="section" style="display:none;">
+            <h2>Your Orders</h2>
+            <div id="orderList"></div>
+        </div>
+
+        <!-- ADDRESS -->
+        <div id="address" class="section" style="display:none;">
+            <h2>Saved Address</h2>
+
+            <div class="apple-card">
+                <input id="full_name" placeholder="Full Name">
+                <input id="phone" placeholder="Phone">
+                <input id="city" placeholder="City">
+                <input id="state" placeholder="State">
+                <input id="pincode" placeholder="Pincode">
+                <textarea id="address_line" placeholder="Full Address"></textarea>
+
+                <button onclick="saveAddress()">Save Address</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- JS SAME -->
 <script>
-
 function showSection(id){
     document.querySelectorAll(".section").forEach(sec=>{
         sec.style.display = "none";
@@ -69,66 +79,68 @@ function showSection(id){
     if(id === "orders") loadOrders();
 }
 
-// PROFILE IMAGE UPLOAD
 function uploadAvatar(){
-    let file = document.getElementById("avatar").files[0];
+    let fileInput = document.getElementById("avatar");
 
-    if(!file){
-        alert("Select image first");
+    if(fileInput.files.length === 0){
+        alert("Select image");
         return;
     }
+
+    let file = fileInput.files[0];
 
     let form = new FormData();
     form.append("file", file);
 
-    fetch('/upload_avatar', {
+    fetch('/upload_avatar',{
         method:'POST',
-        body: form
+        body:form
     })
     .then(res=>res.json())
     .then(d=>{
-        alert(d.message);
+        // ✅ Account preview update
         document.getElementById("preview").src = d.url;
+
+        // ✅ Navbar update
+        let navImg = document.querySelector(".avatar-img");
+        if(navImg){
+            navImg.src = d.url + "?" + new Date().getTime(); // cache break
+        }
+        setTimeout(()=>{
+           location.reload();
+        },300);
+        console.log("Uploaded:", d.url);
     });
 }
 
-// LOAD ORDERS
 function loadOrders(){
     fetch('/get_orders')
     .then(res=>res.json())
     .then(data=>{
-        let html = "";
-
-        if(data.length === 0){
-            html = "<p>No orders yet</p>";
-        } else {
-            data.forEach(o=>{
-                html += `
-                    <div class="order-card">
-                        <p><b>Order ID:</b> ${o.id}</p>
-                        <p><b>Total:</b> ₹${o.total}</p>
-                        <p><b>Status:</b> ${o.status}</p>
-                    </div>
-                `;
-            });
-        }
+        let html = data.length === 0 
+            ? "<p>No orders yet</p>" 
+            : data.map(o=>`
+                <div class="order-card">
+                    <p>Order #${o.id}</p>
+                    <p>₹${o.total}</p>
+                    <span>${o.status}</span>
+                </div>`).join("");
 
         document.getElementById("orderList").innerHTML = html;
     });
 }
 
-// SAVE ADDRESS
 function saveAddress(){
     let data = {
-        full_name: document.getElementById("full_name").value,
-        phone: document.getElementById("phone").value,
-        city: document.getElementById("city").value,
-        state: document.getElementById("state").value,
-        pincode: document.getElementById("pincode").value,
-        address_line: document.getElementById("address_line").value
+        full_name: full_name.value,
+        phone: phone.value,
+        city: city.value,
+        state: state.value,
+        pincode: pincode.value,
+        address_line: address_line.value
     };
 
-    fetch('/add_address', {
+    fetch('/add_address',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(data)
@@ -136,81 +148,135 @@ function saveAddress(){
     .then(res=>res.json())
     .then(d=>alert(d.message));
 }
-
 </script>
 
-<!-- CSS -->
-
+<!-- 🍏 APPLE UI CSS -->
 <style>
-body
-{
 
-     font-family: 'Cormorant Garamond', serif;
+body {
+    background: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
+
+/* LAYOUT */
 .account {
     display: flex;
-    min-height: 80vh;
+    min-height: 90vh;
 }
 
 /* SIDEBAR */
 .sidebar {
     width: 220px;
-    background: #131921;
-    color: white;
-    padding: 20px;
+    padding: 30px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(0,0,0,0.05);
 }
 
 .sidebar h3 {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    font-weight: 600;
 }
 
 .sidebar p {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 8px;
     cursor: pointer;
-    margin: 12px 0;
-    padding: 8px;
-    border-radius: 5px;
+    transition: 0.25s;
 }
 
 .sidebar p:hover {
-    background: #232f3e;
+    background: rgba(0,0,0,0.05);
 }
 
 /* CONTENT */
 .content {
     flex: 1;
+    padding: 50px;
+}
+
+/* 🍏 CARD */
+.apple-card {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(25px);
     padding: 30px;
-}
-
-/* SECTIONS */
-.section input,
-.section textarea {
-    display: block;
-    margin: 10px 0;
-    padding: 8px;
-    width: 300px;
-}
-
-.section button {
-    background: #FFD814;
-    border: none;
-    padding: 8px 12px;
-    cursor: pointer;
+    border-radius: 20px;
+    width: 360px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
 }
 
 /* AVATAR */
-.avatar {
-    width: 100px;
-    height: 100px;
+.avatar-wrapper {
+    position: relative;
+    width: fit-content;
+}
+.avatar-img {
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    margin-bottom: 10px;
+    object-fit: cover;
+    border: 2px solid #00e5ff;
+    box-shadow: 0 0 10px rgba(0,229,255,0.5);
+    cursor: pointer;
+    transition: 0.3s;
 }
 
-/* ORDER CARD */
-.order-card {
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin: 10px 0;
+.avatar-img:hover {
+    transform: scale(1.1);
 }
+
+.profile-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 15px;
+}
+
+/* ONLINE DOT */
+.online-dot {
+    width: 12px;
+    height: 12px;
+    background: #34c759;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 18px;
+    right: 5px;
+    border: 2px solid white;
+}
+
+/* INPUT */
+.section input,
+.section textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 10px;
+    border: none;
+    background: rgba(0,0,0,0.04);
+}
+
+/* BUTTON */
+button {
+    background: black;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+}
+
+/* ORDERS */
+.order-card {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+}
+
 </style>
 
 {% endblock %}

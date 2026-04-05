@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -13,6 +14,8 @@ class User(db.Model):
     avatar = db.Column(db.String(255))
     remember_token = db.Column(db.String(100))
     created_at = db.Column(db.DateTime)
+
+    is_admin = db.Column(db.Boolean, default=False) 
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -102,6 +105,3 @@ class Blog(db.Model):
     is_published = db.Column(db.Boolean, default=True)
 
 
-class Subscriber(db.Model):
-   id = db.Column(db.Integer, primary_key=True)
-   email = db.Column(db.String(120), unique=True, nullable=False)

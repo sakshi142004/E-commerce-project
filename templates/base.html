@@ -1,301 +1,3 @@
-<!--<!DOCTYPE html>
-<html lang="en">
-<head>
-   
-    <link rel="stylesheet" href="/static/css/style.css">
-
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet">
-
-<style>
-body {
-    margin: 0;
-    font-family: 'Cormorant Garamond', serif;
-    
-}
-
-    /* 🔝 NAVBAR */
-    .navbar {
-    height: 80px; /* FIX HEIGHT */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 40px; /* remove vertical padding */
-    background: linear-gradient(90deg,#021f24, #03363d);
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 9999;
-}
-
-    .nav-left, .nav-center, .nav-right {
-        display: flex;
-        align-items: center;
-        gap: 25px;
-    }
-
-    /* 🔥 LOGO */
-    .logo {
-    height: 80px;
-    display: flex;
-    align-items: center;
-}
-
-.logo img {
-    max-height: 80px; /* fits inside navbar */
-    width: auto;
-    object-fit: contain;
-}
-
-    /* NAV LINKS */
-    .nav-center a {
-        color: #e0f7fa;
-        text-decoration: none;
-        font-size: 16px;
-        transition: 0.3s;
-        font-size: 16px;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-
-    .nav-center a:hover {
-        color: #00e5ff;
-    }
-
-    /* SEARCH */
-    .search-bar input {
-        background: #0a2e33;
-        color: white;
-        padding: 7px 12px;
-        border-radius: 20px;
-        border: 1px  solid #00bcd4;
-        outline: none;
-        width: 180px;
-    }
-
-    /* ICONS */
-    .icon-box {
-        position: relative;
-        cursor: pointer;
-        font-size: 20px;
-    }
-
-    /* 🔴 BADGE */
-    .badge {
-        position: absolute;
-        top: -8px;
-        right: -10px;
-        background: red;
-        color: white;
-        font-size: 11px;
-        padding: 2px 6px;
-        border-radius: 50%;
-    }
-
-    /* 👤 AVATAR */
-    .avatar {
-        background:#00bcd4;
-        border-radius: 50%;
-        width: 38px;
-        height: 38px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-    }
-
-    .username {
-        font-size: 14px;
-    }
-
-    /* 🔻 FOOTER */
-    .footer {
-        background: #111;
-        color: white;
-        padding: 40px;
-        display: flex;
-        justify-content: space-around;
-        margin-top: 40px;
-    }
-
-    .footer h3 {
-        margin-bottom: 10px;
-    }
-
-    .footer p {
-        margin: 5px 0;
-        color: #ccc;
-    }
-/* 🔍 PREMIUM SEARCH DROPDOWN */
-.search-dropdown {
-    position: absolute;
-    top: 40px;
-    width: 300px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    max-height: 350px;
-    overflow-y: auto;
-    display: none;
-    z-index: 9999;
-}
-
-.search-item {
-    display: flex;
-    gap: 10px;
-    padding: 10px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-    transition: 0.2s;
-}
-
-.search-item:hover {
-    background: #f5f5f5;
-}
-
-.search-item img {
-    width: 50px;
-    height: 50px;
-    object-fit: cover;
-    border-radius: 6px;
-}
-
-.search-item div {
-    font-size: 14px;
-    color: black;
-}
-    </style>
-
-</head>
-
-<body>
-
-
-
-   
-<div id="blurBg"></div>
-
-<div class="popup" id="popup">
-
-    <span id="closeBtn">&times;</span>
-
-    <h2>Welcome</h2>
-
-    <input type="text" id="name" placeholder="Name (Register)">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-
-    <button onclick="login()">Login</button>
-    <button onclick="register()">Register</button>
-
-</div>
-
-
-
-
-<header class="navbar">
-
-   
-    <div class="nav-left">
-        <div class="logo">
-            <a href="/">
-                <img src="/static/images/Belt-Purse_logo-01.png" alt="Logo">
-            </a>
-        </div>
-    </div>
-
-   
-    <div class="nav-center">
-        <a href="/">Home</a>
-        <a href="/blogs">Blogs</a>
-        <a href="#about">About Us</a>
-        <a href="#contact">Contact</a>
-    </div>
-
-   
-    <div class="nav-right">
-
-<div class="search-bar" style="position:relative;">
-
-    <input 
-        type="text" 
-        id="searchInput" 
-        placeholder="Search products..."
-        autocomplete="off"
-    >
-
-   
-    <div id="searchDropdown" class="search-dropdown"></div>
-
-</div>
-       
-        <div class="icon-box" onclick="window.location='/wishlist'">
-            <i class="fa-solid fa-heart"></i>
-            <span class="badge" id="wishlistCount">{{ wishlist_count }}</span>
-        </div>
-
-        <div class="icon-box" onclick="window.location='/cart'">
-            <i class="fa-solid fa-cart-shopping"></i>
-            <span class="badge" id="cartCount">{{ cart_count }}</span>
-        </div>
-
-       
-        <a href="/account" style="color:white;">My Account</a>
-
-        
-        {% if user %}
-            <div class="avatar">{{ user[0] }}</div>
-            <span class="username">{{ user }}</span>
-        {% else %}
-           <a href="#" id="loginBtn" style="color:white;">Login</a>
-        {% endif %}
-
-    </div>
-
-</header>
-
-
-
-
-
-<footer class="footer">
-
-    <div>
-        <h3>BELT STORE</h3>
-        <p>Premium fashion belts for every style.</p>
-    </div>
-
-    <div>
-        <h3>Quick Links</h3>
-        <p><a href="/">Home</a></p>
-        <p><a href="/blogs">Blogs</a></p>
-        <p><a href="#about">About Us</a></p>
-        <p><a href="#contact">Contact</a></p>
-    </div>
-
-    <div>
-        <h3>Support</h3>
-        <p><a href="#faq">FAQs</a></p>
-       <p><a href="/shipping-policy">Shipping Policy</a></p>
-<p><a href="/return-policy">Return Policy</a></p>
-<p><a href="/privacy-policy">Privacy Policy</a></p>
-<p><a href="/terms">Terms & Conditions</a></p>
-    </div>
-
-    <div>
-        <h3>Contact</h3>
-        <p>support@beltstore.com</p>
-        <p>+91 9876xxxx</p>
-    </div>
-
-</footer>
-
-</body>
-<script src="/static/js/script.js"></script>
-</html>
--->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -450,7 +152,20 @@ body {
         justify-content: center;
         font-weight: bold;
     }
+.avatar-img {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #00e5ff;
+    box-shadow: 0 0 10px rgba(0,229,255,0.5);
+    cursor: pointer;
+    transition: 0.3s;
+}
 
+.avatar-img:hover {
+    transform: scale(1.1);
+}
     .username {
         font-size: 14px;
     }
@@ -510,6 +225,132 @@ body {
 .search-item div {
     font-size: 14px;
     color: black;
+}
+
+/* 🍏 APPLE PRO MAX UI UPGRADE */
+
+/* GLOBAL SMOOTHNESS */
+* {
+    transition: all 0.25s cubic-bezier(.4,0,.2,1);
+}
+
+/* GLASS NAVBAR */
+.navbar {
+    background: rgba(2,31,36,0.6) !important;
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* NAV LINKS PREMIUM */
+.nav-center a {
+    position: relative;
+}
+
+.nav-center a::after {
+    content: "";
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0%;
+    height: 2px;
+    background: #00e5ff;
+    transition: 0.3s;
+}
+
+.nav-center a:hover::after {
+    width: 100%;
+}
+
+/* 🔍 SEARCH PRO MAX */
+.search-bar input {
+    width: 180px;
+    transition: 0.4s;
+}
+
+.search-bar input:focus {
+    width: 260px;
+    background: rgba(0,0,0,0.6);
+    box-shadow: 0 0 20px rgba(0,229,255,0.3);
+}
+
+/* 🧲 MAGNETIC ICON EFFECT */
+.premium-icon {
+    transform-style: preserve-3d;
+}
+
+.premium-icon:hover {
+    transform: translateY(-4px) scale(1.15);
+    box-shadow: 0 10px 25px rgba(0,229,255,0.3);
+}
+
+/* 🔴 BADGE GLOW */
+.badge {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 rgba(255,0,0,0.7); }
+    50% { box-shadow: 0 0 10px rgba(255,0,0,1); }
+    100% { box-shadow: 0 0 0 rgba(255,0,0,0.7); }
+}
+
+/* 👤 AVATAR PRO MAX */
+.avatar {
+    position: relative;
+    overflow: hidden;
+}
+.avatar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 25px rgba(0,229,255,0.6);
+}
+.avatar::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    background: linear-gradient(45deg,#00e5ff,#00bcd4,#00e5ff);
+    z-index: -1;
+    animation: rotate 3s linear infinite;
+}
+
+@keyframes rotate {
+    100% { transform: rotate(360deg); }
+}
+
+/* USERNAME FADE */
+.username {
+    opacity: 0.8;
+}
+
+.nav-right:hover .username {
+    opacity: 1;
+}
+
+/* 🔥 FLOATING BLUR BACKGROUND EFFECT */
+body::before {
+    content: "";
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle,#00e5ff33,transparent);
+    top: -100px;
+    right: -100px;
+    z-index: -1;
+    filter: blur(60px);
+}
+
+/* POPUP PREMIUM */
+.popup {
+    backdrop-filter: blur(20px);
+    background: rgba(255,255,255,0.1);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+/* FOOTER PREMIUM */
+.footer {
+    background: linear-gradient(180deg,#111,#000);
+    border-top: 1px solid rgba(255,255,255,0.05);
 }
     </style>
 
@@ -586,15 +427,19 @@ body {
         </div>
 
         <!-- ACCOUNT -->
-        <a href="/account" class="account-link">My Account</a>
+        <a href="#" onclick="handleAccountClick(event)" class="account-link">My Account</a>
 
         <!-- USER -->
         {% if user %}
-            <div class="avatar premium-avatar">{{ user[0] }}</div>
-            <span class="username">{{ user }}</span>
-        {% else %}
-           <a href="#" id="loginBtn" class="account-link">Login</a>
-        {% endif %}
+    {% if user.avatar %}
+        <img src="/static/images/{{ user.avatar }}" class="avatar-img">
+    {% else %}
+        <div class="avatar premium-avatar">{{ user.username[0] }}</div>
+    {% endif %}
+    <span class="username">{{ user.username }}</span>
+{% else %}
+    <a href="#" id="loginBtn" class="account-link">Login</a>
+{% endif %}
 
     </div>
 
