@@ -1,113 +1,165 @@
-// ================= INIT =================
-window.onload = function () {
+document.addEventListener("DOMContentLoaded", function () {
 
     const popup = document.getElementById("popup");
     const blurBg = document.getElementById("blurBg");
     const loginBtn = document.getElementById("loginBtn");
 
-    function openPopup() {
-        if (popup && blurBg) {
-            popup.classList.add("show");
-            blurBg.style.display = "block";
-            document.body.style.overflow="hidden";
-        }
-    }
+    const switchBtn = document.getElementById("switchMode");
+    const nameField = document.getElementById("name");
+    const title = document.getElementById("formTitle");
+    const mainBtn = document.getElementById("mainBtn");
+    const msg = document.getElementById("formMsg");
+    const togglePassword = document.getElementById("togglePassword");
 
-    function closePopup() {
-        if (popup && blurBg) {
-            popup.classList.remove("show");
-            blurBg.style.display = "none";
-            document.body.style.overflow="";
-        }
-    }
- // ✅ AUTO POPUP AFTER 3 SEC (ONLY IF NOT LOGGED IN)
-    const isLoggedIn = document.querySelector(".avatar") !== null;
+    let isLogin = true;
+
+    // OPEN
+    window.openPopup = function () {
+        popup.classList.add("show");
+        blurBg.style.display = "block";
+        document.body.style.overflow = "hidden";
+    };
+
+    // CLOSE
+    window.closePopup = function () {
+        popup.classList.remove("show");
+        blurBg.style.display = "none";
+        document.body.style.overflow = "";
+    };
+
+    // AUTO POPUP
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
-        setTimeout(() => {
-            openPopup();
-        }, 3000);
+        setTimeout(openPopup, 3000);
     }
-    // AUTO SHOW AFTER 3s (ONLY IF USER NOT LOGGED IN)
+
+    // LOGIN BTN
     if (loginBtn) {
-        loginBtn.addEventListener("click", function(e) {
+        loginBtn.addEventListener("click", function (e) {
             e.preventDefault();
             openPopup();
         });
     }
-    if (!isLoggedIn) {
-    setTimeout(openPopup, 3000);
-}
 
-   
+    // CLOSE BTN
+    document.getElementById("closeBtn").onclick = closePopup;
 
-    // CLOSE BUTTON
-    const closeBtn = document.getElementById("closeBtn");
-    if (closeBtn) closeBtn.onclick = closePopup;
+    // TOGGLE LOGIN/REGISTER
+    switchBtn.onclick = () => {
+        isLogin = !isLogin;
+        msg.innerText = "";
 
-    // LOAD PRODUCTS
-    loadProducts();
-};
-
-function handleAccountClick(e) {
-    const isLoggedIn = document.querySelector(".avatar") !== null;
-
-    if (!isLoggedIn) {
-        e.preventDefault();
-        openPopup();
-    } else {
-        window.location.href = "/account";
-    }
-}
-
-
-
-let slides = document.querySelectorAll(".slide");
-let index = 0;
-
-setInterval(() => {
-    slides[index].classList.remove("active");
-    index = (index + 1) % slides.length;
-    slides[index].classList.add("active");
-}, 4000);
-
-// ================= REGISTER =================
-function register() {
-    fetch('/register', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            name: document.getElementById("name").value,
-            email: document.getElementById("email").value,
-            password: document.getElementById("password").value
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-    });
-}
-
-// ================= LOGIN =================
-function login() {
-    fetch('/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            email: document.getElementById("email").value,
-            password: document.getElementById("password").value
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-
-        if (data.name) {
-            alert("Login Success ✅");
-            location.reload(); // show avatar after login
+        if (isLogin) {
+            title.innerText = "Login";
+            nameField.style.display = "none";
+            mainBtn.innerText = "Login";
+            switchBtn.innerText = "Create Account";
+        } else {
+            title.innerText = "Register";
+            nameField.style.display = "block";
+            mainBtn.innerText = "Register";
+            switchBtn.innerText = "Login";
         }
-    });
-}
+    };
+
+    // PASSWORD EYE
+    togglePassword.onclick = () => {
+        const pass = document.getElementById("password");
+        pass.type = pass.type === "password" ? "text" : "password";
+    };
+
+    // MAIN BUTTON
+    mainBtn.onclick = () => {
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+        const name = document.getElementById("name").value.trim();
+
+        msg.style.color = "red";
+
+        if (!email || !password || (!isLogin && !name)) {
+            msg.innerText = "All fields required ❗";
+            return;
+        }
+
+        if (password.length < 6) {
+            msg.innerText = "Password must be 6+ characters ❗";
+            return;
+        }
+
+        if (isLogin) {
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+
+               if (data.name) {
+    msg.style.color = "green";
+    msg.innerText = "Login Success ✅";
+    window.dispatchEvent(new Event("user-login"));
+
+    // 🔥 update UI instantly (no reload)
+    closePopup();
+
+    // update navbar/login state instantly
+    const loginBtn = document.getElementById("loginBtn");
+
+    if (loginBtn) {
+       loginBtn.innerHTML = `
+    <a href="/account" class="user-profile-link">
+        <img src="/static/avatar.png" class="avatar-img">
+    </a>
+`;
+    }
+
+    // 🔥 optional: update cart/wishlist counts immediately
+    if (typeof updateNavbarCounts === "function") {
+        updateNavbarCounts();
+    }
+
+    // optional toast delay
+    setTimeout(() => {
+        msg.innerText = "";
+    }, 1000);
+} else {
+                    msg.innerText = data.message;
+                }
+            });
+
+        } else {
+
+            fetch('/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, email, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+
+                if (data.message.includes("success")) {
+                    msg.style.color = "green";
+                    msg.innerText = "Registered Successfully ✅";
+
+                    setTimeout(() => {
+                        switchBtn.click();
+                    }, 1000);
+                } else {
+                    msg.innerText = data.message;
+                }
+            });
+        }
+    };
+
+});
+
+window.addEventListener("user-login", () => {
+    updateNavbarCounts();
+});
 
 // ================= DROPDOWN =================
 function toggleDropdown() {
@@ -130,23 +182,12 @@ window.addEventListener("click", function(e) {
 // 🛒 CART + ❤️ WISHLIST SYSTEM
 // =======================
 
-function updateNavbarCounts() {
-    fetch("/get_counts")
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("cartCount").innerText = data.cart;
-        document.getElementById("wishlistCount").innerText = data.wishlist;
-    })
-    .catch(err => console.error("Count error:", err));
-}
 
 // LOAD ON PAGE
-document.addEventListener("DOMContentLoaded", () => {
-    updateNavbarCounts();
-});
+
 // ADD TO CART
 function addToCart(productId) {
-    const isLoggedIn = document.querySelector(".avatar") !== null;
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
         openPopup();
@@ -161,8 +202,9 @@ function addToCart(productId) {
 }
 
 // ADD TO WISHLIST
-function addToWishlist(productId) {
-    const isLoggedIn = document.querySelector(".avatar") !== null;
+/*
+function addToWishlist(productId ,btn = null) {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
         openPopup();
@@ -174,22 +216,47 @@ function addToWishlist(productId) {
     .then(data => {
         document.getElementById("wishlistCount").innerText = data.count;
     });
+}*/
+function addToWishlist(productId ,btn = null) {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+
+    if (!isLoggedIn) {
+        openPopup();
+        return;
+    }
+
+    fetch(`/wishlist/toggle/${productId}`)
+    .then(res => res.json())
+    .then(data => {
+
+        if (data.error) return;
+
+        // ❤️ BUTTON UPDATE (if exists)
+        if (btn) {
+            if (data.in_wishlist) {
+                btn.classList.add("active");
+                btn.innerHTML = "❤️";
+            } else {
+                btn.classList.remove("active");
+                btn.innerHTML = "♡";
+            }
+        }
+
+        // 🔥 NAVBAR COUNT UPDATE
+        const wishlistCount = document.getElementById("wishlistCount");
+        if (wishlistCount) {
+            wishlistCount.innerText = data.count;
+        }
+    })
+    .catch(err => console.error("Wishlist error:", err));
 }
 
 // REMOVE ITEM (optional)
-function removeFromCart(index) {
-    let cart = getCart();
-    cart.splice(index, 1);
-    localStorage.setItem("cart", JSON.stringify(cart));
-    updateNavbarCounts();
-}
 
-// LOAD ON PAGE START
-document.addEventListener("DOMContentLoaded", () => {
-    updateNavbarCounts();
-});
 
-function loadProducts() {
+
+
+/*function loadProducts() {
     fetch("/products")
     .then(res => res.json())
     .then(data => {
@@ -204,9 +271,9 @@ function loadProducts() {
 
         container.innerHTML = "";
 
-        data.slice(0, 4).forEach(product => {
+        data.slice(0, 6).forEach(product => {
 
-            const image = product.images.length > 0 
+            const image = product.images && product.images.length > 0 
                 ? product.images[0] 
                 : "/static/images/default.png"; // fallback image
 
@@ -228,18 +295,249 @@ function loadProducts() {
     })
     .catch(err => console.error("Product load error:", err));
 }
+function loadProducts() {
+    fetch("/products")
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById("products");
 
+            if (!container) {
+                console.error("Container not found");
+                return;
+            }
+
+            container.innerHTML = "";
+
+            data.slice(0, 4).forEach(product => {
+                const image =
+                    product.images && product.images.length > 0
+                        ? product.images[0]
+                        : "/static/images/default.png";
+
+                const rating = product.rating
+                    ? `⭐ ${product.rating}`
+                    : "";
+
+                const discountHTML = product.discount_percent > 0
+                    ? `<span class="discount-badge">-${product.discount_percent}%</span>`
+                    : "";
+
+                const oldPriceHTML = product.original_price
+                    ? `<span class="old-price">₹${product.original_price}</span>`
+                    : "";
+
+                const div = document.createElement("div");
+                div.className = "product-card";
+
+                div.innerHTML = `
+                    <div class="product-image-wrapper">
+                        <span class="discount-badge">-${discountHTML}%</span>
+
+                        <button class="wishlist-btn" data-id="${product.id}">
+                            ♡
+                        </button>
+
+                        <img src="${image}" alt="${product.name}">
+                    </div>
+
+                    <div class="product-info">
+                        
+
+                        <h4>${product.name}</h4>
+
+                        ${rating ? `<div class="rating">${rating}</div>` : ""}
+
+                        <div class="price-box">
+                            <span class="new-price">₹${product.price}</span>
+                            <span class="old-price">₹${oldPriceHTML}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Product page redirect
+                div.addEventListener("click", () => {
+                    window.location.href = "/product/" + product.id;
+                });
+
+                // Wishlist click
+                const wishlistBtn = div.querySelector(".wishlist-btn");
+
+                wishlistBtn.addEventListener("click", (e) => {
+                    e.stopPropagation(); // card redirect stop
+
+                    addToWishlist(product.id, wishlistBtn);
+                });
+
+                container.appendChild(div);
+            });
+        })
+        .catch(err => console.error("Product load error:", err));
+}
+*/
+// ✅ OUTSIDE (global)
+function checkWishlist(productId) {
+    return fetch("/wishlist/check/" + productId)
+        .then(res => res.json())
+        .then(data => data.in_wishlist)
+        .catch(() => false);
+}
+
+
+// ✅ MAIN FUNCTION
+function loadProducts() {
+    fetch("/products")
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById("products");
+            if (!container) return;
+
+            container.innerHTML = "";
+
+            data.slice(0, 4).forEach(product => {
+
+                const image = product.images?.[0] || "/static/images/default.png";
+
+                const ratingHTML = product.rating
+                    ? `<div class="rating">⭐ ${product.rating}</div>`
+                    : "";
+
+                const discountHTML = product.discount_percent > 0
+                    ? `<span class="discount-badge">-${product.discount_percent}%</span>`
+                    : "";
+
+                const oldPriceHTML = product.original_price
+                    ? `<span class="old-price">₹${product.original_price}</span>`
+                    : "";
+
+                // ✅ COLORS
+                const colorsHTML = product.colors?.length
+                    ? `<div class="color-options">
+                        ${product.colors.map(c => `
+                            <span 
+                                class="color-circle"
+                                style="background:${c.code}"
+                                title="${c.name}"
+                                data-color="${c.id}"
+                                data-product="${product.id}"
+                            ></span>
+                        `).join("")}
+                       </div>`
+                    : "";
+
+                const div = document.createElement("div");
+                div.className = "product-card";
+
+                div.innerHTML = `
+                    <div class="product-image-wrapper">
+                        ${discountHTML}
+
+                        <button class="wishlist-btn" data-id="${product.id}">
+                            ♡
+                        </button>
+
+                        <img class="product-img" src="${image}" alt="${product.name}">
+                    </div>
+
+                    <div class="product-info">
+
+                        ${colorsHTML}
+
+                        <h4>${product.name}</h4>
+
+                        ${ratingHTML}
+
+                        <div class="price-box">
+                            <span class="new-price">₹${product.price}</span>
+                            ${oldPriceHTML}
+                        </div>
+
+                    </div>
+                `;
+
+                const wishlistBtn = div.querySelector(".wishlist-btn");
+                const imgEl = div.querySelector(".product-img");
+
+                /* =============================
+                   AMAZON STYLE HOVER CHANGE
+                ==============================*/
+                div.querySelectorAll(".color-circle").forEach(circle => {
+
+                    circle.addEventListener("mouseenter", (e) => {
+                        e.stopPropagation();
+
+                        const colorId = circle.dataset.color;
+
+                        const colorImages = product.color_images?.[colorId];
+
+                        if (colorImages && colorImages.length > 0) {
+                            imgEl.src = colorImages[0];
+                        }
+                    });
+
+                    circle.addEventListener("mouseleave", () => {
+                        imgEl.src = image;
+                    });
+
+                    /* =============================
+                       CLICK → OPEN PRODUCT COLOR
+                    ==============================*/
+                    circle.addEventListener("click", (e) => {
+                        e.stopPropagation();
+
+                        const productId = circle.dataset.product;
+                        const colorId = circle.dataset.color;
+
+                        // 👉 IMPORTANT FIX (WORKING ROUTE)
+                        window.location.href = `/product/${productId}?color=${colorId}`;
+                    });
+                });
+
+                /* ================= PRODUCT CLICK ================= */
+                div.addEventListener("click", () => {
+                    window.location.href = "/product/" + product.id;
+                });
+
+                /* ================= WISHLIST ================= */
+                checkWishlist(product.id).then(inWishlist => {
+                    if (inWishlist) {
+                        wishlistBtn.classList.add("active");
+                        wishlistBtn.innerHTML = "❤️";
+                    }
+                });
+
+                wishlistBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+
+                    addToWishlist(product.id, wishlistBtn);
+
+                    wishlistBtn.classList.toggle("active");
+                    wishlistBtn.innerHTML = wishlistBtn.classList.contains("active")
+                        ? "❤️"
+                        : "♡";
+                });
+
+                container.appendChild(div);
+            });
+        })
+        .catch(err => console.error("Product load error:", err));
+}
+
+/* INIT */
+document.addEventListener("DOMContentLoaded", () => {
+    updateNavbarCounts();
+    loadProducts();
+});
 /* ✅ CALL FUNCTION AFTER PAGE LOAD */
-document.addEventListener("DOMContentLoaded", loadProducts);
+
 
 // ================= 🔍 LIVE SEARCH =================
-const searchInput = document.getElementById("searchInput");
-const dropdown = document.getElementById("searchDropdown");
+const searchFields = [
+    { input: document.getElementById("searchInput"), dropdown: document.getElementById("searchDropdown") },
+    { input: document.getElementById("mobileSearchInput"), dropdown: document.getElementById("mobileSearchDropdown") }
+].filter(field => field.input && field.dropdown);
 
-if (searchInput) {
-
-    searchInput.addEventListener("input", function () {
-
+searchFields.forEach(({ input, dropdown }) => {
+    input.addEventListener("input", function () {
         const query = this.value;
 
         if (query.length < 1) {
@@ -248,10 +546,9 @@ if (searchInput) {
         }
 
         // ✅ CALL BACKEND SEARCH API
-        fetch("/api/search?q=" + query)
+        fetch("/api/search?q=" + encodeURIComponent(query))
         .then(res => res.json())
         .then(data => {
-
             dropdown.innerHTML = "";
 
             if (data.length === 0) {
@@ -261,7 +558,6 @@ if (searchInput) {
             }
 
             data.forEach(product => {
-
                 const div = document.createElement("div");
                 div.className = "search-item";
 
@@ -283,14 +579,16 @@ if (searchInput) {
             dropdown.style.display = "block";
         });
     });
+});
 
-    // CLOSE DROPDOWN
-    document.addEventListener("click", (e) => {
-        if (!e.target.closest(".search-bar")) {
+// CLOSE DROPDOWN
+window.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-bar") && !e.target.closest(".mobile-search-card") && !e.target.closest(".mobile-search-toggle")) {
+        searchFields.forEach(({ dropdown }) => {
             dropdown.style.display = "none";
-        }
-    });
-}
+        });
+    }
+});
 
 function sendMessage(e) {
     e.preventDefault();
@@ -321,3 +619,19 @@ document.querySelectorAll(".premium-icon").forEach(icon => {
         icon.style.transform = "translate(0,0) scale(1)";
     });
 });
+
+window.addEventListener('load', () => {
+    const loader = document.getElementById('loader');
+
+    if (!sessionStorage.getItem('loaderShown')) {
+        sessionStorage.setItem('loaderShown', 'true');
+
+        setTimeout(() => {
+            loader.classList.add('fade');
+            setTimeout(() => { loader.style.display = 'none'; }, 1000);
+        }, 2500); 
+    } else {
+        loader.style.display = 'none';
+    }
+});
+

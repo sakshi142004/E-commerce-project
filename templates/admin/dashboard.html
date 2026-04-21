@@ -1,83 +1,176 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Admin Dashboard</title>
+{% extends "admin/base_admin.html" %}
+{% block content %}
+
+<div class="dashboard">
+
+    <!-- HEADER -->
+    <div class="dashboard-header">
+        
+        <div>
+            <h1 id="pageTitle">Dashboard</h1>
+            <p id="pageSub">Monitor users, orders, and products.</p>
+        </div>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div class="cards" id="dashboardList">
+
+        <div class="card" onclick="openSection('Users')">
+            <h3>Users</h3>
+            <span>{{ users }}</span>
+        </div>
+
+        <div class="card" onclick="openSection('Orders')">
+            <h3>Orders</h3>
+            <span>{{ orders }}</span>
+        </div>
+
+        <div class="card" onclick="openSection('Products')">
+            <h3>Products</h3>
+            <span>{{ products }}</span>
+        </div>
+
+    </div>
+
+    <!-- DETAIL VIEW -->
+    <div class="detail-view" id="detailView">
+        <h2 id="detailTitle"></h2>
+        <p>This is your <span id="detailName"></span> section.</p>
+    </div>
+
+</div>
 
 <style>
+/* BACKGROUND */
 body {
-    margin: 0;
-    font-family: Arial;
+    background: linear-gradient(135deg, #062f2c, #041f1d);
+}
+
+/* HEADER */
+.dashboard-header {
     display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
-/* Sidebar */
-.sidebar {
-    width: 220px;
-    height: 100vh;
-    background: #111;
+.back-btn {
+    display: none;
+    border: none;
+    background: rgba(255,255,255,0.1);
     color: white;
-    padding: 20px;
-}
-
-.sidebar h2 {
-    color: gold;
-}
-
-.sidebar a {
-    display: block;
-    color: white;
-    padding: 10px;
-    margin: 10px 0;
-    text-decoration: none;
-    border-radius: 6px;
-}
-
-.sidebar a:hover {
-    background: gold;
-    color: black;
-}
-
-/* Main */
-.main {
-    flex: 1;
-    padding: 30px;
-    background: #f5f5f5;
-}
-
-.card {
-    background: white;
-    padding: 20px;
+    font-size: 18px;
+    padding: 8px 12px;
     border-radius: 10px;
-    margin: 10px;
-    display: inline-block;
-    width: 200px;
-    text-align: center;
-    box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+
+/* TITLE */
+.dashboard-header h1 {
+    font-size: 28px;
+    color: white;
+}
+
+.dashboard-header p {
+    color: #bdbdbd;
+    font-size: 14px;
+}
+
+/* CARDS */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+/* GLASS CARD */
+.card {
+    padding: 24px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(14px);
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    background: rgba(255,255,255,0.12);
+}
+
+.card h3 {
+    font-size: 14px;
+    color: #dcdcdc;
+}
+
+.card span {
+    font-size: 32px;
+    font-weight: 700;
+}
+
+/* DETAIL VIEW */
+.detail-view {
+    display: none;
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(14px);
+    color: white;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+
+    .cards {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    .dashboard-header {
+        position: sticky;
+        top: 10px;
+        z-index: 50;
+    }
+
+   .back-btn {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 300;
+    display: none;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: white;
+    font-size: 18px;
+}
+}
+
+@media (max-width: 1024px) {
+
+    .main {
+        display: block;
+    }
+
+    .main.active {
+        display: block;
+    }
+
+    .sidebar.hide {
+        display: none;
+    }
 }
 </style>
-</head>
 
-<body>
 
-<div class="sidebar">
-    <h2>Admin 👑</h2>
 
-    <a href="#">Dashboard</a>
-    <a href="#">Products</a>
-    <a href="#">Orders</a>
-    <a href="#">Users</a>
-    <a href="#">Blog</a>
-    <a href="/admin-logout">Logout</a>
-</div>
-
-<div class="main">
-    <h1>Dashboard</h1>
-
-    <div class="card">Users: 120</div>
-    <div class="card">Orders: 45</div>
-    <div class="card">Revenue: ₹50000</div>
-</div>
-
-</body>
-</html>
+{% endblock %}

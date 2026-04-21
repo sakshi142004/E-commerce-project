@@ -1,0 +1,662 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
+
+{% set selected_color_ids = product.product_colors | map(attribute='color_id') | list %}
+
+<div class="product-page">
+    <div class="page-header">
+        <div>
+            <h2>Edit Product</h2>
+            <p>Update product details, pricing, sizes and media.</p>
+        </div>
+    </div>
+
+    <div class="glass premium-form-card">
+        <form method="POST" enctype="multipart/form-data" id="editProductForm">
+
+            <div class="form-section">
+                <h3>Basic Details</h3>
+
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input
+                        type="text"
+                        name="name"
+                        value="{{ product.name }}"
+                        placeholder="Enter product name"
+                        required
+                    >
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Offer Tag</label>
+                        <input
+                            type="text"
+                            name="offer"
+                            value="{{ product.offer or '' }}"
+                            placeholder="e.g. 20% OFF"
+                            readonly
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Guarantee</label>
+                        <input
+                            type="text"
+                            name="guarantee"
+                            value="{{ product.guarantee or '' }}"
+                            placeholder="e.g. 1 Year Warranty"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Material</label>
+                    <input
+                        type="text"
+                        name="material"
+                        value="{{ product.material or '' }}"
+                        placeholder="e.g. Genuine Leather"
+                    >
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Pricing</h3>
+
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label>Original Price (MRP)</label>
+                        <input
+                            type="number"
+                            name="original_price"
+                            value="{{ product.original_price or '' }}"
+                            placeholder="Enter original price"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Discount %</label>
+                        <input
+                            type="number"
+                            name="discount_percent"
+                            value="{{ product.discount_percent or 0 }}"
+                            placeholder="Enter discount"
+                            min="0"
+                            max="100"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rating</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="5"
+                            name="rating"
+                            value="{{ product.rating or '' }}"
+                            placeholder="Optional"
+                        >
+                    </div>
+                </div>
+
+                <div class="price-preview-box">
+                    <span>Final Selling Price</span>
+                    <strong id="finalPricePreview">&#8377;{{ product.price }}</strong>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Description</h3>
+
+                <div class="form-group">
+                    <label>Product Description</label>
+                    <textarea
+                        name="description"
+                        rows="5"
+                        placeholder="Write detailed product description"
+                    >{{ product.description or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Size Details</h3>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Size Unit</label>
+                        <select name="size_unit">
+                            <option value="inch" {% if product.size_unit == 'inch' %}selected{% endif %}>Inch</option>
+                            <option value="cm" {% if product.size_unit == 'cm' %}selected{% endif %}>CM</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Available Sizes</label>
+                        <input
+                            type="text"
+                            name="sizes"
+                            value="{% for s in product.sizes %}{{ s.size_label }}{% if not loop.last %}, {% endif %}{% endfor %}"
+                            placeholder="e.g. 30,32,34,36"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Current Product Images</h3>
+
+                <div class="image-grid">
+                    {% for img in product.images %}
+                    <div class="img-card">
+                        <img src="{{ img.image_url }}" alt="Product image">
+
+                        <a href="/admin/image/delete/{{ img.id }}" class="delete-btn" aria-label="Delete image">
+                            x
+                        </a>
+
+                        <a href="/admin/image/primary/{{ img.id }}" class="primary-btn">
+                            {% if img.is_primary %}
+                                Primary
+                            {% else %}
+                                Set Primary
+                            {% endif %}
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Colors & Images (Add More)</h3>
+
+                <div class="color-image-grid">
+                    {% for color in colors %}
+                    <div class="color-upload-box {% if color.id in selected_color_ids %}active{% endif %}">
+                        <label class="color-label">
+                            <input
+                                type="checkbox"
+                                name="colors"
+                                value="{{ color.id }}"
+                                {% if color.id in selected_color_ids %}checked{% endif %}
+                                onchange="toggleUpload(this, {{ color.id }})"
+                            >
+
+                            <span class="color-dot" style="background: {{ color.code }};"></span>
+                            <span>{{ color.name }}</span>
+                        </label>
+
+                        <input
+                            type="file"
+                            name="color_images_{{ color.id }}"
+                            id="upload_{{ color.id }}"
+                            multiple
+                            accept="image/*"
+                            {% if color.id not in selected_color_ids %}disabled{% endif %}
+                            onchange="previewImages(event, {{ color.id }})"
+                        >
+
+                        <div class="preview-container" id="preview_{{ color.id }}">
+                            {% for img in product.images %}
+                                {% if img.color_id == color.id %}
+                                <div class="preview-thumb">
+                                    <img src="{{ img.image_url }}" alt="{{ color.name }} image">
+
+                                    {% if img.is_primary %}
+                                    <span class="primary-badge">Primary</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Upload New Media</h3>
+
+                <div class="form-group">
+                    <label>Add New Images</label>
+
+                    <div class="upload-box" onclick="document.getElementById('imageInput').click()">
+                        <span>Click to Upload New Images</span>
+                        <small>Preview before upload</small>
+                    </div>
+
+                    <input
+                        type="file"
+                        id="imageInput"
+                        name="images"
+                        accept="image/*"
+                        multiple
+                        hidden
+                    >
+
+                    <div id="imagePreviewContainer" class="preview-grid"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Add New Videos</label>
+                    <input type="file" name="videos" multiple class="premium-file">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Extra Details</h3>
+
+                <div class="form-group">
+                    <label>Tags</label>
+                    <input
+                        type="text"
+                        name="tags"
+                        value="{% for t in product.tags %}{{ t.tag }}{% if not loop.last %}, {% endif %}{% endfor %}"
+                        placeholder="e.g. leather, premium"
+                    >
+                </div>
+            </div>
+
+            <button type="submit" class="btn premium-btn">
+                Update Product
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+.product-page {
+    padding: 30px;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+}
+
+.page-header h2 {
+    font-size: 34px;
+    color: #111;
+    margin-bottom: 8px;
+}
+
+.page-header p {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.premium-form-card {
+    padding: 35px;
+    border-radius: 24px;
+    background: rgba(10, 92, 86, 0.08);
+    border: 1px solid rgba(10, 92, 86, 0.25);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
+}
+
+.form-section {
+    margin-bottom: 35px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.form-section h3 {
+    font-size: 22px;
+    margin-bottom: 20px;
+    color: #111;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #222;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select,
+.premium-file,
+.color-upload-box input[type="file"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px 18px;
+    border: 1px solid #ddd;
+    border-radius: 14px;
+    background: white;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus,
+.color-upload-box input[type="file"]:focus {
+    border-color: #0A5C56 !important;
+    box-shadow: 0 0 0 4px rgba(10, 92, 86, 0.15) !important;
+    outline: none;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.price-preview-box {
+    margin-top: 15px;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: white;
+    padding: 18px 22px;
+    border-radius: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.price-preview-box strong {
+    color: #f7d774;
+    font-size: 24px;
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.img-card {
+    position: relative;
+    background: white;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.img-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.delete-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 0, 0, 0.9);
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.primary-btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111;
+    background: #f9f9f9;
+}
+
+.color-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.color-upload-box {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(10, 92, 86, 0.15);
+    border-radius: 18px;
+    padding: 16px;
+    transition: 0.3s;
+}
+
+.color-upload-box.active {
+    border-color: #0A5C56;
+    box-shadow: 0 0 0 3px rgba(10, 92, 86, 0.12);
+}
+
+.color-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-weight: 600;
+}
+
+.color-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    flex-shrink: 0;
+}
+
+.color-upload-box input[type="file"]:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: #f5f5f5;
+}
+
+.upload-box {
+    border: 2px dashed #bbb;
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    background: #fafafa;
+    transition: 0.3s;
+}
+
+.upload-box:hover {
+    border-color: #111;
+    background: #f3f3f3;
+}
+
+.preview-grid,
+.preview-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.preview-grid img,
+.preview-container img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.preview-thumb {
+    position: relative;
+}
+
+.primary-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: #0A5C56;
+    color: white;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 999px;
+}
+
+.premium-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 18px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    color: white;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    transition: 0.3s;
+}
+
+.premium-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+    .grid-2,
+    .grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .premium-form-card {
+        padding: 20px;
+    }
+}
+</style>
+
+<script>
+function previewImages(event, colorId) {
+    const container = document.getElementById("preview_" + colorId);
+
+    if (!container) {
+        return;
+    }
+
+    Array.from(event.target.files || []).forEach((file) => {
+        const reader = new FileReader();
+
+        reader.onload = function(loadEvent) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "preview-thumb";
+
+            const img = document.createElement("img");
+            img.src = loadEvent.target.result;
+            img.alt = "Selected color image";
+
+            wrapper.appendChild(img);
+            container.appendChild(wrapper);
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".color-upload-box").forEach((box) => {
+        const checkbox = box.querySelector("input[type='checkbox']");
+        const input = box.querySelector("input[type='file']");
+
+        if (!checkbox || !input) {
+            return;
+        }
+
+        box.classList.toggle("active", checkbox.checked);
+        input.disabled = !checkbox.checked;
+    });
+
+    updateFinalPrice();
+});
+
+const mrpInput = document.querySelector('[name="original_price"]');
+const discountInput = document.querySelector('[name="discount_percent"]');
+const preview = document.getElementById("finalPricePreview");
+
+function updateFinalPrice() {
+    if (!mrpInput || !discountInput || !preview) {
+        return;
+    }
+
+    const mrp = parseFloat(mrpInput.value) || 0;
+    const discount = Math.min(100, Math.max(0, parseFloat(discountInput.value) || 0));
+    const finalPrice = mrp - (mrp * discount / 100);
+
+    preview.innerText = "\u20B9" + Math.round(finalPrice);
+}
+
+if (mrpInput) {
+    mrpInput.addEventListener("input", updateFinalPrice);
+}
+
+if (discountInput) {
+    discountInput.addEventListener("input", updateFinalPrice);
+}
+
+const imageInput = document.getElementById("imageInput");
+const previewContainer = document.getElementById("imagePreviewContainer");
+
+if (imageInput && previewContainer) {
+    imageInput.addEventListener("change", function() {
+        previewContainer.innerHTML = "";
+
+        Array.from(this.files || []).forEach((file) => {
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const img = document.createElement("img");
+                img.src = event.target.result;
+                img.alt = "Selected product image";
+                previewContainer.appendChild(img);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    });
+}
+
+function toggleUpload(checkbox, colorId) {
+    const input = document.getElementById("upload_" + colorId);
+    const container = document.getElementById("preview_" + colorId);
+    const card = checkbox.closest(".color-upload-box");
+
+    if (!input) {
+        return;
+    }
+
+    input.disabled = !checkbox.checked;
+
+    if (card) {
+        card.classList.toggle("active", checkbox.checked);
+    }
+
+    if (!checkbox.checked) {
+        input.value = "";
+
+        if (container) {
+            container.querySelectorAll(".preview-thumb").forEach((item) => {
+                if (!item.querySelector(".primary-badge")) {
+                    item.remove();
+                }
+            });
+        }
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block content %}
+{% block content %}>
 
 <style>
 body
@@ -8,9 +8,12 @@ body
 }
 .blog-page {
     max-width: 850px;
-    margin: 50px auto;
+    margin: 0 auto;
     background: white;
-    padding: 40px;
+    padding-top: 80px;
+    padding-right: 40px;
+    padding-bottom: 40px;
+    padding-left: 40px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
@@ -41,7 +44,7 @@ body
 .back-btn {
     display: inline-block;
     margin-top: 30px;
-    color: #00bcd4;
+    color: #9ee8db;
     cursor: pointer;
 }
 </style>
@@ -54,7 +57,7 @@ body
         {{ blog.author }} • {{ blog.created_at.strftime('%d %b %Y') }}
     </div>
 
-    <img src="{{ blog.image or '/static/images/default.png' }}">
+    <img src="{{ blog.image }}">
 
     <div class="blog-content">
         {{ blog.content }}

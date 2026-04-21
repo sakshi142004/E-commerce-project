@@ -1,11 +1,24 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, abort
+from turtle import color
+
+import cloudinary
+import cloudinary.uploader
+from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
 from sqlalchemy import text
-from models import Address, Blog, Order, OrderItem, db, User, Product, ProductImage, ProductVideo, ProductTag
+from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Tag, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
 from flask_login import LoginManager, login_user, current_user
 from functools import wraps
+import os
+from datetime import datetime
+import uuid
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+
+
 
 app = Flask(__name__)   # ✅ FIRST create app
+
 app.config.from_object(Config)
 
 db.init_app(app)
@@ -14,6 +27,27 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
+
+
+
+
+mail = Mail(app)
+# 🔥 access like this
+UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
+
+
+import os
+
+IMAGE_UPLOAD_FOLDER = os.path.join(app.root_path, "static/images")
+VIDEO_UPLOAD_FOLDER = os.path.join(app.root_path, "static/videos")
+
+# ✅ Auto create folders (NO ERROR EVER)
+os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(VIDEO_UPLOAD_FOLDER, exist_ok=True)
+
+os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(VIDEO_UPLOAD_FOLDER, exist_ok=True)
+
 
 with app.app_context():
     db.create_all()
@@ -24,11 +58,29 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "avi"}
+
+def allowed_file(filename, filetype="image"):
+    if "." not in filename:
+        return False
+
+    ext = filename.rsplit(".", 1)[1].lower()
+
+    if filetype == "image":
+        return ext in {"png", "jpg", "jpeg", "webp"}
+    else:
+        return ext in {"mp4", "mov", "avi"}
+    
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
 
-        # ✅ session based check (tumhara system safe rahe)
+        if not session.get("admin"):
+            abort(404)
+
         email = session.get("email")
 
         if not email:
@@ -43,6 +95,9 @@ def admin_required(f):
 
     return decorated_function
 
+from datetime import timedelta
+
+app.permanent_session_lifetime = timedelta(days=7)  # 🔥 7 days login
 
 @app.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
@@ -55,8 +110,15 @@ def admin_login():
         from werkzeug.security import check_password_hash
 
         if user and check_password_hash(user.password, data.get("password")) and user.is_admin:
-            session['admin'] = True   # ✅ admin session
+
+            session['admin'] = True
             session['email'] = user.email
+
+            # 🔥 REMEMBER ME LOGIC
+            if data.get("remember"):
+                session.permanent = True   # long session
+            else:
+                session.permanent = False  # normal session
 
             return jsonify({"message": "Admin login success"})
 
@@ -68,28 +130,869 @@ def admin_login():
 @app.route("/secure-admin-portal-9821")
 @admin_required
 def admin_dashboard():
-    return render_template("admin/dashboard.html")
+    total_users = User.query.count()
+    total_orders = Order.query.count()
+    total_products = Product.query.count()
 
+    return render_template(
+        "admin/dashboard.html",
+        users=total_users,
+        orders=total_orders,
+        products=total_products
+    )
 
+from werkzeug.security import generate_password_hash
+
+@app.route("/admin/admins", methods=["GET", "POST"])
+@admin_required
+def admin_list():
+
+    if request.method == "POST":
+        username = request.form.get("username")   # ✅ sabse pehle lo
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        # ❌ validation
+        if not username or not email or not password:
+            flash("All fields are required", "error")
+            return redirect("/admin/admins")
+
+        # ❌ username already exists
+        if User.query.filter_by(username=username).first():
+            flash("Username already exists", "error")
+            return redirect("/admin/admins")
+
+        # ❌ email already exists
+        if User.query.filter_by(email=email).first():
+            flash("Email already exists", "error")
+            return redirect("/admin/admins")
+
+        # ✅ create admin
+        new_admin = User(
+            username=username,
+            email=email,
+            password=generate_password_hash(password),
+            is_admin=True
+        )
+
+        db.session.add(new_admin)
+        db.session.commit()
+
+        flash("Admin created successfully", "success")
+        return redirect("/admin/admins")
+
+    admins = User.query.filter_by(is_admin=True).all()
+    return render_template("admin/admin_list.html", admins=admins)
+
+@app.route("/admin/delete-admin/<int:id>", methods=["POST"])
+@admin_required
+def delete_admin(id):
+
+    admin = User.query.get_or_404(id)
+
+    # ❌ self delete block
+    if admin.email == session.get("email"):
+        flash("You cannot delete yourself", "error")
+        return redirect("/admin/admins")
+
+    # ❌ only admin delete
+    if not admin.is_admin:
+        abort(404)
+
+    db.session.delete(admin)
+    db.session.commit()
+
+    flash("Admin deleted successfully", "success")
+    return redirect("/admin/admins")
 @app.route("/admin-logout")
 def admin_logout():
-    session.pop("admin", None)
-    return redirect("/")
+    session.clear()   # 🔥 FULL session remove
+
+    return redirect("/admin-login")  # ✅ correct route
+
+@app.route("/admin/products")
+@admin_required
+def admin_products():
+    products = Product.query.options(
+        db.joinedload(Product.images),
+        db.joinedload(Product.product_colors).joinedload(ProductColor.color)
+    ).all()
+
+    return render_template("admin/products.html", products=products)
+
+@app.route("/admin/products/add", methods=["GET", "POST"])
+@admin_required
+def add_product():
+
+    if request.method == "POST":
+        name = request.form.get("name")
+        offer = request.form.get("offer")
+        guarantee = request.form.get("guarantee")
+        material = request.form.get("material")
+        description = request.form.get("description")
+
+        original_price = int(request.form.get("original_price", 0))
+        discount_percent = int(request.form.get("discount_percent", 0))
+        rating = request.form.get("rating")
+        size_unit = request.form.get("size_unit", "inch")
+
+        final_price = original_price - (original_price * discount_percent / 100)
+
+        product = Product(
+            name=name,
+            price=int(final_price),
+            original_price=original_price,
+            discount_percent=discount_percent,
+            rating=float(rating) if rating else None,
+            size_unit=size_unit,
+            offer = f"{discount_percent}% OFF" if discount_percent > 0 else None,
+            guarantee=guarantee,
+            material=material,
+            description=description
+        )
+
+        db.session.add(product)
+        db.session.commit()
+
+        # ✅ SIZES
+        sizes = request.form.get("sizes")
+        if sizes:
+            for s in sizes.split(","):
+                s = s.strip()
+                if s:
+                    db.session.add(ProductSize(
+                        product_id=product.id,
+                        size_label=s,
+                        size_value=float(s)
+                    ))
+
+        # 🎨 COLORS + MULTIPLE IMAGES
+        selected_colors = request.form.getlist("colors")
+        first_image_set = False
+
+        if not selected_colors:
+            print("No colors selected → using default images")
+
+        for color_id in selected_colors:
+
+            # save color relation
+            db.session.add(ProductColor(
+                product_id=product.id,
+                color_id=int(color_id)
+            ))
+
+            images = request.files.getlist(f"color_images_{color_id}")
+
+            if not images or images[0].filename == "":
+                print(f"No image uploaded for color {color_id}")
+                continue
+
+            for img in images:
+                if img and allowed_file(img.filename, "image"):
+
+                    result = cloudinary.uploader.upload(img)
+
+                    db.session.add(ProductImage(
+                        product_id=product.id,
+                        image_url=result["secure_url"],
+                        color_id=int(color_id),
+                        is_primary=not first_image_set
+                    ))
+
+                    first_image_set = True
+
+        # ⚠️ FALLBACK (no images at all)
+        if not first_image_set:
+            default_images = request.files.getlist("images")
+
+            for img in default_images:
+                if img and allowed_file(img.filename, "image"):
+
+                    result = cloudinary.uploader.upload(img)
+
+                    db.session.add(ProductImage(
+                        product_id=product.id,
+                        image_url=result["secure_url"],
+                        is_primary=True
+                    ))
+
+                    break
+
+        # 🎥 VIDEOS
+        videos = request.files.getlist("videos")
+        for vid in videos:
+            if vid and allowed_file(vid.filename, "video"):
+                filename = str(uuid.uuid4()) + "_" + secure_filename(vid.filename)
+                file_path = os.path.join(VIDEO_UPLOAD_FOLDER, filename)
+
+                vid.save(file_path)
+
+                db.session.add(ProductVideo(
+                    product_id=product.id,
+                    video_url="video/" + filename
+                ))
+
+        # 🏷 TAGS
+        tags = request.form.get("tags")
+        if tags:
+            for t in tags.split(","):
+                db.session.add(ProductTag(
+                    product_id=product.id,
+                    tag=t.strip()
+                ))
+
+        db.session.commit()
+        return redirect("/admin/products")
+
+    # ✅ GET
+    colors = Color.query.all()
+    return render_template("admin/add_product.html", colors=colors)
+@app.route("/admin/products/edit/<int:id>", methods=["GET", "POST"])
+@admin_required
+def edit_product(id):
+
+    product = Product.query.get_or_404(id)
+
+    if request.method == "POST":
+
+        # =========================
+        # BASIC DETAILS
+        # =========================
+        product.name = request.form.get("name")
+        product.guarantee = request.form.get("guarantee")
+        product.material = request.form.get("material")
+        product.description = request.form.get("description")
+        product.size_unit = request.form.get("size_unit", "inch")
+
+        # =========================
+        # PRICE CALCULATION
+        # =========================
+        original_price = int(request.form.get("original_price", 0))
+        discount_percent = int(request.form.get("discount_percent", 0))
+        rating = request.form.get("rating")
+
+        final_price = original_price - (original_price * discount_percent / 100)
+
+        product.original_price = original_price
+        product.discount_percent = discount_percent
+        product.price = int(final_price)
+        product.rating = float(rating) if rating else None
+
+        # ✅ AUTO OFFER TAG (IMPORTANT)
+        if discount_percent > 0:
+            product.offer = f"{discount_percent}% OFF"
+        else:
+            product.offer = None
+
+        # =========================
+        # 🔥 COLORS RESET + ADD
+        # =========================
+        ProductColor.query.filter_by(product_id=id).delete()
+
+        # ⚠️ OPTIONAL: OLD COLOR IMAGES DELETE
+        ProductImage.query.filter(
+            ProductImage.product_id == id,
+            ProductImage.color_id.isnot(None)
+        ).delete()
+
+        selected_colors = request.form.getlist("colors")
+        first_image_set = False
+
+        for color_id in selected_colors:
+
+            # save color relation
+            db.session.add(ProductColor(
+                product_id=id,
+                color_id=int(color_id)
+            ))
+
+            images = request.files.getlist(f"color_images_{color_id}")
+
+            for img in images:
+                if img and allowed_file(img.filename, "image"):
+
+                    result = cloudinary.uploader.upload(img)
+
+                    db.session.add(ProductImage(
+                        product_id=id,
+                        image_url=result["secure_url"],
+                        color_id=int(color_id),
+                        is_primary=not first_image_set
+                    ))
+
+                    first_image_set = True
+
+        # =========================
+        # 🔥 DEFAULT IMAGES
+        # =========================
+        default_images = request.files.getlist("images")
+
+        for img in default_images:
+            if img and allowed_file(img.filename, "image"):
+
+                result = cloudinary.uploader.upload(img)
+
+                db.session.add(ProductImage(
+                    product_id=id,
+                    image_url=result["secure_url"],
+                    is_primary=not first_image_set
+                ))
+
+                first_image_set = True
+
+        # =========================
+        # 🔥 ENSURE PRIMARY IMAGE
+        # =========================
+        primary_exists = ProductImage.query.filter_by(
+            product_id=id,
+            is_primary=True
+        ).first()
+
+        if not primary_exists:
+            first_img = ProductImage.query.filter_by(product_id=id).first()
+            if first_img:
+                first_img.is_primary = True
+
+        # =========================
+        # 🔵 VIDEOS ADD
+        # =========================
+        videos = request.files.getlist("videos")
+
+        for vid in videos:
+            if vid and allowed_file(vid.filename, "video"):
+
+                filename = str(uuid.uuid4()) + "_" + secure_filename(vid.filename)
+                file_path = os.path.join(VIDEO_UPLOAD_FOLDER, filename)
+
+                vid.save(file_path)
+
+                db.session.add(ProductVideo(
+                    product_id=id,
+                    video_url="videos/" + filename
+                ))
+
+        # =========================
+        # 📏 SIZES RESET + ADD
+        # =========================
+        ProductSize.query.filter_by(product_id=id).delete()
+
+        sizes = request.form.get("sizes")
+
+        if sizes:
+            for s in sizes.split(","):
+                s = s.strip()
+                if s:
+                    db.session.add(ProductSize(
+                        product_id=id,
+                        size_label=s,
+                        size_value=float(s)
+                    ))
+
+        # =========================
+        # 🏷 TAGS RESET + ADD
+        # =========================
+        ProductTag.query.filter_by(product_id=id).delete()
+
+        tags = request.form.get("tags")
+
+        if tags:
+            for t in tags.split(","):
+                t = t.strip()
+                if t:
+                    db.session.add(ProductTag(
+                        product_id=id,
+                        tag=t
+                    ))
+
+        # =========================
+        # 💾 SAVE
+        # =========================
+        db.session.commit()
+
+        return redirect("/admin/products")
+
+    # =========================
+    # GET
+    # =========================
+    colors = Color.query.all()
+
+    return render_template(
+        "admin/edit_product.html",
+        product=product,
+        colors=colors
+    )
+
+@app.route("/admin/products/delete/<int:id>")
+@admin_required
+def delete_product(id):
+
+    product = Product.query.get_or_404(id)
+
+    # ❌ BLOCK if in orders
+    order_item = OrderItem.query.filter_by(product_id=id).first()
+
+    if order_item:
+        return """
+        <script>
+            alert("❌ Cannot delete! Product is used in an order.");
+            window.location.href = "/admin/products";
+        </script>
+        """
+
+    # 🟡 REMOVE FROM CART
+    db.session.execute(
+        text("DELETE FROM cart WHERE product_id = :pid"),
+        {"pid": id}
+    )
+
+    db.session.delete(product)
+    db.session.commit()
+
+    return redirect("/admin/products")
+
+
+
+
+@app.route("/admin/image/delete/<int:id>")
+@admin_required
+def delete_image(id):
+    image = ProductImage.query.get_or_404(id)
+
+    db.session.delete(image)
+    db.session.commit()
+
+    return redirect(request.referrer)
+
+@app.route("/admin/image/primary/<int:id>")
+@admin_required
+def set_primary_image(id):
+    image = ProductImage.query.get_or_404(id)
+
+    # reset all
+    ProductImage.query.filter_by(product_id=image.product_id).update({"is_primary": False})
+
+    # set this one
+    image.is_primary = True
+
+    db.session.commit()
+
+    return redirect(request.referrer)
+
+
+
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+def send_email_sendgrid(to_email, subject, html_content):
+    try:
+        message = Mail(
+            from_email=app.config["SENDER_EMAIL"],
+            to_emails=to_email,
+            subject=subject,
+            html_content=html_content
+        )
+
+        sg = SendGridAPIClient(app.config["SENDGRID_API_KEY"])
+        response = sg.send(message)
+
+        print("SendGrid Status:", response.status_code)
+
+    except Exception as e:
+        print("SendGrid Error:", e)
+
+
+
+@app.route("/admin/send-email", methods=["POST"])
+@admin_required
+def send_email():
+
+    users = request.form.getlist("users")
+    subject = request.form.get("subject")
+    content = request.form.get("content")
+
+    logo = "https://belt-purse.com/static/images/BP_Logo-01-01.jpg.jpeg"
+
+    # ✅ FIRST create email_record
+    email_record = EmailHistory(
+        subject=subject,
+        content=content,
+        sent_by=session.get("email"),
+        total_users=len(users)
+    )
+    db.session.add(email_record)
+    db.session.commit()   # ⚠️ IMPORTANT (ID generate hoga)
+
+    # ✅ NOW create email_html (after id exists)
+    email_html = f"""
+    <div style="font-family:Arial">
+        <img src="{logo}" width="120"><br><br>
+        {content}
+        <br><br>
+        <small>© Belt Store</small>
+    </div>
+    """
+
+    # ✅ SEND EMAILS
+    for u in users:
+
+        # 🔥 tracking pixel add per user
+        personal_html = f"""
+        {email_html}
+        <img src="http://127.0.0.1:5000/track-email/{email_record.id}/{u}" width="1" height="1">
+        """
+
+        send_email_sendgrid(u, subject, personal_html)
+
+        db.session.add(EmailTrack(
+            email_id=email_record.id,
+            user_email=u
+        ))
+
+    db.session.commit()
+
+    return redirect("/admin/email")
+
+@app.route("/admin/email")
+@admin_required
+def admin_email():
+    users = User.query.all()
+    return render_template("admin/email.html", users=users)
+
+
+@app.route("/admin/email/history")
+@admin_required
+def email_history():
+    history = EmailHistory.query.order_by(EmailHistory.id.desc()).all()
+    return render_template("admin/email_history.html", history=history)
+
+
+def generate_slug(title):
+    base_slug = title.lower().strip().replace(" ", "-")
+    slug = base_slug
+    counter = 1
+
+    while Blog.query.filter_by(slug=slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    return slug
+
+# 📚 All Blogs (Admin Panel)
+@app.route('/admin/blogs')
+def admin_blogs():
+    blogs = Blog.query.order_by(Blog.created_at.desc()).all()
+    categories = Category.query.all()
+
+    return render_template(
+        "admin/blogs.html",
+        blogs=blogs,
+        categories=categories
+    )
+
+# ➕ Add Blog
+@app.route('/admin/blogs/add', methods=['GET', 'POST'])
+def add_blog():
+
+    categories =  Category.query.all()
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+        author = request.form['author']
+
+
+        category_id = request.form.get('category')
+        seo_title = request.form.get('seo_title') or title
+        seo_description = request.form.get('seo_description') or content[:150]
+        # 🔥 SEO Friendly Slug
+        slug = generate_slug(title)
+
+        # 🔥 Image Upload
+        file = request.files.get('image')
+
+        image_filename = None
+        if file and file.filename != "":
+            
+            result = cloudinary.uploader.upload(file,folder="blogs")
+            image_filename = result["secure_url"]
+
+
+        tag_names = request.form.get('tags', "").split(",")
+
+        tag_objects = []
+        for tag in tag_names:
+            tag = tag.strip().lower()
+            if tag:
+                existing = Tag.query.filter_by(name=tag).first()
+                if existing:
+                    tag_objects.append(existing)
+                else:
+                    new_tag = Tag(name=tag)
+                    db.session.add(new_tag)
+                    tag_objects.append(new_tag)
+
+
+        new_blog = Blog(
+            title=title,
+            slug=slug,
+            content=content,
+            image=image_filename,
+            author=author,
+            category_id=category_id,
+            seo_title=seo_title,
+            seo_description=seo_description,
+            tags=tag_objects,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            is_published=True
+        )
+
+        db.session.add(new_blog)
+        db.session.commit()
+
+        return redirect('/admin/blogs')
+
+    return render_template("admin/add_blog.html")
+
+
+# ✏️ Edit Blog
+@app.route('/admin/blogs/edit/<int:id>', methods=['GET', 'POST'])
+def edit_blog(id):
+    blog = Blog.query.get_or_404(id)
+    categories =  Category.query.all()
+    if request.method == 'POST':
+        blog.title = request.form['title']
+        blog.content = request.form['content']
+        blog.author = request.form['author']
+
+
+        blog.category_id = request.form.get('category')
+        blog.seo_title = request.form.get('seo_title') or blog.title
+        blog.seo_description = request.form.get('seo_description') or blog.content[:150]
+
+        blog.slug=generate_slug(blog.title)
+
+        # 🔥 Image update
+        file = request.files.get('image')
+        if file and file.filename != "":
+            
+            result = cloudinary.uploader.upload(file,folder="blogs")
+            blog.image = result["secure_url"]
+         
+
+        tag_names = request.form.get('tags', "").split(",")
+        blog.tags.clear()
+
+        for tag in tag_names:
+            tag = tag.strip().lower()
+            if tag:
+                existing = Tag.query.filter_by(name=tag).first()
+                if existing:
+                    blog.tags.append(existing)
+                else:
+                    new_tag = Tag(name=tag)
+                    db.session.add(new_tag)
+                    blog.tags.append(new_tag)
+
+                
+        blog.is_published = True if request.form.get('is_published') else False
+        blog.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        return redirect('/admin/blogs')
+
+    return render_template("admin/edit_blog.html", blog=blog)
+
+
+# 🗑 Delete Blog
+@app.route('/admin/blogs/delete/<int:id>')
+def delete_blog(id):
+    blog = Blog.query.get_or_404(id)
+
+    # optional: delete image file
+    
+
+    db.session.delete(blog)
+    db.session.commit()
+
+    return redirect('/admin/blogs')
+
+@app.route('/upload-image', methods=['POST'])
+def upload_image():
+    file = request.files.get('image')
+
+    if not file:
+        return jsonify({"error": "No file"}), 400
+    
+    result = cloudinary.uploader.upload(file)
+
+    return jsonify({
+        "url": result["secure_url"]
+    })
+
+
+
+
+@app.route('/admin/orders')
+def admin_orders():
+    orders = Order.query.order_by(Order.id.desc()).all()
+    return render_template("admin/orders.html", orders=orders)
+
+@app.route('/admin/orders/<int:id>')
+def order_detail(id):
+    order = Order.query.get_or_404(id)
+    items = OrderItem.query.filter_by(order_id=id).all()
+    return render_template("admin/order_detail.html", order=order, items=items)
+
+@app.route('/admin/orders/update/<int:id>', methods=['POST'])
+def update_order(id):
+    order = Order.query.get_or_404(id)
+
+    order.status = request.form['status']
+    order.tracking_number = request.form['tracking_number']
+
+    db.session.commit()
+    return redirect('/admin/orders')
+
+@app.route('/my-orders')
+def my_orders():
+    user_id = session.get('user_id')
+
+    orders = Order.query.filter_by(user_id=user_id).all()
+
+    return render_template("user/orders.html", orders=orders)
+
+
+def create_order(user_id, cart_items, address_id):
+
+    total = sum(item['price'] * item['qty'] for item in cart_items)
+
+    order = Order(
+        user_id=user_id,
+        address_id=address_id,
+        total_amount=total,
+        status="Placed"
+    )
+
+    db.session.add(order)
+    db.session.commit()
+
+    # add items
+    for item in cart_items:
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=item['id'],
+            quantity=item['qty'],
+            price=item['price']
+        )
+        db.session.add(order_item)
+
+    db.session.commit()
+
+    return order.id
+
+
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.id.desc()).all()
+    return render_template("admin/users.html", users=users)
+
+# Fetch orders for modal
+@app.route("/admin/users/<int:user_id>/orders")
+@admin_required
+def admin_user_orders(user_id):
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.id.desc()).all()
+    order_list = []
+    for o in orders:
+        order_list.append({
+            "id": o.id,
+            "total_amount": o.total_amount,
+            "status": o.status,
+            "created_at": o.created_at.strftime("%Y-%m-%d %H:%M"),
+            "tracking_number": o.tracking_number
+        })
+    return jsonify({"orders": order_list})
+
+# Toggle active/deactive user
+@app.route("/admin/users/toggle/<int:user_id>")
+@admin_required
+def admin_toggle_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if not user.is_admin:  # never toggle admin
+        user.is_active = not getattr(user, 'is_active', True)
+        db.session.commit()
+    return redirect("/admin/users")
+
+
+@app.route("/admin/settings", methods=["GET", "POST"])
+@admin_required
+def admin_settings():
+
+    admin = User.query.filter_by(email=session.get("email")).first()
+
+    if not admin:
+        return redirect("/admin-login")
+
+    if request.method == "POST":
+
+        # ======================
+        # BASIC UPDATE
+        # ======================
+        username = request.form.get("username")
+        email = request.form.get("email")
+
+        admin.username = username
+        admin.email = email
+
+        # ⚠️ session email bhi update karna important hai
+        session["email"] = email
+
+        # ======================
+        # PASSWORD CHANGE
+        # ======================
+        current_password = request.form.get("current_password")
+        new_password = request.form.get("new_password")
+        confirm_password = request.form.get("confirm_password")
+
+        if current_password or new_password or confirm_password:
+
+            # ❌ check current password
+            if not check_password_hash(admin.password, current_password):
+                return """
+                <script>
+                    alert("❌ Current password incorrect");
+                    window.location.href="/admin/settings";
+                </script>
+                """
+
+            # ❌ match new passwords
+            if new_password != confirm_password:
+                return """
+                <script>
+                    alert("❌ Passwords do not match");
+                    window.location.href="/admin/settings";
+                </script>
+                """
+
+            # ✅ update password
+            admin.password = generate_password_hash(new_password)
+
+        db.session.commit()
+
+        return """
+        <script>
+            alert("✅ Settings updated successfully");
+            window.location.href="/admin/settings";
+        </script>
+        """
+
+    return render_template("admin/settings.html", admin=admin)
 # ================= HOME =================
 
 @app.route("/", methods=["GET", "POST"])
 def home():
 
-    user_data = None
-
-    # ✅ check if user logged in
-    if 'user' in session:
-        user_data = {
-            "username": session.get('user'),
-            "email": session.get('email')
-        }
-
-    return render_template("index.html", user=user_data)
+    return render_template("index.html")
 
 
     
@@ -122,36 +1025,39 @@ def register():
     db.session.add(user)
     db.session.commit()
 
+    session['user'] = user.username
+    session['email'] = user.email
+    session['user_id'] = user.id
+
     return jsonify({"message": "Registered successfully"})
 
 # ================= LOGIN =================
 from werkzeug.security import check_password_hash
 
+# LOGIN FIX
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
 
-    if not data:
-        return jsonify({"message": "No data"}), 400
+    user = User.query.filter_by(email=data.get('email')).first()
 
-    # ✅ Only check email
-    user = User.query.filter_by(
-        email=data.get('email')
-    ).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
 
-    # ✅ Compare hashed password
-    if user and check_password_hash(user.password, data.get('password')):
-        session['user'] = user.username
-        session['email'] = user.email
+    if not check_password_hash(user.password, data.get('password')):
+        return jsonify({"message": "Wrong password"}), 401
 
-        return jsonify({
-            "message": "Login successful",
-            "name": user.username
-        })
+    session['user'] = user.username
+    session['email'] = user.email
+    session['user_id'] = user.id
 
-    return jsonify({"message": "Invalid credentials"}), 401
+    return jsonify({
+        "message": "Login successful",
+        "name": user.username
+    })
 
-# ================= PRODUCTS =================
+from collections import defaultdict
+
 @app.route('/products')
 def products():
     products = Product.query.all()
@@ -162,18 +1068,51 @@ def products():
         images = ProductImage.query.filter_by(product_id=p.id).all()
         videos = ProductVideo.query.filter_by(product_id=p.id).all()
         tags = ProductTag.query.filter_by(product_id=p.id).all()
+        sizes = ProductSize.query.filter_by(product_id=p.id).all()
+
+        # ✅ color-wise grouping (Amazon hover feature ke liye important)
+        color_images = defaultdict(list)
+
+        for img in images:
+            if img.color_id:
+                color_images[img.color_id].append(img.image_url)
 
         result.append({
             "id": p.id,
             "name": p.name,
             "price": p.price,
+            "original_price": p.original_price,
+            "discount_percent": p.discount_percent,
+            "rating": p.rating,
             "offer": p.offer,
             "guarantee": p.guarantee,
             "material": p.material,
             "description": p.description,
+            "size_unit": p.size_unit or "inch",
+
+            # ✅ IMPORTANT FOR AMAZON STYLE HOVER
+            "color_images": dict(color_images),
+
             "images": [img.image_url for img in images],
             "videos": [vid.video_url for vid in videos],
-            "tags": [t.tag for t in tags]
+            "tags": [t.tag for t in tags],
+
+            "sizes": [
+                {
+                    "label": s.size_label,
+                    "value": s.size_value
+                }
+                for s in sizes
+            ],
+
+            "colors": [
+                {
+                    "name": pc.color.name,
+                    "code": pc.color.code,
+                    "id": pc.color.id
+                }
+                for pc in p.product_colors
+            ]
         })
 
     return jsonify(result)
@@ -209,17 +1148,29 @@ def product_detail(id):
         return "Product not found", 404
 
     images = ProductImage.query.filter_by(product_id=id).all()
+
+    images_data = [
+      {
+        "id": img.id,
+        "image_url": img.image_url,
+        "color_id": img.color_id
+      }
+        for img in images
+   ]
     videos = ProductVideo.query.filter_by(product_id=id).all()
     tags = ProductTag.query.filter_by(product_id=id).all()
-
+    sizes = ProductSize.query.filter_by(product_id=id).all()
+    colors = ProductColor.query.filter_by(product_id=id).all()
     related_products = Product.query.limit(4).all()
 
     return render_template(
         "product.html",
         product=product,
-        images=images,
+        images=images_data,
         videos=videos,
         tags=tags,
+        sizes=sizes,
+        colors=colors,
         related_products=related_products
     )
 
@@ -227,9 +1178,16 @@ def product_detail(id):
 
 @app.route('/products-page')
 def products_page():
-    return render_template("products.html")
+    color_id = request.args.get('color')
 
+    if color_id:
+        products = Product.query.join(ProductColor).filter(
+            ProductColor.color_id == color_id
+        ).all()
+    else:
+        products = Product.query.all()
 
+    return render_template("products.html", products=products)
 # ================= CONTEXT =================
 @app.context_processor
 def inject_counts():
@@ -250,7 +1208,8 @@ def inject_counts():
                 wishlist_count=wishlist_count,
                 user={
                     "username": user.username,
-                    "email": user.email
+                    "email": user.email,
+                    "avatar": user.avatar
                 }
             )
 
@@ -319,7 +1278,10 @@ def remove_cart(id):
     """), {"uid": user.id, "pid": id})
     db.session.commit()
 
-    return "Removed"
+    return jsonify({
+    "success": True,
+    "message": "Removed"
+})
 
 
 @app.route('/decrease_cart/<int:id>')
@@ -345,7 +1307,8 @@ def decrease_cart(id):
             """), {"uid": user.id, "pid": id})
 
     db.session.commit()
-    return "Updated"
+    return jsonify({"success": True, "message": "Updated"})
+
 @app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'email' not in session:
@@ -374,7 +1337,7 @@ def add_to_cart(id):
         SELECT SUM(quantity) FROM cart WHERE user_id=:uid
     """), {"uid": user.id}).scalar()
 
-    return jsonify({"count": count})
+    return jsonify({"success": True, "count": count})
 
 # ================= WISHLIST =================
 @app.route('/add_to_wishlist/<int:id>')
@@ -444,13 +1407,127 @@ def wishlist_page():
     user = User.query.filter_by(email=session['email']).first()
 
     items = db.session.execute(text("""
-        SELECT p.* FROM wishlist w
+        SELECT p.*, 
+               (SELECT pi.image_url 
+                FROM product_images pi 
+                WHERE pi.product_id = p.id 
+                LIMIT 1) as image_url
+        FROM wishlist w
         JOIN products p ON w.product_id = p.id
         WHERE w.user_id = :uid
     """), {"uid": user.id}).fetchall()
 
     return render_template("wishlist.html", items=items)
 
+@app.route('/wishlist/check/<int:product_id>')
+def check_wishlist(product_id):
+    if 'email' not in session:
+        return jsonify({"in_wishlist": False})
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    exists = db.session.execute(text("""
+        SELECT 1 FROM wishlist 
+        WHERE user_id=:uid AND product_id=:pid
+    """), {"uid": user.id, "pid": product_id}).fetchone()
+
+    return jsonify({"in_wishlist": bool(exists)})
+
+
+
+
+@app.route('/wishlist/toggle/<int:product_id>')
+def toggle_wishlist(product_id):
+    if 'email' not in session:
+        return jsonify({"error": "Login required"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    existing = db.session.execute(text("""
+        SELECT 1 FROM wishlist 
+        WHERE user_id=:uid AND product_id=:pid
+    """), {"uid": user.id, "pid": product_id}).fetchone()
+
+    if existing:
+        # ❌ REMOVE
+        db.session.execute(text("""
+            DELETE FROM wishlist 
+            WHERE user_id=:uid AND product_id=:pid
+        """), {"uid": user.id, "pid": product_id})
+        in_wishlist = False
+    else:
+        # ✅ ADD
+        db.session.execute(text("""
+            INSERT INTO wishlist (user_id, product_id)
+            VALUES (:uid, :pid)
+        """), {"uid": user.id, "pid": product_id})
+        in_wishlist = True
+
+    db.session.commit()
+
+    # ✅ updated count
+    count = db.session.execute(text("""
+        SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
+    """), {"uid": user.id}).scalar()
+
+    return jsonify({
+        "in_wishlist": in_wishlist,
+        "count": count
+    })
+
+@app.route("/cart/toggle/<int:product_id>", methods=["POST"])
+def toggle_cart(product_id):
+
+    if 'email' not in session:
+        return jsonify({"error": "login required"}), 401
+
+    size_id = request.json.get("size_id")   # 🔥 get size
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    existing = db.session.execute(text("""
+        SELECT * FROM cart 
+        WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
+    """), {"uid": user.id, "pid": product_id, "sid": size_id}).fetchone()
+
+    if existing:
+        db.session.execute(text("""
+            DELETE FROM cart 
+            WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
+        """), {"uid": user.id, "pid": product_id, "sid": size_id})
+        in_cart = False
+    else:
+        db.session.execute(text("""
+            INSERT INTO cart (user_id, product_id, size_id, quantity)
+            VALUES (:uid, :pid, :sid, 1)
+        """), {"uid": user.id, "pid": product_id, "sid": size_id})
+        in_cart = True
+
+    db.session.commit()
+
+    count = db.session.execute(text("""
+        SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id=:uid
+    """), {"uid": user.id}).scalar()
+
+    return jsonify({
+        "in_cart": in_cart,
+        "count": count
+    })
+
+@app.route("/cart/check/<int:product_id>")
+def check_cart(product_id):
+
+    if 'email' not in session:
+        return jsonify({"in_cart": False})
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    exists = db.session.execute(text("""
+        SELECT 1 FROM cart 
+        WHERE user_id=:uid AND product_id=:pid
+    """), {"uid": user.id, "pid": product_id}).fetchone()
+
+    return jsonify({"in_cart": bool(exists)})
 
 @app.route('/get_counts')
 def get_counts():
@@ -511,20 +1588,20 @@ def update_quantity(product_id, action):
 
     return jsonify({"status": "ok", "quantity": qty, "cart_count": new_count})
 
-# ================= ORDERS =================
-@app.route('/get_orders')
-def get_orders():
+@app.route('/api/orders', methods=['GET'])
+def api_orders():
     if 'email' not in session:
         return jsonify([])
 
     user = User.query.filter_by(email=session['email']).first()
 
-    orders = Order.query.filter_by(user_id=user.id).all()
+    orders = Order.query.filter_by(user_id=user.id).order_by(Order.created_at.desc()).all()
 
     return jsonify([{
         "id": o.id,
         "total": o.total_amount,
-        "status": o.status
+        "status": o.status,
+        "created_at": o.created_at.isoformat() if o.created_at else None
     } for o in orders])
 
 # ================= ADDRESS =================
@@ -559,24 +1636,110 @@ def get_addresses():
     user = User.query.filter_by(email=session['email']).first()
 
     addresses = Address.query.filter_by(user_id=user.id).all()  # ✅ FIXED
-
     return jsonify([{
-        "full_name": a.full_name,
+       "full_name": a.full_name,
         "phone": a.phone,
+        "address_line": a.address_line,
         "city": a.city,
+        "state": a.state,
         "pincode": a.pincode
-    } for a in addresses])
+    } for a in addresses]) 
 
 # ================= CART PAGE =================
 
 
 # ================= CHECKOUT =================
+@app.route('/api/checkout-review', methods=['GET'])
+def checkout_review():
+    """
+    Get review data before checkout - shows user details, cart, and addresses
+    """
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    # ✅ Fetch cart items
+    cart_items = db.session.execute(text("""
+        SELECT product_id, quantity 
+        FROM cart 
+        WHERE user_id = :uid
+    """), {"uid": user.id}).fetchall()
+
+    if not cart_items:
+        return jsonify({
+            "message": "Cart is empty",
+            "cart": [],
+            "total": 0
+        })
+
+    # ✅ Build cart details with product info
+    cart_details = []
+    total = 0
+
+    for item in cart_items:
+        product = Product.query.get(item.product_id)
+        if product:
+            item_total = product.price * item.quantity
+            total += item_total
+            cart_details.append({
+                "product_id": product.id,
+                "product_name": product.name,
+                "quantity": item.quantity,
+                "price": product.price,
+                "item_total": item_total
+            })
+
+    # ✅ Get user's addresses
+    addresses = Address.query.filter_by(user_id=user.id).all()
+    addresses_list = [{
+        "id": a.id,
+        "full_name": a.full_name,
+        "phone": a.phone,
+        "address_line": a.address_line,
+        "city": a.city,
+        "state": a.state,
+        "pincode": a.pincode
+    } for a in addresses]
+
+    # ✅ Return review data
+    review_data = {
+        "user": {
+            "name": user.username,
+            "email": user.email,
+            "phone": user.phone or None,
+            "dob": user.dob.strftime('%Y-%m-%d') if user.dob else None,
+            "phone_warning": "⚠️ Phone number not set" if not user.phone else None
+        },
+        "cart": cart_details,
+        "cart_count": len(cart_details),
+        "total": total,
+        "addresses": addresses_list,
+        "addresses_count": len(addresses_list),
+        "ready_for_checkout": len(addresses_list) > 0 and total > 0
+    }
+
+    return jsonify(review_data)
+
+
 @app.route('/checkout', methods=['POST'])
 def checkout():
     if 'email' not in session:
         return jsonify({"message": "Login required"}), 401
 
     user = User.query.filter_by(email=session['email']).first()
+
+    # ✅ VALIDATE phone number is provided
+    if not user.phone or user.phone.strip() == "":
+        return jsonify({
+            "error": True,
+            "message": "Phone number is required to complete order",
+            "error_type": "missing_phone",
+            "redirect": "/account"
+        })
+    data = request.json
 
     # ✅ Fetch cart items
     cart_items = db.session.execute(text("""
@@ -591,13 +1754,28 @@ def checkout():
 
     total = 0
 
-    # ✅ Create order first
+    data = request.get_json()
+
+# 👉 user addresses
+    addresses = Address.query.filter_by(user_id=user.id).all()
+
+    if not addresses:
+      return jsonify({"message": "No address found"})
+
+    selected_index = data.get("address_index", 0)
+
+    if selected_index >= len(addresses):
+        return jsonify({"message": "Invalid address"})
+
+    selected_address = addresses[selected_index]
+
     order = Order(
-        user_id=user.id,
-        total_amount=0,
-        status="Processing",
-        tracking_number=f"TRK{user.id}{len(cart_items)}"
-    )
+      user_id=user.id,
+      address_id=selected_address.id,
+      total_amount=0,
+      status="Pending",
+      tracking_number=f"TRK{user.id}{len(cart_items)}"
+   )
 
     db.session.add(order)
     db.session.commit()
@@ -654,20 +1832,33 @@ import time
 
 @app.route('/upload_avatar', methods=['POST'])
 def upload_avatar():
-    file = request.files['file']
+    user = None
+    if 'user_id' in session:
+        user = User.query.get(session['user_id'])
 
-    
-    filename = str(int(time.time())) + "_" + secure_filename(file.filename)
-    path = os.path.join('static/images', filename)
-    file.save(path)
+    if not user and 'email' in session:
+        user = User.query.filter_by(email=session['email']).first()
+        if user:
+            session['user_id'] = user.id
 
-    user = User.query.filter_by(email=session['email']).first()
-    user.avatar = filename
+    if not user:
+        return jsonify({"error": "Not logged in"}), 401
+
+    file = request.files.get('avatar')
+
+    if not file:
+        return jsonify({"error": "No file"}), 400
+
+    # 🔥 Upload to Cloudinary
+    result = cloudinary.uploader.upload(file, folder="avatars")
+
+    # ✅ Save URL in DB
+    user.avatar = result["secure_url"]
+
     db.session.commit()
 
     return jsonify({
-        "message": "Uploaded successfully",
-        "url": "/static/images/" + filename
+        "url": result["secure_url"]
     })
 
 # ================= ACCOUNT =================
@@ -701,6 +1892,423 @@ def update_profile():
 
     return jsonify({"message": "Profile updated"})
 
+
+# ================= API ROUTES =================
+@app.route('/api/profile', methods=['PUT'])
+def api_update_profile():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    try:
+        data = request.get_json()
+        user = User.query.filter_by(email=session['email']).first()
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # ✅ Update name (optional)
+        if data.get("name") and data.get("name").strip() != "":
+            user.username = data.get("name").strip()
+
+        # ✅ Update email with uniqueness check
+        if data.get("email") and data.get("email").strip() != "":
+            new_email = data.get("email").strip()
+            # Check if email already exists (and is not the current user's email)
+            if new_email != user.email:
+                existing_user = User.query.filter_by(email=new_email).first()
+                if existing_user:
+                    return jsonify({"error": "Email already registered"}), 400
+            user.email = new_email
+
+        # ✅ Update phone (optional)
+        if data.get("phone"):
+            user.phone = data.get("phone").strip()
+
+        # ✅ Update DOB (optional)
+        dob = data.get("dob")
+        if dob and dob.strip() != "":
+            try:
+                user.dob = datetime.strptime(dob, '%Y-%m-%d').date()
+                print(f"✅ DOB set to: {user.dob}")
+            except ValueError as e:
+                return jsonify({"error": f"Invalid date format"}), 400
+
+        # ✅ Handle password change (optional)
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+
+        if new_password and new_password.strip() != "":
+            # Must provide current password to change password
+            if not current_password or current_password.strip() == "":
+                return jsonify({"error": "Current password required to change password"}), 400
+            
+            # Verify current password
+            if not check_password_hash(user.password, current_password):
+                return jsonify({"error": "Current password is incorrect"}), 400
+            
+            # Hash and set new password
+            user.password = generate_password_hash(new_password)
+            print(f"✅ Password updated for user: {user.email}")
+
+        # Commit all changes
+        db.session.commit()
+        print(f"✅ Profile updated for user: {user.email}")
+
+        # Update session with new email if it changed
+        session['email'] = user.email
+
+        return jsonify({
+            "message": "Profile updated successfully",
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "phone": user.phone,
+                "dob": user.dob.strftime('%Y-%m-%d') if user.dob else None
+            }
+        })
+    
+    except Exception as e:
+        print(f"❌ Error updating profile: {e}")
+        db.session.rollback()
+        return jsonify({"error": f"Error: {str(e)}"}), 500
+
+@app.route('/api/verify-phone', methods=['POST'])
+def api_verify_phone():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    user.phone_verified = True
+    db.session.commit()
+
+    return jsonify({"message": "Phone verified"})
+
+
+import random
+
+@app.route('/api/send-otp', methods=['POST'])
+def send_otp():
+    """
+    Send OTP to user's phone (for testing, OTP is printed to console)
+    Free alternative: User can read OTP from console/logs
+    """
+    data = request.get_json()
+    phone = data.get("phone")
+
+    if not phone or phone.strip() == "":
+        return jsonify({"message": "Phone number required"}), 400
+
+    # Generate OTP
+    otp = random.randint(100000, 999999)  # 6-digit OTP
+
+    # Store in session
+    session['otp'] = str(otp)
+    session['otp_phone'] = phone
+    
+    # 🔥 For development/testing: Print to console and also return it
+    print(f"\n{'='*50}")
+    print(f"📱 OTP for {phone}: {otp}")
+    print(f"{'='*50}\n")
+
+    return jsonify({
+        "message": f"OTP sent to {phone}",
+        "otp": str(otp)  # 🔥 For testing during development
+    })
+
+@app.route('/api/verify-otp', methods=['POST'])
+def verify_otp():
+    """
+    Verify OTP entered by user
+    """
+    data = request.get_json()
+    entered_otp = data.get("otp")
+
+    if not entered_otp:
+        return jsonify({"message": "OTP required"}), 400
+
+    session_otp = session.get('otp')
+    
+    if str(entered_otp).strip() == str(session_otp).strip():
+        try:
+            user = User.query.filter_by(email=session['email']).first()
+            if not user:
+                return jsonify({"message": "User not found"}), 404
+            
+            user.phone_verified = True
+            user.phone = session.get('otp_phone', user.phone)  # Update phone if not already there
+            db.session.commit()
+            
+            print(f"✅ Phone verified for user: {user.email}")
+
+            return jsonify({
+                "message": "Phone verified successfully",
+                "verified": True
+            })
+        except Exception as e:
+            print(f"❌ Error verifying phone: {e}")
+            return jsonify({"message": f"Error: {str(e)}"}), 500
+    else:
+        return jsonify({"message": "Invalid OTP"}), 400
+
+
+@app.route('/api/verify-phone-direct', methods=['POST'])
+def verify_phone_direct():
+    """
+    Direct phone verification without OTP (free option)
+    Just verify the phone number without SMS
+    """
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    data = request.get_json()
+    phone = data.get("phone")
+
+    if not phone or phone.strip() == "":
+        return jsonify({"message": "Phone number required"}), 400
+
+    try:
+        user = User.query.filter_by(email=session['email']).first()
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+        
+        user.phone = phone
+        user.phone_verified = True
+        db.session.commit()
+        
+        print(f"✅ Phone verified directly for user: {user.email} - {phone}")
+
+        return jsonify({
+            "message": "Phone verified successfully (no OTP required)",
+            "verified": True
+        })
+    except Exception as e:
+        print(f"❌ Error verifying phone: {e}")
+        db.session.rollback()
+        return jsonify({"message": f"Error: {str(e)}"}), 500
+
+@app.route('/api/addresses', methods=['GET', 'POST'])
+def api_addresses():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    if request.method == 'GET':
+        addresses = Address.query.filter_by(user_id=user.id).all()
+        return jsonify([{
+            "id": a.id,
+            "full_name": a.full_name,
+            "phone": a.phone,
+            "address_line": a.address_line,
+            "city": a.city,
+            "state": a.state,
+            "pincode": a.pincode
+        } for a in addresses])
+
+    data = request.get_json()
+    address = Address(
+        user_id=user.id,
+        full_name=data['full_name'],
+        phone=data['phone'],
+        address_line=data['address_line'],
+        city=data['city'],
+        state=data['state'],
+        pincode=data['pincode']
+    )
+    db.session.add(address)
+    db.session.commit()
+    return jsonify({"message": "Address added"})
+
+@app.route('/api/addresses/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+def api_address(id):
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    address = Address.query.filter_by(id=id, user_id=user.id).first()
+    if not address:
+        return jsonify({"message": "Address not found"}), 404
+
+    if request.method == 'GET':
+        return jsonify({
+            "id": address.id,
+            "full_name": address.full_name,
+            "phone": address.phone,
+            "address_line": address.address_line,
+            "city": address.city,
+            "state": address.state,
+            "pincode": address.pincode
+        })
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        address.full_name = data['full_name']
+        address.phone = data['phone']
+        address.address_line = data['address_line']
+        address.city = data['city']
+        address.state = data['state']
+        address.pincode = data['pincode']
+        db.session.commit()
+        return jsonify({"message": "Address updated"})
+
+    if request.method == 'DELETE':
+        db.session.delete(address)
+        db.session.commit()
+        return jsonify({"message": "Address deleted"})
+
+@app.route('/api/wallet', methods=['GET'])
+def api_wallet():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    transactions = WalletTransaction.query.filter_by(user_id=user.id).order_by(WalletTransaction.created_at.desc()).all()
+    return jsonify({
+        "balance": user.balance,
+        "transactions": [{
+            "id": t.id,
+            "amount": t.amount,
+            "type": t.type,
+            "description": t.description,
+            "created_at": t.created_at.isoformat()
+        } for t in transactions]
+    })
+
+@app.route('/api/wishlist', methods=['GET'])
+def api_wishlist():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    products = user.wishlist_products
+    return jsonify([{
+        "id": p.id,
+        "name": p.name,
+        "price": p.price,
+        "images": [{"image_url": img.image_url} for img in p.images if img.is_primary]
+    } for p in products])
+
+@app.route('/api/wishlist/<int:product_id>', methods=['DELETE'])
+def api_remove_wishlist(product_id):
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    product = Product.query.get(product_id)
+    if product in user.wishlist_products:
+        user.wishlist_products.remove(product)
+        db.session.commit()
+        return jsonify({"message": "Removed from wishlist"})
+    return jsonify({"message": "Not in wishlist"}), 404
+
+@app.route('/api/payment-methods', methods=['GET', 'POST'])
+def api_payment_methods():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    if request.method == 'GET':
+        payments = PaymentMethod.query.filter_by(user_id=user.id).all()
+        return jsonify([{
+            "id": p.id,
+            "type": p.type,
+            "provider": p.provider,
+            "last_four": p.last_four,
+            "expiry_month": p.expiry_month,
+            "expiry_year": p.expiry_year,
+            "is_default": p.is_default
+        } for p in payments])
+
+    data = request.get_json()
+    payment = PaymentMethod(
+        user_id=user.id,
+        type=data['type'],
+        provider=data['provider'],
+        last_four=data['last_four'],
+        expiry_month=int(data['expiry_month']),
+        expiry_year=int(data['expiry_year'])
+    )
+    db.session.add(payment)
+    db.session.commit()
+    return jsonify({"message": "Payment method added"})
+
+@app.route('/api/payment-methods/<int:id>', methods=['DELETE'])
+def api_delete_payment(id):
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    payment = PaymentMethod.query.filter_by(id=id, user_id=user.id).first()
+    if not payment:
+        return jsonify({"message": "Payment method not found"}), 404
+
+    db.session.delete(payment)
+    db.session.commit()
+    return jsonify({"message": "Payment method deleted"})
+
+@app.route('/api/tickets', methods=['GET', 'POST'])
+def api_tickets():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    if request.method == 'GET':
+        tickets = Ticket.query.filter_by(user_id=user.id).order_by(Ticket.created_at.desc()).all()
+        return jsonify([{
+            "id": t.id,
+            "subject": t.subject,
+            "message": t.message,
+            "status": t.status,
+            "created_at": t.created_at.isoformat(),
+            "updated_at": t.updated_at.isoformat()
+        } for t in tickets])
+
+    data = request.get_json()
+    ticket = Ticket(
+        user_id=user.id,
+        subject=data['subject'],
+        message=data['message']
+    )
+    db.session.add(ticket)
+    db.session.commit()
+    return jsonify({"message": "Ticket created"})
+
+@app.route('/api/terms', methods=['GET'])
+def api_terms():
+    # Return static terms content
+    terms = """
+Terms and Conditions
+
+1. Acceptance of Terms
+By accessing and using this website, you accept and agree to be bound by the terms and conditions of this agreement.
+
+2. Use License
+Permission is granted to temporarily download one copy of the materials on our website for personal, non-commercial transitory viewing only.
+
+3. Disclaimer
+The materials on our website are provided on an 'as is' basis. We make no warranties, expressed or implied.
+
+4. Limitations
+In no event shall we be liable for any damages arising out of the use or inability to use the materials on our website.
+
+5. Privacy Policy
+Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the website.
+"""
+    return terms
+
+@app.route('/api/delete-account', methods=['DELETE'])
+def api_delete_account():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+
+    user = User.query.filter_by(email=session['email']).first()
+    # In a real app, you'd want to soft delete or archive data
+    db.session.delete(user)
+    db.session.commit()
+    session.clear()
+    return jsonify({"message": "Account deleted"})
 
 
 @app.route('/blogs')
@@ -746,4 +2354,4 @@ def logout():
 
 # ================= RUN =================
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

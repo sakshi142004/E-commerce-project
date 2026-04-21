@@ -1,150 +1,391 @@
 {% extends "base.html" %}
 {% block content %}
-
 <style>
 
-body
-{
-     font-family: 'Cormorant Garamond', serif;
+    .wishlist-btn.active{
+    color:red;
 }
-.products-page {
-    padding: 40px;
-    background: #f8f9fc;
-}
-
-.products-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: 25px;
+.products-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:22px;
 }
 
-.product-card {
-    background: #fff;
-    border-radius: 15px;
-    padding: 15px;
-    transition: 0.3s;
-    cursor: pointer;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-    position: relative;
+/* CARD */
+.product-card{
+    background:#fff;
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,0.08);
+    transition:0.3s;
+    position:relative;
 }
 
-.product-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+.product-card:hover{
+    transform:translateY(-5px);
 }
 
-.product-card img {
-    width: 100%;
-    height: 220px;
-    object-fit: cover;
-    border-radius: 10px;
+/* IMAGE */
+.product-image-wrapper{
+    position:relative;
+    width:100%;
+    height:260px;
+    overflow:hidden;
 }
 
-.product-info {
-    margin-top: 10px;
+.product-image-wrapper img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
 }
 
-.product-info h4 {
-    font-size: 16px;
-    margin: 5px 0;
+/* BADGE */
+.discount-badge{
+    position:absolute;
+    top:10px;
+    left:10px;
+    background:#e53935;
+    color:#fff;
+    padding:5px 10px;
+    font-size:12px;
+    border-radius:6px;
+    font-weight:600;
 }
 
-.product-info p {
-    font-size: 14px;
-    color: #555;
+/* WISHLIST */
+.wishlist-btn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:#fff;
+    border:none;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    cursor:pointer;
 }
 
-.actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
+/* INFO */
+.product-info{
+    padding:14px;
 }
 
-.icon-btn {
-    border: none;
-    background: #f1f1f1;
-    padding: 8px;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: 0.2s;
+.product-info h4{
+    font-size:15px;
+    margin:6px 0;
 }
 
-.icon-btn:hover {
-    background: black;
-    color: white;
+/* PRICE */
+.price-box{
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+
+.old-price{
+    text-decoration:line-through;
+    color:#888;
+    font-size:13px;
+}
+
+/* COLOR */
+.color-row{
+    display:flex;
+    gap:6px;
+    margin:10px 0;
+}
+
+.color-dot{
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    cursor:pointer;
+    border:1px solid #ddd;
+}
+
+/* RATING */
+.rating{
+    color:green;
+    font-size:13px;
+    margin:5px 0;
+}
+
+/* ADD TO CART BUTTON */
+.add-cart-btn{
+    width:100%;
+    margin-top:10px;
+    padding:10px;
+    border:none;
+    background:#111;
+    color:#fff;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.add-cart-btn:hover{
+    background:#000;
+}
+.add-cart-btn.active{
+    background:#454545;
 }
 </style>
-
 <div class="products-page">
+    <div class="products-header">
+        <div class="products-title">
+            <span class="eyebrow">Premium Collection</span>
+            <h2>All Products</h2>
+            <p class="subtitle">Shop curated products directly from the backend with real-time pricing, offers, and wishlist support.</p>
+        </div>
 
-    <h2>All Products</h2>
+        <div class="filter-controls">
+            <div class="filter-group">
+                <label for="productSort">Sort by</label>
+                <select id="productSort">
+                    <option value="featured">Featured</option>
+                    <option value="price-asc">Price low to high</option>
+                    <option value="price-desc">Price high to low</option>
+                    <option value="discount">Top discount</option>
+                </select>
+            </div>
+
+            <button id="filterSale" class="filter-pill" type="button">On Sale</button>
+        </div>
+    </div>
 
     <div id="allProducts" class="products-grid"></div>
-
 </div>
-
 <script>
-function loadAllProducts() {
-    fetch("/products")
+let allProductsData = [];
+let activeColorFilter = new URLSearchParams(window.location.search).get("color") || "";
+
+/* ================= FILTER LOGIC ================= */
+function applyProductFilters() {
+    if (!allProductsData.length) return;
+
+    const sortSelect = document.getElementById("productSort");
+    const saleBtn = document.getElementById("filterSale");
+
+    const sortValue = sortSelect ? sortSelect.value : "featured";
+    const showSaleOnly = saleBtn ? saleBtn.classList.contains("active") : false;
+
+    let products = [...allProductsData];
+
+    if (activeColorFilter) {
+        products = products.filter(product =>
+            product.colors?.some(color => String(color.id) === activeColorFilter)
+        );
+    }
+
+    if (showSaleOnly) {
+        products = products.filter(p => p.discount_percent > 0);
+    }
+
+    if (sortValue === "price-asc") {
+        products.sort((a, b) => a.price - b.price);
+    } else if (sortValue === "price-desc") {
+        products.sort((a, b) => b.price - a.price);
+    } else if (sortValue === "discount") {
+        products.sort((a, b) => (b.discount_percent || 0) - (a.discount_percent || 0));
+    }
+
+    renderProductsGrid(products);
+}
+
+/* ================= CART ================= */
+function toggleCart(productId, btn) {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+
+    if (!isLoggedIn) {
+        openPopup();
+        return;
+    }
+
+    btn.disabled = true;
+
+    fetch(`/cart/toggle/${productId}`)
     .then(res => res.json())
     .then(data => {
 
-        const container = document.getElementById("allProducts");
-        container.innerHTML = "";
+        if (data.error) return;
 
-        data.forEach(product => {
+        if (data.in_cart) {
+            btn.classList.add("active");
+            btn.innerText = "Remove from Cart";
+        } else {
+            btn.classList.remove("active");
+            btn.innerText = "Add to Cart";
+        }
 
-            const image = product.images.length > 0 
-                ? product.images[0] 
-                : "/static/images/default.png";
+        const cartCount = document.getElementById("cartCount");
+        if (cartCount) cartCount.innerText = data.count;
 
-            const div = document.createElement("div");
-            div.className = "product-card";
+    })
+    .catch(err => console.error("Cart error:", err))
+    .finally(() => btn.disabled = false);
+}
 
-            div.innerHTML = `
-                <img src="${image}">
-                
-                <div class="product-info">
-                    <h4>${product.name}</h4>
-                    <p>₹${product.price}</p>
+function checkCart(productId) {
+    return fetch(`/cart/check/${productId}`)
+        .then(res => res.json())
+        .then(data => data.in_cart)
+        .catch(() => false);
+}
+
+/* ================= RENDER PRODUCTS ================= */
+function renderProductsGrid(products) {
+    const container = document.getElementById("allProducts");
+    container.innerHTML = "";
+
+    if (!products.length) {
+        container.innerHTML = "<p>No products found</p>";
+        return;
+    }
+
+    products.forEach(product => {
+
+        const defaultImage = product.images?.[0] || "/static/images/default.png";
+
+        const colorsHTML = product.colors?.length
+            ? `<div class="color-row">
+                ${product.colors.map(c => `
+                    <span class="color-dot"
+                        style="background:${c.code}"
+                        data-color="${c.id}">
+                    </span>
+                `).join("")}
+            </div>`
+            : "";
+
+        const discountHTML = product.discount_percent > 0
+            ? `<span class="discount-badge">-${product.discount_percent}%</span>`
+            : "";
+
+        const oldPriceHTML = product.original_price
+            ? `<span class="old-price">₹${product.original_price}</span>`
+            : "";
+
+        const ratingHTML = product.rating
+            ? `<div class="rating">⭐ ${product.rating}</div>`
+            : "";
+
+        const div = document.createElement("div");
+        div.className = "product-card";
+
+        div.innerHTML = `
+            <div class="product-image-wrapper">
+                ${discountHTML}
+                <button class="wishlist-btn">♡</button>
+                <img class="product-img" src="${defaultImage}">
+            </div>
+
+            <div class="product-info">
+                <h4>${product.name}</h4>
+                ${ratingHTML}
+
+                <div class="price-box">
+                    <span>₹${product.price}</span>
+                    ${oldPriceHTML}
                 </div>
 
-                <div class="actions">
-                    <button class="icon-btn" onclick="event.stopPropagation(); addToCart(${product.id})">🛒</button>
-                    <button class="icon-btn" onclick="event.stopPropagation(); addToWishlist(${product.id})">❤️</button>
-                </div>
-            `;
+                ${colorsHTML}
 
-            // 👉 OPEN PRODUCT PAGE
-            div.onclick = () => {
-                window.location.href = "/product/" + product.id;
-            };
+                <button class="add-cart-btn">Add to Cart</button>
+            </div>
+        `;
 
-            container.appendChild(div);
+        const imgEl = div.querySelector(".product-img");
+        const wishlistBtn = div.querySelector(".wishlist-btn");
+        const cartBtn = div.querySelector(".add-cart-btn");
+
+        /* ❤️ WISHLIST INITIAL */
+        checkWishlist(product.id).then(inWishlist => {
+            if (inWishlist) {
+                wishlistBtn.classList.add("active");
+                wishlistBtn.innerHTML = "❤️";
+            }
         });
 
+        /* ❤️ WISHLIST CLICK */
+        wishlistBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            addToWishlist(product.id, wishlistBtn);
+        });
+
+        /* 🛒 CART INITIAL */
+        checkCart(product.id).then(inCart => {
+            if (inCart) {
+                cartBtn.classList.add("active");
+                cartBtn.innerText = "Remove from Cart";
+            }
+        });
+
+        /* 🛒 CART CLICK */
+        cartBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleCart(product.id, cartBtn);
+        });
+
+        /* 🎨 IMAGE HOVER */
+        div.querySelectorAll(".color-dot").forEach(dot => {
+
+            dot.addEventListener("mouseenter", () => {
+                const colorId = dot.dataset.color;
+                const img = product.color_images?.[colorId];
+                if (img?.length) imgEl.src = img[0];
+            });
+
+            dot.addEventListener("mouseleave", () => {
+                imgEl.src = defaultImage;
+            });
+
+            dot.addEventListener("click", (e) => {
+                e.stopPropagation();
+                window.location.href = `/product/${product.id}?color=${dot.dataset.color}`;
+            });
+        });
+
+        /* 🔥 FIXED CARD CLICK */
+        div.addEventListener("click", (e) => {
+
+            if (
+                e.target.closest(".add-cart-btn") ||
+                e.target.closest(".wishlist-btn")
+            ) return;
+
+            window.location.href = `/product/${product.id}`;
+        });
+
+        container.appendChild(div);
     });
 }
 
-// ADD TO CART
-function addToCart(id) {
-    fetch('/add_to_cart/' + id)
-    .then(res => res.json())
-    .then(data => {
-        alert("Added to cart");
+/* ================= FILTER EVENTS ================= */
+function setupProductFilters() {
+    const sortSelect = document.getElementById("productSort");
+    const saleBtn = document.getElementById("filterSale");
+
+    sortSelect?.addEventListener("change", applyProductFilters);
+
+    saleBtn?.addEventListener("click", () => {
+        saleBtn.classList.toggle("active");
+        applyProductFilters();
     });
 }
 
-// WISHLIST
-function addToWishlist(id) {
-    fetch('/add_to_wishlist/' + id)
-    .then(res => res.json())
-    .then(data => {
-        alert("Added to wishlist");
-    });
+/* ================= LOAD PRODUCTS ================= */
+function loadAllProducts() {
+    fetch("/products")
+        .then(res => res.json())
+        .then(data => {
+            allProductsData = Array.isArray(data) ? data : [];
+            setupProductFilters();
+            applyProductFilters();
+        })
+        .catch(err => console.error("Product load error:", err));
 }
 
+/* INIT */
 document.addEventListener("DOMContentLoaded", loadAllProducts);
 </script>
-
 {% endblock %}

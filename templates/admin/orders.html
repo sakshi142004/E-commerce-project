@@ -1,0 +1,125 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+
+<style>
+.orders-container {
+    padding: 28px;
+}
+
+/* HEADER */
+.orders-container h2 {
+    font-size: 28px;
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+/* TABLE WRAPPER */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+/* HEADER */
+.table th {
+    padding: 16px;
+    text-align: left;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+}
+
+/* BODY */
+.table td {
+    padding: 16px;
+    color: #fff;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ROW HOVER */
+.table tr:hover {
+    background: rgba(0, 230, 210, 0.08);
+}
+
+/* STATUS */
+.status {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.pending {
+    background: rgba(255,180,0,0.15);
+    color: #ffb300;
+}
+
+.shipped {
+    background: rgba(0,140,255,0.15);
+    color: #2196f3;
+}
+
+.delivered {
+    background: rgba(0,255,150,0.15);
+    color: #00e676;
+}
+
+.cancelled {
+    background: rgba(255,60,80,0.15);
+    color: #ff4d6d;
+}
+
+/* BUTTON */
+.btn {
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #00c6b2, #0A5C56);
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+</style>
+
+<div class="orders-container">
+    <h2>📦 Orders</h2>
+
+    <table class="table">
+        <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+
+        {% for order in orders %}
+        <tr>
+            <td>#{{ order.id }}</td>
+            <td>{{ order.user_id }}</td>
+            <td>₹{{ order.total_amount }}</td>
+            <td>
+                <span class="status {{ order.status|lower|replace(' ', '-') }}">
+                    {{ order.status }}
+                </span>
+            </td>
+            <td>
+                <a href="/admin/orders/{{ order.id }}" class="btn">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+{% endblock %}

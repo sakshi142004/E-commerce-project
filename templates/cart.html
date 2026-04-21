@@ -9,7 +9,7 @@
         <div class="empty">
             <h2>Your cart is empty 😔</h2>
             <p>Start adding some premium belts!</p>
-            <a href="{{ url_for('products') }}" class="shop-btn">Shop Now</a>
+            <a href="{{ url_for('products_page') }}" class="shop-btn">Shop Now</a>
         </div>
     {% else %}
 
@@ -24,7 +24,10 @@
 
                 <div class="details">
                     <h3>{{ p.name }}</h3>
-                    <p class="price">₹{{ p.price }}</p>
+                 <p class="price" id="price-{{ p.id }}">₹{{ p.price }}</p>
+                 <p class="item-total" id="item-total-{{ p.id }}">
+    Total: ₹{{ p.price * p.quantity }}
+</p>
 
                     <div class="qty-box">
                         <button class="qty-btn minus" data-id="{{ p.id }}">−</button>
@@ -32,9 +35,10 @@
                         <button class="qty-btn plus" data-id="{{ p.id }}">+</button>
                     </div>
 
-                    <div class="actions">
-                        <button class="removeBtn" data-id="{{ p.id }}">Remove</button>
-                    </div>
+   <div class="actions">
+    <button class="removeBtn" data-id="{{ p.id }}">Remove</button>
+    <button class="wishBtn" data-id="{{ p.id }}">Move to Wishlist</button>
+</div>
                 </div>
 
             </div>
@@ -47,24 +51,50 @@
             <h2>Order Summary</h2>
 
             <div class="summary-row">
-                <span>Total Items</span>
-                <span>{{ total_items }}</span>
-            </div>
+    <span>Bag Total</span>
+   <span id="bagTotal">₹{{ total }}</span>
+</div>
 
-     
+<div class="summary-row">
+    <span>Discount</span>
+    <span id="discount">- ₹{{ total * 0.1 }}</span>
+</div>
 
-            <div class="summary-row total">
-                <span>Total Price</span>
-                <span>₹{{ total }}</span>
-            </div>
+<div class="summary-row">
+    <span>Shipping</span>
+    <span>₹50</span>
+</div>
 
-            <p class="subtotal">Subtotal: ₹{{ total }}</p>
+<div class="summary-row total">
+    <span>You Pay</span>
+   <span id="finalTotal">₹{{ total - (total * 0.1) + 50 }}</span>
+</div>
+
+         <p class="subtotal">Subtotal: ₹<span id="subtotal">{{ total }}</span></p>
 
             <button class="checkout-btn" onclick="openCheckout()">Buy Now</button>
         </div>
 
     </div>
     {% endif %}
+</div>
+
+<!-- ✅ CHECKOUT REVIEW MODAL (BEFORE CHECKOUT) -->
+<div id="reviewModal" class="checkout-modal">
+    <div class="checkout-content">
+
+        <h2>📋 Order Review</h2>
+
+        <div id="reviewContent">
+            <p style="text-align: center; color: #999;">Loading...</p>
+        </div>
+
+        <hr>
+
+        <button class="secondary-btn" onclick="document.getElementById('reviewModal').style.display='none'">Back</button>
+        <button class="confirm-btn" onclick="proceedToCheckout()">Continue to Address</button>
+
+    </div>
 </div>
 
 <!-- ✅ CHECKOUT MODAL (OUTSIDE LOOP) -->
@@ -99,6 +129,7 @@
             <label><input type="radio" name="payment" value="card"> Card</label>
         </div>
 
+        <button class="secondary-btn" onclick="document.getElementById('checkoutModal').style.display='none'">Back</button>
         <button class="confirm-btn" onclick="placeOrder()">Confirm Order</button>
 
     </div>
@@ -106,11 +137,164 @@
 
 <!-- JS -->
 <script>
+function updateCartUI(){
+
+    let subtotal = 0;
+
+    document.querySelectorAll(".cart-card").forEach(card=>{
+
+        let price = parseFloat(card.querySelector(".price").innerText.replace("₹","")) || 0;
+        let qty = parseInt(card.querySelector(".qty-number").innerText) || 0;
+
+        let itemTotal = price * qty;
+
+        let itemEl = card.querySelector(".item-total");
+        if(itemEl){
+            itemEl.innerText = "Total: ₹" + itemTotal;
+        }
+
+        subtotal += itemTotal;
+    });
+
+    let discount = subtotal * 0.1;
+    let shipping = 50;
+    let finalTotal = subtotal - discount + shipping;
+
+    document.getElementById("subtotal").innerText = subtotal;
+    document.getElementById("bagTotal").innerText = "₹" + subtotal;
+    document.getElementById("discount").innerText = "- ₹" + discount;
+    document.getElementById("finalTotal").innerText = "₹" + finalTotal;
+}
+
+
+// REMOVE
+document.addEventListener("DOMContentLoaded", function(){
+    updateCartUI();
+});
+document.querySelectorAll(".removeBtn").forEach(btn => {
+    btn.addEventListener("click", function () {
+
+        let id = this.dataset.id;
+        let card = this.closest(".cart-card");
+
+        fetch(`/remove_cart/${id}`)
+        .then(res => res.json())
+        .then(data => {
+
+            if (data.success) {
+                card.remove();
+                updateCartUI();
+
+                // 🔥 FORCE refresh navbar count
+                setTimeout(() => {
+                    updateNavbarCounts(); 
+                }, 50);
+            }
+
+        });
+    });
+});
+function updateHeaderCounts(){
+    fetch('/get_counts')
+    .then(res => res.json())
+    .then(data => {
+
+        let cartEl = document.querySelector(".cart-count");
+        if(cartEl) cartEl.innerText = data.cart;
+
+        let wishEl = document.querySelector(".wishlist-count");
+        if(wishEl) wishEl.innerText = data.wishlist;
+    });
+}
+
+window.addEventListener("pageshow", function () {
+    updateNavbarCounts(); 
+});
+
+// MOVE TO WISHLIST
+document.querySelectorAll(".wishBtn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+        let id = btn.dataset.id;
+
+        fetch(`/add_to_wishlist/${id}`)
+        .then(()=>{
+            return fetch(`/remove_cart/${id}`);
+        })
+        .then(()=>{
+            alert("Moved to wishlist ❤️");
+            updateCartUI();
+        updateNavbarCounts(); 
+
+        });
+    });
+});
 let selectedAddress = null;
 
 function openCheckout(){
-    document.getElementById("checkoutModal").style.display = "flex";
-    loadAddresses();
+    // First show review modal
+    loadCheckoutReview();
+}
+
+function loadCheckoutReview(){
+    fetch('/api/checkout-review')
+    .then(res=>res.json())
+    .then(data=>{
+        let reviewHTML = `
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h3>👤 Your Details</h3>
+            <p><b>Name:</b> ${data.user.name}</p>
+            <p><b>Email:</b> ${data.user.email}</p>
+            <p><b>Phone:</b> ${data.user.phone ? data.user.phone : '⚠️ Not Set'}</p>
+            ${data.user.phone_warning ? `<p style="color: red; font-weight: bold;">${data.user.phone_warning}</p>` : ''}
+            <p><b>DOB:</b> ${data.user.dob || 'Not Set'}</p>
+            
+            <p style="margin-top: 10px; font-size: 12px; color: #666;">❌ Can't change name/email here? Go to <a href="/account">Profile Settings</a></p>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h3>🛒 Order Items (${data.cart_count})</h3>
+        `;
+
+        data.cart.forEach(item=>{
+            reviewHTML += `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+                <span>${item.product_name} × ${item.quantity}</span>
+                <span>₹${item.item_total}</span>
+            </div>`;
+        });
+
+        reviewHTML += `
+            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 16px; margin-top: 10px;">
+                <span>Total:</span>
+                <span>₹${data.total}</span>
+            </div>
+        </div>
+        `;
+
+        document.getElementById("reviewContent").innerHTML = reviewHTML;
+        document.getElementById("reviewModal").style.display = "flex";
+    })
+    .catch(err=>{
+        console.error("Error:", err);
+        alert("Error loading checkout review");
+    });
+}
+
+function proceedToCheckout(){
+    // Check if phone is set
+    fetch('/api/checkout-review')
+    .then(res=>res.json())
+    .then(data=>{
+        if(!data.user.phone){
+            alert("⚠️ Phone number is required to complete your order.\\n\\nPlease add your phone number in Profile Settings.");
+            location.href = "/account";
+            return;
+        }
+        // Close review modal and open checkout modal
+        document.getElementById("reviewModal").style.display = "none";
+        document.getElementById("checkoutModal").style.display = "flex";
+        loadAddresses();
+    });
 }
 
 function loadAddresses(){
@@ -138,7 +322,12 @@ function loadAddresses(){
 
 function selectAddress(index){
     selectedAddress = index;
-    alert("Address selected");
+
+    document.querySelectorAll(".address-card").forEach(el=>{
+        el.style.border = "1px solid #eee";
+    });
+
+    document.querySelectorAll(".address-card")[index].style.border = "2px solid green";
 }
 
 function showAddressForm(){
@@ -158,40 +347,94 @@ function saveAddress(){
             state: state.value,
             pincode: pincode.value
         })
+        
+    })
+      // ✅ PHONE VALIDATION
+    if(!/^\d{10}$/.test(phone.value)){
+        alert("❌ Invalid phone number (10 digits required)");
+        return;
+    }
+
+    // ✅ PINCODE VALIDATION
+    if(!/^\d{6}$/.test(pincode.value)){
+        alert("❌ Invalid pincode (6 digits required)");
+        return;
+    }
+
+    fetch('/add_address',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            full_name: full_name.value,
+            phone: phone.value,
+            address_line: address_line.value,
+            city: city.value,
+            state: state.value,
+            pincode: pincode.value
+        })
     })
     .then(res=>res.json())
     .then(d=>{
         alert(d.message);
         loadAddresses();
     });
+
+   
 }
 
 function placeOrder(){
+
     if(selectedAddress === null){
-        alert("Select address");
+        alert("⚠️ Please select delivery address");
         return;
     }
 
-    fetch('/checkout',{method:'POST'})
+    let payment = document.querySelector('input[name="payment"]:checked').value;
+
+    // 🔥 Fetch address details check
+    let addressCards = document.querySelectorAll(".address-card");
+    let selected = addressCards[selectedAddress];
+
+    if(!selected){
+        alert("⚠️ Invalid address selected");
+        return;
+    }
+
+    fetch('/checkout', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            address_index: selectedAddress,
+            payment: payment
+        })
+    })
     .then(res=>res.json())
     .then(d=>{
-        alert(d.message);
-        location.reload();
+
+        // backend safety check
+        if(d.error_type === "missing_phone"){
+            alert("⚠️ Phone number required!");
+            window.location.href = "/account";
+            return;
+        }
+
+        alert("🎉 Order Placed Successfully!");
+       updateCartUI();
     });
 }
-
 
 document.querySelectorAll(".plus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
         let id = btn.dataset.id;
 
-        fetch(`/add_to_cart/${id}`)
-        .then(res=>res.json())
-        .then(()=>{
-            let qtyEl = document.getElementById("qty-"+id);
-            qtyEl.innerText = parseInt(qtyEl.innerText) + 1;
-            location.reload(); // simple & safe
-        });
+      fetch(`/add_to_cart/${id}`)
+.then(res=>res.json())
+.then(()=>{
+    let qtyEl = document.getElementById("qty-"+id);
+    qtyEl.innerText = parseInt(qtyEl.innerText) + 1;
+    updateCartUI();
+    updateNavbarCounts(); 
+});
     });
 });
 
@@ -200,19 +443,56 @@ document.querySelectorAll(".minus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
         let id = btn.dataset.id;
 
-        fetch(`/decrease_cart/${id}`)
-        .then(()=>{
-            location.reload();
-        });
+      fetch(`/decrease_cart/${id}`)
+.then(res=>res.json())
+.then(()=>{
+    let qtyEl = document.getElementById("qty-"+id);
+    let val = parseInt(qtyEl.innerText);
+
+    if(val > 1){
+        qtyEl.innerText = val - 1;
+    } else {
+        btn.closest(".cart-card").remove();
+    }
+
+    updateCartUI();
+    updateNavbarCounts(); 
+});
     });
 });
+
+
+function removeItem(id){
+    fetch(`/remove_cart/${id}`)
+    .then(()=>{
+       updateCartUI();
+        updateNavbarCounts(); 
+
+    });
+}
+
+function moveToWishlist(id){
+    fetch(`/add_to_wishlist/${id}`)
+    .then(()=>{
+        return fetch(`/remove_cart/${id}`);
+    })
+    .then(()=>{
+        alert("Moved to wishlist ❤️");
+      updateCartUI();
+        updateNavbarCounts(); 
+
+    });
+}
 </script>
 
 <!-- 🎨 PREMIUM CSS -->
 <style>
 
 .cart-container{
-    padding:50px;
+    padding-top: 80px;
+    padding-right: 50px;
+    padding-bottom: 50px;
+    padding-left: 50px;
     background:linear-gradient(#f8fafc,#eef3f7);
 }
 
@@ -274,7 +554,7 @@ document.querySelectorAll(".minus").forEach(btn=>{
 .checkout-btn{
     width:100%;
     padding:12px;
-    background:linear-gradient(#00bcd4,#0097a7);
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
     color:#fff;
     border:none;
     border-radius:8px;
@@ -322,9 +602,8 @@ document.querySelectorAll(".minus").forEach(btn=>{
 }
 
 .address-card:hover{
-    background:#e0f7fa;
+        background: rgba(10,92,86,0.08);
 }
-
 .add-address-btn,.save-btn{
     margin-top:10px;
     width:100%;
@@ -339,18 +618,101 @@ document.querySelectorAll(".minus").forEach(btn=>{
     margin-top:15px;
     width:100%;
     padding:12px;
-    background:linear-gradient(#00e5ff,#00bcd4);
-    border:none;
-    color:#fff;
-    border-radius:10px;
+        background: linear-gradient(135deg, #0A5C56, #083E3A);
 }
-
 .shop-btn{
     padding:12px 25px;
     background:#111;
     color:#fff;
     border-radius:30px;
     text-decoration:none;
+}
+/* ===== MOBILE CART VERTICAL FIX ===== */
+@media (max-width: 768px) {
+
+    .cart-container {
+        padding: 70px 12px 30px;
+    }
+
+    /* GRID STACK (items upar, summary niche) */
+    .cart-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* ❌ REMOVE horizontal scroll */
+    .cart-items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: visible;
+    }
+
+    /* CARD NORMAL VERTICAL */
+    .cart-card {
+        width: 100%;
+        flex-direction: row; /* image + details side by side */
+        gap: 12px;
+        padding: 12px;
+    }
+
+    /* IMAGE SMALL */
+    .product-img {
+        width: 90px;
+        height: 90px;
+        object-fit: contain;
+    }
+
+    /* TEXT COMPACT */
+    .details h3 {
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+
+    .price {
+        font-size: 13px;
+    }
+
+    .item-total {
+        font-size: 12px;
+        margin: 2px 0;
+    }
+
+    /* QTY */
+    .qty-box {
+        gap: 6px;
+    }
+
+    .qty-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    /* BUTTONS */
+    .actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .removeBtn,
+    .wishBtn {
+        font-size: 11px;
+        padding: 6px 8px;
+    }
+
+    /* ✅ ORDER SUMMARY NICHE */
+    .cart-summary {
+        position: static;
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .checkout-btn {
+        font-size: 14px;
+        padding: 10px;
+    }
 }
 
 </style>

@@ -6,62 +6,182 @@
     <!-- SIDEBAR -->
     <div class="sidebar">
         <h3>My Account</h3>
-        <p onclick="showSection('profile')">Profile</p>
-        <p onclick="showSection('orders')">Orders</p>
-        <p onclick="showSection('address')">Addresses</p>
-        <p onclick="location='/wishlist'">Wishlist</p>
-        <p onclick="location='/cart'">Cart</p>
-        <p onclick="location='/logout'">Logout</p>
+        <p class="sidebar-item active" data-section="profile" onclick="showSection('profile')">Profile Settings</p>
+        <p class="sidebar-item" data-section="orders" onclick="showSection('orders')">Orders</p>
+        <p class="sidebar-item" data-section="wallet" onclick="showSection('wallet')">Wallet</p>
+        <p class="sidebar-item" data-section="wishlist" onclick="showSection('wishlist')">Wishlist</p>
+        <p class="sidebar-item" data-section="addresses" onclick="showSection('addresses')">Addresses</p>
+        <p class="sidebar-item" data-section="payment" onclick="showSection('payment')">Payment Methods</p>
+        <p class="sidebar-item" data-section="help" onclick="showSection('help')">Help Center</p>
+       <p class="sidebar-item" onclick="location='/terms'">Terms & Conditions</p>
+        <p class="sidebar-item delete-item" data-section="delete" onclick="showSection('delete')">Delete Account</p>
+        <p class="sidebar-item" onclick="location='/cart'">Cart</p>
+        <p class="sidebar-item" onclick="location='/logout'">Logout</p>
     </div>
 
     <!-- CONTENT -->
     <div class="content">
-
-        <!-- PROFILE -->
+     <button id="mobileBackBtn" onclick="goBackSidebar()">← Back</button>
+        <!-- PROFILE SETTINGS -->
         <div id="profile" class="section active">
-            <h2>Profile</h2>
+            <h2>Profile Settings</h2>
 
-            <div class="apple-card">
+            <div class="apple-card profile-card">
+                <div class="profile-head">
+                    <div class="avatar-wrapper">
+                        <img 
+                            id="preview" 
+                            src="{% if user.avatar %}{{ user.avatar }}{% else %}/static/images/default.png{% endif %}"
+                            alt="Profile photo"
+                        >
+                        <div class="avatar-overlay" onclick="document.getElementById('avatar').click()">
+                            <span>Change</span>
+                            <input type="file" id="avatar" onchange="uploadAvatar()">
+                        </div>
+                    </div>
+                    <div class="profile-summary">
+                        <h3>My Profile</h3>
+                        <p>Manage your personal information and profile picture.</p>
+                        <button class="secondary-btn" onclick="document.getElementById('avatar').click()">Upload Photo</button>
+                    </div>
+                </div>
 
-                <div class="avatar-wrapper">
-    <img 
-        id="preview" 
-        src="{% if user.avatar %}/static/images/{{ user.avatar }}{% else %}/static/images/default.png{% endif %}" 
-        width="120"
-        style="border-radius:50%; object-fit:cover;"
-    >
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input id="name" value="{{ user.username }}" placeholder="Your name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input id="email" type="email" value="{{ user.email }}" placeholder="Your email">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number <span style="color: red;">*</span></label>
+                        <input id="phone" placeholder="Enter phone number" value="{{ user.phone or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth</label>
+                        <input type="date" id="dob" value="{{ user.dob.strftime('%Y-%m-%d') if user.dob else '' }}">
+                    </div>
+                   
+                </div>
 
-    <input type="file" id="avatar" onchange="uploadAvatar()">
-    <div class="online-dot"></div>
-</div>
+                <div class="form-grid" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+                    <h3 style="grid-column: 1/-1; margin-bottom: 15px;">🔐 Change Password (Optional)</h3>
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input id="current_password" type="password" placeholder="Enter current password">
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input id="new_password" type="password" placeholder="Enter new password">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm New Password</label>
+                        <input id="confirm_password" type="password" placeholder="Confirm new password">
+                    </div>
+                </div>
 
-<input id="name" value="{{ user.username }}">
-<input id="email" value="{{ user.email }}" disabled>
-
-<button onclick="uploadAvatar()">Update Photo</button>
-
+                <div class="profile-actions">
+                    <button class="primary-btn" onclick="updateProfile()">Save Changes</button>
+                </div>
             </div>
         </div>
 
         <!-- ORDERS -->
         <div id="orders" class="section" style="display:none;">
             <h2>Your Orders</h2>
-            <div id="orderList"></div>
+            <div id="orderList">Loading...</div>
         </div>
 
-        <!-- ADDRESS -->
-        <div id="address" class="section" style="display:none;">
-            <h2>Saved Address</h2>
-
-            <div class="apple-card">
+        <!-- ADDRESSES -->
+        <div id="addresses" class="section" style="display:none;">
+            <h2>Addresses</h2>
+            <button class="primary-btn" onclick="showAddAddressForm()">Add New Address</button>
+            <div id="addressList">Loading...</div>
+            <div id="addressForm" style="display:none;">
+                <h3>Add/Edit Address</h3>
+                <input type="hidden" id="addressId">
                 <input id="full_name" placeholder="Full Name">
-                <input id="phone" placeholder="Phone">
+                <input id="phone_addr" placeholder="Phone">
                 <input id="city" placeholder="City">
                 <input id="state" placeholder="State">
                 <input id="pincode" placeholder="Pincode">
                 <textarea id="address_line" placeholder="Full Address"></textarea>
+                <div class="button-row">
+                    <button class="primary-btn" onclick="saveAddress()">Save</button>
+                    <button class="secondary-btn cancel-btn" onclick="cancelAddressForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
 
-                <button onclick="saveAddress()">Save Address</button>
+        <!-- WALLET -->
+        <div id="wallet" class="section" style="display:none;">
+            <h2>Wallet</h2>
+            <div class="apple-card">
+                <h3>Balance: ₹<span id="balance">{{ user.balance }}</span></h3>
+                <div id="transactionList">Loading...</div>
+            </div>
+        </div>
+
+        <!-- WISHLIST -->
+        <div id="wishlist" class="section" style="display:none;">
+            <h2>Wishlist</h2>
+            <div id="wishlistList">Loading...</div>
+        </div>
+
+        <!-- PAYMENT METHODS -->
+        <div id="payment" class="section" style="display:none;">
+            <h2>Payment Methods</h2>
+            <button class="primary-btn" onclick="showAddPaymentForm()">Add New Payment Method</button>
+            <div id="paymentList">Loading...</div>
+            <div id="paymentForm" style="display:none;">
+                <h3>Add Payment Method</h3>
+                <input type="hidden" id="paymentId">
+                <select id="type">
+                    <option value="card">Credit/Debit Card</option>
+                    <option value="paypal">PayPal</option>
+                    <option value="bank">Bank Transfer</option>
+                </select>
+                <input id="provider" placeholder="Provider (e.g., Visa)">
+                <input id="last_four" placeholder="Last 4 digits">
+                <input id="expiry_month" placeholder="Expiry Month (MM)">
+                <input id="expiry_year" placeholder="Expiry Year (YYYY)">
+                <div class="button-row">
+                    <button class="primary-btn" onclick="savePayment()">Save</button>
+                    <button class="secondary-btn cancel-btn" onclick="cancelPaymentForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HELP CENTER -->
+        <div id="help" class="section" style="display:none;">
+            <h2>Help Center</h2>
+            <button class="primary-btn" onclick="showAddTicketForm()">Create New Issue</button>
+            <div id="ticketList">Loading...</div>
+            <div id="ticketForm" style="display:none;">
+                <h3>Create Support Message</h3>
+                <input id="subject" placeholder="Subject">
+                <textarea id="message" placeholder="Describe your issue"></textarea>
+                <div class="button-row">
+                    <button class="primary-btn" onclick="saveTicket()">Submit</button>
+                    <button class="secondary-btn cancel-btn" onclick="cancelTicketForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TERMS & CONDITIONS -->
+        <div id="terms" class="section" style="display:none;">
+            <h2>Terms & Conditions</h2>
+            <div id="termsContent">Loading...</div>
+        </div>
+
+        <!-- DELETE ACCOUNT -->
+        <div id="delete" class="section" style="display:none;">
+            <h2>Delete Account</h2>
+            <div class="apple-card">
+                <p>Warning: This action cannot be undone. All your data will be permanently deleted.</p>
+                <button class="secondary-btn delete-item" onclick="deleteAccount()">Delete My Account</button>
             </div>
         </div>
 
@@ -70,13 +190,51 @@
 
 <!-- JS SAME -->
 <script>
+
+
+
+
+
+
+function goBackSidebar(){
+    if(window.innerWidth <= 768){
+        document.querySelector(".sidebar").style.display = "block";
+        document.querySelector(".content").style.display = "none";
+        document.getElementById("mobileBackBtn").style.display = "none";
+    }
+}
 function showSection(id){
+
+    // sab section hide
     document.querySelectorAll(".section").forEach(sec=>{
         sec.style.display = "none";
     });
+
     document.getElementById(id).style.display = "block";
 
+    // active highlight
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    let activeItem = document.querySelector(`.sidebar-item[data-section="${id}"]`);
+    if(activeItem) activeItem.classList.add('active');
+
+    // 👉 MOBILE LOGIC (MAIN FIX)
+    if(window.innerWidth <= 768){
+        document.querySelector(".sidebar").style.display = "none";
+        document.querySelector(".content").style.display = "block";
+        document.getElementById("mobileBackBtn").style.display = "block";
+    }
+
+    // load data
     if(id === "orders") loadOrders();
+    if(id === "addresses") loadAddresses();
+    if(id === "wallet") loadWallet();
+    if(id === "wishlist") loadWishlist();
+    if(id === "payment") loadPayments();
+    if(id === "help") loadTickets();
+    if(id === "terms") loadTerms();
 }
 
 function uploadAvatar(){
@@ -89,12 +247,15 @@ function uploadAvatar(){
 
     let file = fileInput.files[0];
 
-    let form = new FormData();
-    form.append("file", file);
+    document.getElementById("preview").src = URL.createObjectURL(file);
 
+    let form = new FormData();
+    form.append("avatar", file); 
+    
     fetch('/upload_avatar',{
         method:'POST',
-        body:form
+        body:form,
+        credentials:"include"
     })
     .then(res=>res.json())
     .then(d=>{
@@ -114,7 +275,7 @@ function uploadAvatar(){
 }
 
 function loadOrders(){
-    fetch('/get_orders')
+    fetch('/api/orders')
     .then(res=>res.json())
     .then(data=>{
         let html = data.length === 0 
@@ -123,7 +284,8 @@ function loadOrders(){
                 <div class="order-card">
                     <p>Order #${o.id}</p>
                     <p>₹${o.total}</p>
-                    <span>${o.status}</span>
+                    <p>Status: ${o.status}</p>
+                    <p>${o.created_at ? new Date(o.created_at).toLocaleDateString() : ''}</p>
                 </div>`).join("");
 
         document.getElementById("orderList").innerHTML = html;
@@ -132,21 +294,331 @@ function loadOrders(){
 
 function saveAddress(){
     let data = {
-        full_name: full_name.value,
-        phone: phone.value,
-        city: city.value,
-        state: state.value,
-        pincode: pincode.value,
-        address_line: address_line.value
+        id: document.getElementById("addressId").value,
+        full_name: document.getElementById("full_name").value,
+        phone: document.getElementById("phone_addr").value,
+        city: document.getElementById("city").value,
+        state: document.getElementById("state").value,
+        pincode: document.getElementById("pincode").value,
+        address_line: document.getElementById("address_line").value
     };
+      // ✅ PHONE VALIDATION
+    if(!/^\d{10}$/.test(phone.value)){
+        alert("❌ Invalid phone number (10 digits required)");
+        return;
+    }
+
+    // ✅ PINCODE VALIDATION
+    if(!/^\d{6}$/.test(pincode.value)){
+        alert("❌ Invalid pincode (6 digits required)");
+        return;
+    }
 
     fetch('/add_address',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            full_name: full_name.value,
+            phone: phone.value,
+            address_line: address_line.value,
+            city: city.value,
+            state: state.value,
+            pincode: pincode.value
+        })
+    })
+   
+    fetch('/api/addresses',{
+        method: data.id ? 'PUT' : 'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(res=>res.json())
+    .then(d=>{alert(d.message); loadAddresses(); cancelAddressForm();});
+
+}
+
+function loadAddresses(){
+    fetch('/api/addresses')
+    .then(res=>res.json())
+    .then(data=>{
+        let html = data.length === 0 
+            ? "<p>No addresses saved</p>" 
+            : data.map(a=>`
+                <div class="address-card">
+                    <p>${a.full_name}</p>
+                    <p>${a.phone}</p>
+                    <p>${a.address_line}, ${a.city}, ${a.state} - ${a.pincode}</p>
+                    <button onclick="editAddress(${a.id})">Edit</button>
+                    <button onclick="deleteAddress(${a.id})">Delete</button>
+                </div>`).join("");
+        document.getElementById("addressList").innerHTML = html;
+    });
+}
+
+function showAddAddressForm(){
+    document.getElementById("addressForm").style.display = "block";
+    document.getElementById("addressId").value = "";
+    document.getElementById("full_name").value = "";
+    document.getElementById("phone_addr").value = "";
+    document.getElementById("city").value = "";
+    document.getElementById("state").value = "";
+    document.getElementById("pincode").value = "";
+    document.getElementById("address_line").value = "";
+}
+
+function editAddress(id){
+    fetch(`/api/addresses/${id}`)
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("addressId").value = data.id;
+        document.getElementById("full_name").value = data.full_name;
+        document.getElementById("phone_addr").value = data.phone;
+        document.getElementById("city").value = data.city;
+        document.getElementById("state").value = data.state;
+        document.getElementById("pincode").value = data.pincode;
+        document.getElementById("address_line").value = data.address_line;
+        document.getElementById("addressForm").style.display = "block";
+    });
+}
+
+function deleteAddress(id){
+    if(confirm("Delete this address?")){
+        fetch(`/api/addresses/${id}`, {method:'DELETE'})
+        .then(res=>res.json())
+        .then(d=>{alert(d.message); loadAddresses();});
+    }
+}
+
+function cancelAddressForm(){
+    document.getElementById("addressForm").style.display = "none";
+}
+
+function loadWallet(){
+    fetch('/api/wallet')
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("balance").innerText = data.balance;
+        let html = data.transactions.length === 0 
+            ? "<p>No transactions</p>" 
+            : data.transactions.map(t=>`
+                <div class="transaction-card">
+                    <p>${t.description}</p>
+                    <p>₹${t.amount} (${t.type})</p>
+                    <p>${new Date(t.created_at).toLocaleDateString()}</p>
+                </div>`).join("");
+        document.getElementById("transactionList").innerHTML = html;
+    });
+}
+
+function loadWishlist(){
+    fetch('/api/wishlist')
+    .then(res=>res.json())
+    .then(data=>{
+        let html = data.length === 0 
+            ? "<p>No items in wishlist</p>" 
+            : data.map(p=>`
+                <div class="product-card">
+                    <img src="${p.images[0]?.image_url || '/static/images/default.png'}" alt="${p.name}">
+                    <div>
+                        <h4>${p.name}</h4>
+                        <p>₹${p.price}</p>
+                    </div>
+                    <button class="secondary-btn" onclick="removeFromWishlist(${p.id})">Remove</button>
+                </div>`).join("");
+        document.getElementById("wishlistList").innerHTML = html;
+    });
+}
+
+function removeFromWishlist(productId){
+    fetch(`/api/wishlist/${productId}`, {method:'DELETE'})
+    .then(res=>res.json())
+    .then(d=>{alert(d.message); loadWishlist();});
+}
+
+function loadPayments(){
+    fetch('/api/payment-methods')
+    .then(res=>res.json())
+    .then(data=>{
+        let html = data.length === 0 
+            ? "<p>No payment methods saved</p>" 
+            : data.map(p=>`
+                <div class="payment-card">
+                    <p>${p.type} - ${p.provider} ****${p.last_four}</p>
+                    <p>Expires: ${p.expiry_month}/${p.expiry_year}</p>
+                    <button onclick="deletePayment(${p.id})">Delete</button>
+                </div>`).join("");
+        document.getElementById("paymentList").innerHTML = html;
+    });
+}
+
+function showAddPaymentForm(){
+    document.getElementById("paymentForm").style.display = "block";
+    document.getElementById("paymentId").value = "";
+    // clear fields
+}
+
+function savePayment(){
+    let data = {
+        type: document.getElementById("type").value,
+        provider: document.getElementById("provider").value,
+        last_four: document.getElementById("last_four").value,
+        expiry_month: document.getElementById("expiry_month").value,
+        expiry_year: document.getElementById("expiry_year").value
+    };
+    fetch('/api/payment-methods',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(data)
     })
     .then(res=>res.json())
-    .then(d=>alert(d.message));
+    .then(d=>{alert(d.message); loadPayments(); cancelPaymentForm();});
+}
+
+function deletePayment(id){
+    if(confirm("Delete this payment method?")){
+        fetch(`/api/payment-methods/${id}`, {method:'DELETE'})
+        .then(res=>res.json())
+        .then(d=>{alert(d.message); loadPayments();});
+    }
+}
+
+function cancelPaymentForm(){
+    document.getElementById("paymentForm").style.display = "none";
+}
+
+function loadTickets(){
+    fetch('/api/tickets')
+    .then(res=>res.json())
+    .then(data=>{
+        let html = data.length === 0 
+            ? "<p>No support tickets</p>" 
+            : data.map(t=>`
+                <div class="ticket-card">
+                    <h4>${t.subject}</h4>
+                    <p>${t.message}</p>
+                    <p>Status: ${t.status}</p>
+                    <p>${new Date(t.created_at).toLocaleDateString()}</p>
+                </div>`).join("");
+        document.getElementById("ticketList").innerHTML = html;
+    });
+}
+
+function showAddTicketForm(){
+    document.getElementById("ticketForm").style.display = "block";
+    document.getElementById("subject").value = "";
+    document.getElementById("message").value = "";
+}
+
+function saveTicket(){
+    let data = {
+        subject: document.getElementById("subject").value,
+        message: document.getElementById("message").value
+    };
+    fetch('/api/tickets',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(res=>res.json())
+    .then(d=>{alert(d.message); loadTickets(); cancelTicketForm();});
+}
+
+function cancelTicketForm(){
+    document.getElementById("ticketForm").style.display = "none";
+}
+
+function loadTerms(){
+    fetch('/api/terms')
+    .then(res=>res.text())
+    .then(text=>{
+        document.getElementById("termsContent").innerHTML = `<pre>${text}</pre>`;
+    });
+}
+
+function updateProfile(){
+    let name = document.getElementById("name").value;
+    let email = document.getElementById("email").value;
+    let phone = document.getElementById("phone").value;
+    let dob = document.getElementById("dob").value;
+    
+    let current_password = document.getElementById("current_password").value;
+    let new_password = document.getElementById("new_password").value;
+    let confirm_password = document.getElementById("confirm_password").value;
+
+    // Validate inputs
+    let hasChanges = false;
+
+    // Check if trying to change password
+    if(new_password || current_password || confirm_password){
+        if(!current_password){
+            alert("❌ Enter current password to change password");
+            return;
+        }
+        if(!new_password){
+            alert("❌ Enter new password");
+            return;
+        }
+        if(new_password.length < 6){
+            alert("❌ Password must be at least 6 characters");
+            return;
+        }
+        if(new_password !== confirm_password){
+            alert("❌ Passwords don't match");
+            return;
+        }
+        hasChanges = true;
+    }
+
+    let data = {
+        name: name,
+        email: email,
+        phone: phone,
+        dob: dob,
+        current_password: current_password,
+        new_password: new_password
+    };
+
+    fetch('/api/profile',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(res=>res.json())
+    .then(d=>{
+        if(d.error){
+            alert("❌ " + d.error);
+            return;
+        }
+        alert("✅ " + (d.message || "Profile updated successfully"));
+        console.log("Profile updated:", d);
+        
+        // Clear password fields after successful update
+        if(new_password){
+            document.getElementById("current_password").value = "";
+            document.getElementById("new_password").value = "";
+            document.getElementById("confirm_password").value = "";
+        }
+        
+        // Reload after successful save
+        setTimeout(()=>{
+            window.location.href = "/account";
+        }, 500);
+    })
+    .catch(err=>{
+        console.error("Error:", err);
+        alert("❌ Error updating profile: " + err.message);
+    });
+}
+
+
+
+
+function deleteAccount(){
+    if(confirm("Are you sure you want to delete your account? This cannot be undone.")){
+        fetch('/api/delete-account', {method:'DELETE'})
+        .then(res=>res.json())
+        .then(d=>{alert(d.message); location.href='/logout';});
+    }
 }
 </script>
 
@@ -155,7 +627,7 @@ function saveAddress(){
 
 body {
     background: #f5f5f7;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+   font-family: 'Poppins', 'Inter', sans-serif;
 }
 
 /* LAYOUT */
@@ -196,87 +668,447 @@ body {
     padding: 50px;
 }
 
-/* 🍏 CARD */
+/* CARDS */
 .apple-card {
-    background: rgba(255,255,255,0.7);
-    backdrop-filter: blur(25px);
+    background: rgba(255,255,255,0.92);
+    border-radius: 22px;
     padding: 30px;
-    border-radius: 20px;
-    width: 360px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(0,0,0,0.07);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.06);
 }
 
-/* AVATAR */
+.profile-card {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.profile-head {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+}
+
 .avatar-wrapper {
     position: relative;
-    width: fit-content;
-}
-.avatar-img {
-    width: 38px;
-    height: 38px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #00e5ff;
-    box-shadow: 0 0 10px rgba(0,229,255,0.5);
-    cursor: pointer;
-    transition: 0.3s;
+    overflow: hidden;
+    border: 4px solid rgba(0, 188, 212, 0.16);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
 }
 
-.avatar-img:hover {
-    transform: scale(1.1);
-}
-
-.profile-avatar {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 15px;
-}
-
-/* ONLINE DOT */
-.online-dot {
-    width: 12px;
-    height: 12px;
-    background: #34c759;
-    border-radius: 50%;
-    position: absolute;
-    bottom: 18px;
-    right: 5px;
-    border: 2px solid white;
-}
-
-/* INPUT */
-.section input,
-.section textarea {
+.avatar-wrapper img {
     width: 100%;
-    padding: 12px;
-    margin: 10px 0;
-    border-radius: 10px;
-    border: none;
-    background: rgba(0,0,0,0.04);
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
-/* BUTTON */
-button {
-    background: black;
+.avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: white;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s ease;
     cursor: pointer;
 }
 
-/* ORDERS */
+.avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+}
+
+.avatar-overlay input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.profile-summary {
+    flex: 1;
+    min-width: 260px;
+}
+
+.profile-summary h3 {
+    margin: 0 0 10px;
+    font-size: 24px;
+}
+
+.profile-summary p {
+    margin: 0 0 16px;
+    color: #4b4b4b;
+    line-height: 1.6;
+}
+
+.profile-actions {
+    text-align: right;
+}
+
+.profile-actions .primary-btn {
+    width: auto;
+    padding: 14px 28px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    color: #444;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+        border-color: rgba(10,92,86,0.55);
+        box-shadow: 0 0 0 4px rgba(10,92,86,0.14);
+    display: grid;
+    gap: 10px;
+}
+
+.verify-group div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.primary-btn, .secondary-btn, .tiny-btn, .apple-card button {
+    border: none;
+    border-radius: 14px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: white;
+}
+
+.secondary-btn {
+    background: #f0f7f8;
+    color: #0b4448;
+}
+
+.tiny-btn {
+    background: #0A5C56;
+    color: white;
+    padding: 10px 16px;
+}
+
+.primary-btn:hover, .secondary-btn:hover, .tiny-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(0,0,0,0.08);
+}
+
+.status {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.status.verified {
+    color: green;
+}
+
+.status.unverified {
+    color: #d13c31;
+}
+
+.address-card, .order-card, .transaction-card, .product-card, .payment-card, .ticket-card {
+    background: rgba(255,255,255,0.95);
+    border-radius: 18px;
+    padding: 20px;
+    margin: 12px 0;
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+.sidebar-item.active {
+        background: rgba(10,92,86,0.16);
+        color: #0e4f48;
+}
+
+.delete-item {
+    color: #c43b3b;
+}
+
+@media (max-width: 980px) {
+    .account {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .content {
+        padding: 30px 20px;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .profile-actions {
+        text-align: left;
+    }
+}
+
+@media (max-width: 600px) {
+    .sidebar {
+        padding: 20px;
+    }
+
+    .apple-card {
+        padding: 24px;
+    }
+
+    .sidebar-item {
+        padding: 12px 10px;
+    }
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.content h2 {
+    margin-top: 0;
+    font-size: 32px;
+    color: #0f3e46;
+    letter-spacing: -0.02em;
+}
+
+.section h3 {
+    margin-bottom: 18px;
+    font-size: 22px;
+    color: #174449;
+}
+
+.section pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    background: rgba(240,247,248,0.9);
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid rgba(0,0,0,0.06);
+    color: #2f4f52;
+}
+
+.button-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.action-btn {
+    background: #0A5C56;
+    color: #fff;
+}
+
+.cancel-btn {
+    background: #f4f7f8;
+    color: #0b4f56;
+}
+
+.sidebar-item {
+    font-size: 15px;
+    letter-spacing: 0.01em;
+}
+
+.sidebar-item:hover {
+        background: rgba(10,92,86,0.12);
+}
+.sidebar-item.delete-item:hover {
+    background: rgba(196,59,59,0.12);
+}
+
+.product-card {
+    display: grid;
+    grid-template-columns: 120px 1fr 120px;
+    gap: 18px;
+    align-items: center;
+}
+
+.product-card img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 16px;
+}
+
+.product-card h4 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #0f3e46;
+}
+
+.product-card p {
+    margin: 0;
+    color: #465a5f;
+}
+
+.product-card button {
+    justify-self: end;
+}
+
 .order-card {
     background: white;
-    padding: 15px;
+    padding: 18px;
     margin: 10px 0;
-    border-radius: 12px;
-    display: flex;
-    justify-content: space-between;
+    border-radius: 16px;
+    display: grid;
+    gap: 10px;
+    border: 1px solid rgba(0,0,0,0.06);
 }
 
+.order-card p {
+    margin: 0;
+    color: #2f4f52;
+}
+
+.address-card button,
+.payment-card button,
+.ticket-card button,
+.order-card button,
+.product-card button {
+    background: #0A5C56;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+.address-card button:hover,
+.payment-card button:hover,
+.ticket-card button:hover,
+.order-card button:hover,
+.product-card button:hover {
+    opacity: 0.95;
+}
+
+.profile-card {
+    max-width: 100%;
+}
+
+.profile-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.profile-actions .primary-btn {
+    min-width: 160px;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+#addressForm input,
+#addressForm textarea,
+#paymentForm input,
+#paymentForm select,
+#ticketForm input,
+#ticketForm textarea {
+    width: 100%;
+    padding: 14px 16px;
+    margin: 0;
+    border-radius: 14px;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #fff;
+}
+
+#addressForm,
+#paymentForm,
+#ticketForm {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.94);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+#addressForm h3,
+#paymentForm h3,
+#ticketForm h3 {
+    margin-top: 0;
+}
+
+#addressForm button,
+#paymentForm button,
+#ticketForm button {
+    margin-top: 12px;
+}
+/* MOBILE ONLY SIDEBAR SYSTEM */
+#mobileBackBtn{
+    display:none;
+    margin-bottom:15px;
+    background:#111;
+    color:#fff;
+    border:none;
+    padding:10px 16px;
+    border-radius:8px;
+}
+
+/* MOBILE BEHAVIOR */
+@media (max-width:768px){
+
+    .account{
+        flex-direction: column;
+    }
+
+    .content{
+        display:none; /* default hide */
+    }
+
+    .sidebar{
+        display:block; /* only sidebar visible first */
+    }
+
+    #mobileBackBtn{
+        display:block;
+    }
+}
 </style>
 
 {% endblock %}

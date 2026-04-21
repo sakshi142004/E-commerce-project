@@ -1,0 +1,629 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+<div class="admin-users-page">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h2>Users Management</h2>
+            <p>Monitor users, account activity, and order history.</p>
+        </div>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="search-box">
+            <span class="search-icon">⌕</span>
+            <input type="text" id="searchUser" placeholder="Search users by name, email, or status...">
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="table-card">
+        <div class="table-wrapper">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Admin</th>
+                        <th>Joined</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody id="userTableBody">
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <span class="id-badge">#{{ user.id }}</span>
+                        </td>
+
+                        <td>
+                            <div class="user-cell">
+                                {% if user.avatar %}
+                                    <img src="{{ user.avatar }}" class="avatar">
+                                {% else %}
+                                    <img src="/static/images/default_avatar.png" class="avatar">
+                                {% endif %}
+
+                                <div class="user-info">
+                                    <strong>{{ user.username }}</strong>
+                                    <small>User account</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="email-text">{{ user.email }}</span>
+                        </td>
+
+                        <td>
+                            {% if user.is_admin %}
+                                <span class="badge admin-badge">Admin</span>
+                            {% else %}
+                                <span class="badge user-badge">User</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <span class="date-text">
+                                {{ user.created_at.strftime('%d %b %Y') if user.created_at else '-' }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge active-badge">Active</span>
+                            {% else %}
+                                <span class="badge inactive-badge">Deactivated</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="action-group">
+                               <button
+                                   type="button"
+                                   class="btn action-btn"
+                                   onclick="viewOrders('{{ user.id }}')"
+                                       >
+                                    Orders
+                                </button>
+                                 
+
+                                {% if not user.is_admin %}
+                                    <a href="{{ url_for('admin_toggle_user', user_id=user.id) }}" class="btn toggle-btn">
+                                        {{ 'Deactivate' if user.is_active else 'Activate' }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Orders Modal -->
+<div id="ordersModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+                <h3>User Orders</h3>
+                <p>Complete order history and delivery details.</p>
+            </div>
+            <span class="close" onclick="closeModal()">×</span>
+        </div>
+
+        <div id="ordersContent"></div>
+    </div>
+</div>
+
+<script>
+function viewOrders(userId){
+    fetch("/admin/users/" + userId + "/orders")
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+        var html = `
+            <div class="orders-table-wrap">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Tracking</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        data.orders.forEach(function(o){
+            html += `
+                <tr>
+                    <td>#${o.id}</td>
+                    <td>₹${o.total_amount}</td>
+                    <td><span class="badge active-badge">${o.status}</span></td>
+                    <td>${o.created_at}</td>
+                    <td>${o.tracking_number || '-'}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        document.getElementById("ordersContent").innerHTML = html;
+        document.getElementById("ordersModal").style.display = "flex";
+    })
+    .catch(function(err){
+        console.error(err);
+    });
+}
+
+function closeModal(){
+    document.getElementById("ordersModal").style.display = "none";
+}
+
+window.onclick = function(e){
+    const modal = document.getElementById("ordersModal");
+    if(e.target === modal){
+        closeModal();
+    }
+};
+
+// search
+document.getElementById("searchUser").addEventListener("input", function(){
+    var filter = this.value.toLowerCase();
+
+    document.querySelectorAll("#userTableBody tr").forEach(function(tr){
+        tr.style.display = tr.innerText.toLowerCase().includes(filter) ? "" : "none";
+    });
+});
+</script>
+
+<style>
+.admin-users-page {
+    min-height: 100vh;
+    padding: 30px;
+    background: linear-gradient(135deg, #083E3A, #0A5C56 60%, #0f766e);
+}
+
+/* Header */
+.page-header {
+    margin-bottom: 28px;
+}
+
+.page-header h2 {
+    font-size: 34px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.page-header p {
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+}
+
+/* Search */
+.top-bar {
+    margin-bottom: 22px;
+}
+
+.search-box {
+    position: relative;
+    max-width: 420px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,255,255,0.6);
+}
+
+.search-box input {
+    width: 100%;
+    padding: 14px 16px 14px 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    color: white;
+    font-size: 14px;
+    outline: none;
+    backdrop-filter: blur(10px);
+}
+
+.search-box input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+.search-box input:focus {
+    border-color: rgba(255,255,255,0.3);
+}
+
+/* Table Card */
+.table-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    overflow: hidden;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+/* Table */
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table thead {
+    background: rgba(255,255,255,0.1);
+}
+
+.users-table th {
+    padding: 18px;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.users-table td {
+    padding: 18px;
+    color: #fff;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.users-table tr:hover {
+    background: rgba(0,255,200,0.05);
+}
+
+/* User */
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.user-info strong {
+    font-size: 14px;
+}
+
+.user-info small {
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+}
+
+/* Badges */
+.badge,
+.id-badge {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.id-badge {
+    background: rgba(255,255,255,0.1);
+}
+
+.admin-badge {
+    background: rgba(0,255,200,0.15);
+    color: #00e6c8;
+}
+
+.user-badge {
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+}
+
+.active-badge {
+    background: rgba(0,255,150,0.15);
+    color: #00e676;
+}
+
+.inactive-badge {
+    background: rgba(255,180,0,0.15);
+    color: #ffb300;
+}
+
+/* Buttons */
+.action-group {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+.action-btn {
+    background: linear-gradient(135deg, #00c6b2, #0A5C56);
+    color: white;
+}
+
+.toggle-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+/* MODAL */
+ /* FULLSCREEN MODAL */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    z-index: 999;
+
+    /* center */
+    justify-content: center;
+    align-items: center;
+
+    /* IMPORTANT */
+    overflow: hidden; /* background scroll block */
+}
+
+/* SCROLL ONLY INSIDE */
+.modal-content {
+    width: 100%;
+    max-width: 1000px;
+    max-height: 85vh; /* 🔥 important */
+    overflow-y: auto; /* 🔥 scroll inside */
+    
+    background: rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 20px;
+
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.modal-header h3 {
+    color: white;
+}
+
+.close {
+    font-size: 28px;
+    cursor: pointer;
+    color: white;
+}
+
+/* Orders table inside modal */
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 14px;
+    color: white;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.orders-table th {
+    color: rgba(255,255,255,0.6);
+}
+/* mobile */
+@media (max-width: 900px) {
+
+    .page-header h2 {
+        font-size: 22px;
+        margin-bottom: 4px;
+    }
+
+    /* hide header */
+    .users-table thead {
+        display: none;
+    }
+
+    .users-table,
+    .users-table tbody,
+    .users-table tr,
+    .users-table td {
+        display: block;
+        width: 100%;
+    }
+
+    /* 🔥 tighter card */
+    .users-table tr {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .users-table td {
+        padding: 4px 2px;
+        border: none;
+        font-size: 13px;
+    }
+
+    /* reduce vertical spacing */
+    .users-table td:not(:last-child) {
+        margin-bottom: 2px;
+    }
+
+    /* user row */
+    .user-cell {
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+    }
+
+    .user-info strong {
+        font-size: 13px;
+    }
+
+    .user-info small {
+        font-size: 10px;
+    }
+
+    /* email */
+    .email-text {
+        font-size: 12px;
+        word-break: break-word;
+    }
+
+    /* badges tighter */
+    .badge,
+    .id-badge {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    /* actions */
+    .action-group {
+        margin-top: 6px;
+        gap: 6px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 6px;
+        font-size: 11px;
+        border-radius: 8px;
+    }
+
+    /* ===== MODAL ===== */
+
+    .modal-content {
+        padding: 12px;
+        border-radius: 14px;
+    }
+
+    /* orders compact cards */
+    .orders-table thead {
+        display: none;
+    }
+
+    .orders-table,
+    .orders-table tbody,
+    .orders-table tr,
+    .orders-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .orders-table tr {
+        padding: 8px;
+        margin-bottom: 8px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    .orders-table td {
+        padding: 4px 2px;
+        font-size: 12px;
+    }
+
+    /* spacing */
+    .orders-table td:not(:last-child) {
+        margin-bottom: 3px;
+    }
+    .orders-table .badge {
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+}
+</style>
+
+<script>function viewOrders(userId){
+    fetch("/admin/users/" + userId + "/orders")
+    .then(res => res.json())
+    .then(data => {
+
+        let html = `
+        <div class="orders-table-wrap">
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Tracking</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        data.orders.forEach(o => {
+            html += `
+                <tr>
+                    <td>#${o.id}</td>
+                    <td>₹${o.total_amount}</td>
+                    <td><span class="badge active-badge">${o.status}</span></td>
+                    <td>${o.created_at}</td>
+                    <td>${o.tracking_number || '-'}</td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table></div>`;
+
+        document.getElementById("ordersContent").innerHTML = html;
+
+        document.getElementById("ordersModal").style.display = "flex";
+
+        /* 🔥 LOCK BACKGROUND */
+        document.body.style.overflow = "hidden";
+    });
+}
+
+function closeModal(){
+    document.getElementById("ordersModal").style.display = "none";
+
+    /* 🔥 UNLOCK BACKGROUND */
+    document.body.style.overflow = "auto";
+}
+
+/* click outside */
+window.onclick = function(e){
+    const modal = document.getElementById("ordersModal");
+    if(e.target === modal){
+        closeModal();
+    }
+};</script>
+{% endblock %}

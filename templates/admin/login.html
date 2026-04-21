@@ -2,67 +2,253 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Login</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-body {
+:root {
+    --bg-primary: #062f2c;
+    --bg-secondary: #041f1d;
+    --card-bg: rgba(255, 255, 255, 0.08);
+    --card-border: rgba(255, 255, 255, 0.18);
+    --text-primary: #ffffff;
+    --text-secondary: #cfcfcf;
+    --accent: #0A5C56;
+    --shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+}
+
+* {
     margin: 0;
-    height: 100vh;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-family: Arial;
-    background: linear-gradient(135deg, #111, #333);
-    color: white;
+    padding: 16px;
+    background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 40%),
+        radial-gradient(circle at bottom right, rgba(255,255,255,0.04), transparent 40%),
+        linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+}
+
+/* glass card */
+.login-wrapper {
+    width: 100%;
+    max-width: 380px;
 }
 
 .login-box {
-    background: rgba(0,0,0,0.7);
-    padding: 40px;
-    border-radius: 12px;
-    width: 300px;
+    background: var(--card-bg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 32px 26px;
+    box-shadow: var(--shadow);
     text-align: center;
+    animation: fadeUp 0.6s ease;
 }
 
-input {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 6px;
+/* logo (NO BACKGROUND) */
+.logo-box {
+    margin-bottom: 18px;
 }
 
-button {
+.logo-box img {
+    width: 58px;
+    height: auto;
+}
+
+/* heading */
+.login-box h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.login-box p.subtitle {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 24px;
+}
+
+/* inputs */
+.input-group {
+    margin-bottom: 14px;
+    text-align: left;
+}
+
+.input-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #eaeaea;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.input-group input {
     width: 100%;
-    padding: 10px;
-    background: gold;
+    padding: 13px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: 0.25s;
+}
+
+.input-group input::placeholder {
+    color: #aaa;
+}
+
+.input-group input:focus {
+    border-color: #ffffff;
+    background: rgba(255,255,255,0.18);
+}
+
+/* button */
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
     border: none;
-    border-radius: 6px;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #062f2c;
+    font-size: 14px;
+    font-weight: 700;
     cursor: pointer;
-    font-weight: bold;
+    transition: 0.25s;
 }
 
-button:hover {
-    background: orange;
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.25);
+}
+
+/* message */
+#msg {
+    margin-top: 14px;
+    font-size: 13px;
+    color: #e0e0e0;
+}
+.password-wrap {
+    position: relative;
+}
+
+.password-wrap input {
+    padding-right: 40px;
+}
+
+.eye {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.eye:hover {
+    opacity: 1;
+}
+.remember {
+    text-align: left;
+    font-size: 13px;
+    color: #ddd;
+    margin-top: 6px;
+}
+
+/* animation */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* mobile */
+@media (max-width: 480px) {
+    .login-box {
+        padding: 26px 18px;
+        border-radius: 20px;
+    }
+
+    .login-box h2 {
+        font-size: 22px;
+    }
+
+    .logo-box img {
+        width: 50px;
+    }
 }
 </style>
 </head>
 
 <body>
 
-<div class="login-box">
-    <h2>Admin Login 🔐</h2>
+<div class="login-wrapper">
+    <div class="login-box">
 
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
+        <div class="logo-box">
+            <img src="/static/images/BP_OnlyLogo-01.png" alt="Logo">
+        </div>
 
-    <button onclick="login()">Login</button>
+        <h2>Admin Login</h2>
+        <p class="subtitle">
+            Secure access to your control center
+        </p>
 
-    <p id="msg"></p>
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="email" placeholder="Enter your email">
+        </div>
+
+        <div class="input-group">
+    <label>Password</label>
+
+    <div class="password-wrap">
+        <input type="password" id="password" placeholder="Enter your password">
+        <span class="eye" onclick="togglePassword()">👁</span>
+    </div>
+</div>
+<div class="remember">
+    <label>
+        <input type="checkbox" id="rememberMe">
+        Remember Me
+    </label>
+</div>
+
+        <button class="login-btn" id="loginBtn" onclick="login()">
+            Login
+        </button>
+
+        <p id="msg"></p>
+    </div>
 </div>
 
 <script>
 function login() {
+    const button = document.getElementById("loginBtn");
+    const msg = document.getElementById("msg");
+
+    button.classList.add("loading");
+    button.innerText = "Signing in...";
+    msg.innerText = "";
+
     fetch("/admin-login", {
         method: "POST",
         headers: {
@@ -70,7 +256,8 @@ function login() {
         },
         body: JSON.stringify({
             email: document.getElementById("email").value,
-            password: document.getElementById("password").value
+            password: document.getElementById("password").value,
+            remember: document.getElementById("rememberMe").checked
         })
     })
     .then(res => res.json())
@@ -78,9 +265,21 @@ function login() {
         if (data.message === "Admin login success") {
             window.location.href = "/secure-admin-portal-9821";
         } else {
-            document.getElementById("msg").innerText = data.message;
+            msg.innerText = data.message;
         }
+    })
+    .catch(() => {
+        msg.innerText = "Something went wrong. Please try again.";
+    })
+    .finally(() => {
+        button.classList.remove("loading");
+        button.innerText = "Login";
     });
+}
+
+function togglePassword() {
+    const input = document.getElementById("password");
+    input.type = input.type === "password" ? "text" : "password";
 }
 </script>
 

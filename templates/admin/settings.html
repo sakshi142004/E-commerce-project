@@ -1,0 +1,103 @@
+{% extends "admin/base_admin.html" %}
+{% block content %}
+
+<style>
+.settings-container {
+    max-width: 720px;
+    margin: auto;
+}
+
+.settings-title {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    font-size: 14px;
+    color: #ccc;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: white;
+    outline: none;
+}
+
+.form-group input:focus {
+    border-color: #0A5C56;
+}
+
+.save-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    border: none;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: white;
+    transition: 0.3s;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+}
+</style>
+
+<div class="settings-container">
+
+    <div class="card">
+        <div class="settings-title">⚙️ Admin Settings</div>
+
+        <form method="POST">
+
+            <!-- Username -->
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" name="username" value="{{ admin.username }}" required>
+            </div>
+
+            <!-- Email -->
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" value="{{ admin.email }}" required>
+            </div>
+
+            <hr style="margin:20px 0; opacity:0.2;">
+
+            <!-- Password Change -->
+            <div class="form-group">
+                <label>Current Password</label>
+                <input type="password" name="current_password">
+            </div>
+
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" name="new_password">
+            </div>
+
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" name="confirm_password">
+            </div>
+
+            <button class="save-btn">Save Changes</button>
+
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}
