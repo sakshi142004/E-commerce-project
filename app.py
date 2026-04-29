@@ -1,10 +1,12 @@
+from collections import defaultdict
 from turtle import color
 
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
 from sqlalchemy import text
-from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Tag, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
+from sqlalchemy.orm import joinedload
+from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
 from flask_login import LoginManager, login_user, current_user
 from functools import wraps
@@ -20,6 +22,13 @@ from flask_mail import Mail, Message
 app = Flask(__name__)   # ✅ FIRST create app
 
 app.config.from_object(Config)
+
+import cloudinary
+cloudinary.config(
+    cloud_name=app.config["CLOUDINARY_CLOUD_NAME"],
+    api_key=app.config["CLOUDINARY_API_KEY"],
+    api_secret=app.config["CLOUDINARY_API_SECRET"]
+)
 
 db.init_app(app)
 
@@ -104,7 +113,7 @@ def admin_login():
 
     if request.method == "POST":
         data = request.get_json()
-
+        
         user = User.query.filter_by(email=data.get("email")).first()
 
         from werkzeug.security import check_password_hash
@@ -215,6 +224,7 @@ def admin_logout():
 def admin_products():
     products = Product.query.options(
         db.joinedload(Product.images),
+        db.joinedload(Product.videos), 
         db.joinedload(Product.product_colors).joinedload(ProductColor.color)
     ).all()
 
@@ -319,19 +329,24 @@ def add_product():
                     break
 
         # 🎥 VIDEOS
-        videos = request.files.getlist("videos")
-        for vid in videos:
-            if vid and allowed_file(vid.filename, "video"):
-                filename = str(uuid.uuid4()) + "_" + secure_filename(vid.filename)
-                file_path = os.path.join(VIDEO_UPLOAD_FOLDER, filename)
+        for color_id in selected_colors:
 
-                vid.save(file_path)
+           videos = request.files.getlist(f"color_videos_{color_id}")
 
-                db.session.add(ProductVideo(
-                    product_id=product.id,
-                    video_url="video/" + filename
-                ))
+           for vid in videos:
+              if vid and allowed_file(vid.filename, "video"):
 
+                  result = cloudinary.uploader.upload(
+                     vid,
+                     resource_type="video",
+                     folder="products/videos"
+            )
+
+                  db.session.add(ProductVideo(
+                     product_id=product.id,
+                     video_url=result["secure_url"],
+                     color_id=int(color_id)   # ✅ LINKED
+            ))
         # 🏷 TAGS
         tags = request.form.get("tags")
         if tags:
@@ -346,7 +361,12 @@ def add_product():
 
     # ✅ GET
     colors = Color.query.all()
-    return render_template("admin/add_product.html", colors=colors)
+    return render_template(
+    "admin/add_product.html",
+    colors=colors,
+    product=None,
+    selected_color_ids=[]
+)
 @app.route("/admin/products/edit/<int:id>", methods=["GET", "POST"])
 @admin_required
 def edit_product(id):
@@ -390,10 +410,7 @@ def edit_product(id):
         ProductColor.query.filter_by(product_id=id).delete()
 
         # ⚠️ OPTIONAL: OLD COLOR IMAGES DELETE
-        ProductImage.query.filter(
-            ProductImage.product_id == id,
-            ProductImage.color_id.isnot(None)
-        ).delete()
+      
 
         selected_colors = request.form.getlist("colors")
         first_image_set = False
@@ -456,20 +473,24 @@ def edit_product(id):
         # =========================
         # 🔵 VIDEOS ADD
         # =========================
-        videos = request.files.getlist("videos")
+        for color_id in selected_colors:
 
-        for vid in videos:
-            if vid and allowed_file(vid.filename, "video"):
+              videos = request.files.getlist(f"color_videos_{color_id}")
 
-                filename = str(uuid.uuid4()) + "_" + secure_filename(vid.filename)
-                file_path = os.path.join(VIDEO_UPLOAD_FOLDER, filename)
+              for vid in videos:
+                 if vid and allowed_file(vid.filename, "video"):
 
-                vid.save(file_path)
+                     result = cloudinary.uploader.upload(
+                         vid,
+                         resource_type="video",
+                         folder="products/videos"
+            )
 
-                db.session.add(ProductVideo(
-                    product_id=id,
-                    video_url="videos/" + filename
-                ))
+                     db.session.add(ProductVideo(
+                        product_id=product.id,
+                        video_url=result["secure_url"],
+                        color_id=int(color_id)   # ✅ LINKED
+            ))
 
         # =========================
         # 📏 SIZES RESET + ADD
@@ -551,7 +572,15 @@ def delete_product(id):
     return redirect("/admin/products")
 
 
+@app.route("/admin/video/delete/<int:id>")
+@admin_required
+def delete_video(id):
+    video = ProductVideo.query.get_or_404(id)
 
+    db.session.delete(video)
+    db.session.commit()
+
+    return redirect(request.referrer)
 
 @app.route("/admin/image/delete/<int:id>")
 @admin_required
@@ -923,7 +952,8 @@ def register():
 
     if not all(k in data for k in ("name", "email", "password")):
         return jsonify({"message": "Missing fields"}), 400
-
+    if len(data['password']) < 6:
+      return jsonify({"message": "Password too short"}), 400
     existing = User.query.filter_by(email=data['email']).first()
     if existing:
         return jsonify({"message": "Email already exists"}), 400
@@ -953,6 +983,8 @@ from werkzeug.security import check_password_hash
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
+    if not data or not data.get('email') or not data.get('password'):
+      return jsonify({"message": "Email and password required"}), 400
 
     user = User.query.filter_by(email=data.get('email')).first()
 
@@ -971,7 +1003,7 @@ def login():
         "name": user.username
     })
 
-from collections import defaultdict
+
 
 @app.route('/products')
 def products():
@@ -1054,6 +1086,36 @@ def api_search():
 
     return jsonify(result)
 
+
+@app.route('/api/warranty', methods=['POST'])
+def warranty():
+
+    name = request.form.get('name')
+    phone = request.form.get('phone')
+    email = request.form.get('email')
+    address = request.form.get('address')
+    purchase = request.form.get('purchase')
+
+    file = request.files.get('bill')
+
+    filename = None
+    if file:
+       ext = file.filename.split('.')[-1]
+       filename = f"{uuid.uuid4()}.{ext}"
+
+    new_claim = Warranty(
+        name=name,
+        phone=phone,
+        email=email,
+        address=address,
+        purchase=purchase,
+        bill=filename
+    )
+
+    db.session.add(new_claim)
+    db.session.commit()
+
+    return jsonify({"message": "Warranty claim submitted successfully"})
 # ================= PRODUCT DETAIL =================
 @app.route('/product/<int:id>')
 def product_detail(id):
@@ -1077,10 +1139,13 @@ def product_detail(id):
     sizes = ProductSize.query.filter_by(product_id=id).all()
     colors = ProductColor.query.filter_by(product_id=id).all()
     related_products = Product.query.limit(4).all()
+    reviews = Review.query.options(joinedload(Review.user))\
+       .filter_by(product_id=id).all()
 
     return render_template(
         "product.html",
         product=product,
+        reviews=reviews,
         images=images_data,
         videos=videos,
         tags=tags,
@@ -1184,19 +1249,25 @@ def cart_page():
 @app.route('/remove_cart/<int:id>')
 def remove_cart(id):
     if 'email' not in session:
-        return "Unauthorized", 401
+        return jsonify({"success": False}), 401
 
     user = User.query.filter_by(email=session['email']).first()
 
     db.session.execute(text("""
         DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
     """), {"uid": user.id, "pid": id})
+
     db.session.commit()
 
+    count = db.session.execute(text("""
+        SELECT COALESCE(SUM(quantity),0)
+        FROM cart WHERE user_id=:uid
+    """), {"uid": user.id}).scalar()
+
     return jsonify({
-    "success": True,
-    "message": "Removed"
-})
+        "success": True,
+        "count": count
+    })
 
 
 @app.route('/decrease_cart/<int:id>')
@@ -1224,7 +1295,7 @@ def decrease_cart(id):
     db.session.commit()
     return jsonify({"success": True, "message": "Updated"})
 
-@app.route('/add_to_cart/<int:id>')
+'''@app.route('/add_to_cart/<int:id>')
 def add_to_cart(id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
@@ -1253,7 +1324,7 @@ def add_to_cart(id):
     """), {"uid": user.id}).scalar()
 
     return jsonify({"success": True, "count": count})
-
+'''
 # ================= WISHLIST =================
 @app.route('/add_to_wishlist/<int:id>')
 def add_to_wishlist(id):
@@ -1396,38 +1467,57 @@ def toggle_cart(product_id):
     if 'email' not in session:
         return jsonify({"error": "login required"}), 401
 
-    size_id = request.json.get("size_id")   # 🔥 get size
+    data = request.get_json() or {}
+    size_id = data.get("size_id")
 
     user = User.query.filter_by(email=session['email']).first()
+
+    # ❌ ONLY ADD requires size
+    if size_id is None:
+        return jsonify({"error": "size_required"}), 400
 
     existing = db.session.execute(text("""
         SELECT * FROM cart 
         WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
-    """), {"uid": user.id, "pid": product_id, "sid": size_id}).fetchone()
+    """), {
+        "uid": user.id,
+        "pid": product_id,
+        "sid": size_id
+    }).fetchone()
 
     if existing:
         db.session.execute(text("""
             DELETE FROM cart 
             WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
-        """), {"uid": user.id, "pid": product_id, "sid": size_id})
+        """), {
+            "uid": user.id,
+            "pid": product_id,
+            "sid": size_id
+        })
         in_cart = False
     else:
         db.session.execute(text("""
             INSERT INTO cart (user_id, product_id, size_id, quantity)
             VALUES (:uid, :pid, :sid, 1)
-        """), {"uid": user.id, "pid": product_id, "sid": size_id})
+        """), {
+            "uid": user.id,
+            "pid": product_id,
+            "sid": size_id
+        })
         in_cart = True
 
     db.session.commit()
 
     count = db.session.execute(text("""
-        SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id=:uid
+        SELECT COALESCE(SUM(quantity),0)
+        FROM cart WHERE user_id=:uid
     """), {"uid": user.id}).scalar()
 
     return jsonify({
         "in_cart": in_cart,
         "count": count
     })
+
 
 @app.route("/cart/check/<int:product_id>")
 def check_cart(product_id):
@@ -1440,6 +1530,7 @@ def check_cart(product_id):
     exists = db.session.execute(text("""
         SELECT 1 FROM cart 
         WHERE user_id=:uid AND product_id=:pid
+        LIMIT 1
     """), {"uid": user.id, "pid": product_id}).fetchone()
 
     return jsonify({"in_cart": bool(exists)})
@@ -1503,6 +1594,40 @@ def update_quantity(product_id, action):
 
     return jsonify({"status": "ok", "quantity": qty, "cart_count": new_count})
 
+
+
+@app.route("/product/sizes/<int:product_id>")
+def get_product_sizes(product_id):
+
+    sizes = ProductSize.query.filter_by(product_id=product_id).all()
+
+    return jsonify([
+        {
+            "id": s.id,
+            "label": s.size_label,
+            "value": s.size_value
+        }
+        for s in sizes
+    ])
+@app.route("/cart/selected_size/<int:product_id>")
+def get_selected_size(product_id):
+
+    if 'email' not in session:
+        return jsonify({"size_id": None})
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    row = db.session.execute(text("""
+        SELECT size_id 
+        FROM cart 
+        WHERE user_id=:uid AND product_id=:pid
+        LIMIT 1
+    """), {"uid": user.id, "pid": product_id}).fetchone()
+
+    return jsonify({
+        "size_id": row.size_id if row else None
+    })
+
 @app.route('/api/orders', methods=['GET'])
 def api_orders():
     if 'email' not in session:
@@ -1561,6 +1686,42 @@ def get_addresses():
     } for a in addresses]) 
 
 # ================= CART PAGE =================
+
+
+
+@app.route("/review/add/<int:product_id>", methods=["POST"])
+def add_review(product_id):
+
+    if 'email' not in session:
+        return jsonify({"error": "login_required"})
+
+    data = request.get_json()
+
+    user = User.query.filter_by(email=session['email']).first()
+
+    rating = int(data.get("rating"))
+    comment = data.get("comment")
+
+    if not comment:
+        return jsonify({"error": "empty_comment"})
+
+    review = Review(
+        user_id=user.id,
+        product_id=product_id,
+        rating=rating,
+        comment=comment
+    )
+
+    db.session.add(review)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "username": user.username,
+        "rating": rating,
+        "comment": comment
+    })
+
 
 
 # ================= CHECKOUT =================

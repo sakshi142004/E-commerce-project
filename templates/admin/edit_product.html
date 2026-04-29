@@ -153,8 +153,9 @@
                 <h3>Current Product Images</h3>
 
                 <div class="image-grid">
-                    {% for img in product.images %}
-                    <div class="img-card">
+                    {% if product %}
+                      {% for img in product.images %}
+                     <div class="img-card">
                         <img src="{{ img.image_url }}" alt="Product image">
 
                         <a href="/admin/image/delete/{{ img.id }}" class="delete-btn" aria-label="Delete image">
@@ -170,54 +171,99 @@
                         </a>
                     </div>
                     {% endfor %}
+                {% endif %}
                 </div>
+                <h3>Current Product Videos</h3>
+
+    <div class="image-grid">
+    {% if product %}
+        {% for vid in product.videos %}
+        <div class="img-card">
+
+            <video width="100%" height="180" controls>
+                <source src="{{ vid.video_url }}" type="video/mp4">
+            </video>
+
+            <a href="/admin/video/delete/{{ vid.id }}" class="delete-btn">
+                x
+            </a>
+
+        </div>
+        {% endfor %}
+    {% endif %}
+    </div>
             </div>
 
             <div class="form-section">
                 <h3>Colors & Images (Add More)</h3>
 
                 <div class="color-image-grid">
-                    {% for color in colors %}
-                    <div class="color-upload-box {% if color.id in selected_color_ids %}active{% endif %}">
-                        <label class="color-label">
-                            <input
-                                type="checkbox"
-                                name="colors"
-                                value="{{ color.id }}"
-                                {% if color.id in selected_color_ids %}checked{% endif %}
-                                onchange="toggleUpload(this, {{ color.id }})"
-                            >
+{% for color in colors %}
+<div class="color-upload-box {% if color.id in selected_color_ids %}active{% endif %}">
 
-                            <span class="color-dot" style="background: {{ color.code }};"></span>
-                            <span>{{ color.name }}</span>
-                        </label>
+    <!-- COLOR SELECT -->
+    <label class="color-top">
+        <input type="checkbox"
+               name="colors"
+               value="{{ color.id }}"
+               {% if color.id in selected_color_ids %}checked{% endif %}
+               onchange="toggleUpload(this, {{ color.id }})">
 
-                        <input
-                            type="file"
-                            name="color_images_{{ color.id }}"
-                            id="upload_{{ color.id }}"
-                            multiple
-                            accept="image/*"
-                            {% if color.id not in selected_color_ids %}disabled{% endif %}
-                            onchange="previewImages(event, {{ color.id }})"
-                        >
+        <span class="color-circle" style="background: {{ color.code }}"></span>
+        <strong class="color-name">{{ color.name }}</strong>
+    </label>
 
-                        <div class="preview-container" id="preview_{{ color.id }}">
-                            {% for img in product.images %}
-                                {% if img.color_id == color.id %}
-                                <div class="preview-thumb">
-                                    <img src="{{ img.image_url }}" alt="{{ color.name }} image">
+    <!-- IMAGE INPUT -->
+    <div class="media-block">
+        <p class="media-title">Images</p>
 
-                                    {% if img.is_primary %}
-                                    <span class="primary-badge">Primary</span>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endfor %}
+        <input type="file"
+               name="color_images_{{ color.id }}"
+               id="upload_{{ color.id }}"
+               multiple
+               accept="image/*"
+               {% if color.id not in selected_color_ids %}disabled{% endif %}
+               onchange="previewImages(event, {{ color.id }})">
+
+        <div class="preview-container" id="preview_{{ color.id }}">
+            {% for img in product.images %}
+                {% if img.color_id == color.id %}
+                <div class="preview-thumb">
+                    <img src="{{ img.image_url }}">
                 </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- VIDEO INPUT -->
+    <div class="media-block">
+        <p class="media-title">Videos</p>
+
+        <input type="file"
+               name="color_videos_{{ color.id }}"
+               id="video_upload_{{ color.id }}"
+               multiple
+               accept="video/*"
+               {% if color.id not in selected_color_ids %}disabled{% endif %}
+               onchange="previewVideos(event, {{ color.id }})">
+
+        <div class="preview-container" id="video_preview_{{ color.id }}">
+            {% for vid in product.videos %}
+                {% if vid.color_id == color.id %}
+                <div class="video-thumb">
+                    <video controls>
+                        <source src="{{ vid.video_url }}" type="video/mp4">
+                    </video>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endfor %}
+</div>
             </div>
 
             <div class="form-section">
@@ -245,7 +291,9 @@
 
                 <div class="form-group">
                     <label>Add New Videos</label>
-                    <input type="file" name="videos" multiple class="premium-file">
+                    <input type="file" name="videos" multiple class="premium-file" onchange="previewNewVideos(event)">
+
+<div id="newVideoPreview" class="preview-container"></div>
                 </div>
             </div>
 
@@ -269,30 +317,71 @@
         </form>
     </div>
 </div>
+<div id="cropModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+    
+    <div style="background:#fff; padding:20px; border-radius:16px; max-width:500px; width:90%;">
+        
+        <h3 style="margin-bottom:10px;">Crop Image (Square)</h3>
+        
+        <div style="width:100%; height:300px;">
+            <img id="cropImage" style="max-width:100%;">
+        </div>
 
+        <div style="margin-top:15px; display:flex; justify-content:space-between;">
+            <button type="button" onclick="closeCrop()">Cancel</button>
+            <button type="button" onclick="applyCrop()">Crop & Use</button>
+        </div>
+
+    </div>
+</div>
 <style>
+    .color-header {
+    margin-bottom: 10px;
+}
+
+.media-block {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #fafafa;
+    border: 1px dashed #ddd;
+}
+
+.media-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.video-thumb video {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 10px;
+}
 .product-page {
     padding: 30px;
     min-height: 100vh;
-    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    background: #ffffff;
 }
 
 .page-header h2 {
     font-size: 34px;
-    color: #111;
+    color: #000;
     margin-bottom: 8px;
 }
 
 .page-header p {
-    color: #666;
+    color: #555;
     margin-bottom: 30px;
 }
 
 .premium-form-card {
     padding: 35px;
     border-radius: 24px;
-    background: rgba(10, 92, 86, 0.08);
-    border: 1px solid rgba(10, 92, 86, 0.25);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
     backdrop-filter: blur(14px);
     box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
 }
@@ -300,13 +389,13 @@
 .form-section {
     margin-bottom: 35px;
     padding-bottom: 25px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .form-section h3 {
     font-size: 22px;
     margin-bottom: 20px;
-    color: #111;
+    color: #000;
 }
 
 .form-group {
@@ -316,7 +405,7 @@
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    color: #222;
+    color: #111;
     font-weight: 600;
 }
 
@@ -330,7 +419,7 @@
     padding: 15px 18px;
     border: 1px solid #ddd;
     border-radius: 14px;
-    background: white;
+    background: #fff;
     font-size: 15px;
     transition: 0.3s;
 }
@@ -359,7 +448,7 @@
 .price-preview-box {
     margin-top: 15px;
     background: linear-gradient(135deg, #0A5C56, #083E3A);
-    color: white;
+    color: #fff;
     padding: 18px 22px;
     border-radius: 18px;
     display: flex;
@@ -380,7 +469,7 @@
 
 .img-card {
     position: relative;
-    background: white;
+    background: #fff;
     border-radius: 18px;
     overflow: hidden;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
@@ -414,8 +503,8 @@
     padding: 12px;
     font-size: 14px;
     font-weight: 600;
-    color: #111;
-    background: #f9f9f9;
+    color: #000;
+    background: #f3f4f6;
 }
 
 .color-image-grid {
@@ -425,8 +514,8 @@
 }
 
 .color-upload-box {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(10, 92, 86, 0.15);
+    background: #fff;
+    border: 1px solid #e5e7eb;
     border-radius: 18px;
     padding: 16px;
     transition: 0.3s;
@@ -443,6 +532,7 @@
     gap: 10px;
     margin-bottom: 14px;
     font-weight: 600;
+    color: #000;
 }
 
 .color-label input[type="checkbox"] {
@@ -496,10 +586,6 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-.preview-thumb {
-    position: relative;
-}
-
 .primary-badge {
     position: absolute;
     top: 6px;
@@ -519,7 +605,7 @@
     font-size: 17px;
     font-weight: 600;
     cursor: pointer;
-    color: white;
+    color: #fff;
     background: linear-gradient(135deg, #0A5C56, #083E3A);
     transition: 0.3s;
 }
@@ -540,45 +626,91 @@
     }
 }
 </style>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
+let cropper;
+let currentInput;
+let currentColorId;
+
 function previewImages(event, colorId) {
-    const container = document.getElementById("preview_" + colorId);
 
-    if (!container) {
-        return;
-    }
+    const file = event.target.files[0];
+    if (!file) return;
 
-    Array.from(event.target.files || []).forEach((file) => {
-        const reader = new FileReader();
+    currentInput = event.target;
+    currentColorId = colorId;
 
-        reader.onload = function(loadEvent) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+
+        const img = document.getElementById("cropImage");
+        img.src = e.target.result;
+
+        document.getElementById("cropModal").style.display = "flex";
+
+        if (cropper) cropper.destroy();
+
+        cropper = new Cropper(img, {
+            aspectRatio: 1, // 🔥 square
+            viewMode: 1
+        });
+    };
+
+    reader.readAsDataURL(file);
+}
+function closeCrop() {
+    document.getElementById("cropModal").style.display = "none";
+    if (cropper) cropper.destroy();
+}
+
+function applyCrop() {
+
+    const canvas = cropper.getCroppedCanvas({
+        width: 800,
+        height: 800
+    });
+
+    canvas.toBlob(function(blob) {
+
+        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+
+        currentInput.files = dataTransfer.files;
+
+        // 🔥 Now show preview (your old logic)
+        const container = document.getElementById("preview_" + currentColorId);
+
+        if (container) {
+            const url = URL.createObjectURL(file);
+
             const wrapper = document.createElement("div");
             wrapper.className = "preview-thumb";
 
             const img = document.createElement("img");
-            img.src = loadEvent.target.result;
-            img.alt = "Selected color image";
+            img.src = url;
 
             wrapper.appendChild(img);
             container.appendChild(wrapper);
-        };
+        }
 
-        reader.readAsDataURL(file);
-    });
+        closeCrop();
+
+    }, "image/jpeg");
 }
-
 window.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".color-upload-box").forEach((box) => {
         const checkbox = box.querySelector("input[type='checkbox']");
-        const input = box.querySelector("input[type='file']");
+        const inputs = box.querySelectorAll("input[type='file']");
 
-        if (!checkbox || !input) {
-            return;
-        }
+        if (!checkbox) return;
 
         box.classList.toggle("active", checkbox.checked);
-        input.disabled = !checkbox.checked;
+
+        inputs.forEach(input => {
+            input.disabled = !checkbox.checked;
+        });
     });
 
     updateFinalPrice();
@@ -629,34 +761,54 @@ if (imageInput && previewContainer) {
         });
     });
 }
-
 function toggleUpload(checkbox, colorId) {
-    const input = document.getElementById("upload_" + colorId);
-    const container = document.getElementById("preview_" + colorId);
+    const imageInput = document.getElementById("upload_" + colorId);
+    const videoInput = document.getElementById("video_upload_" + colorId);
+
+    const imageContainer = document.getElementById("preview_" + colorId);
+    const videoContainer = document.getElementById("video_preview_" + colorId);
+
     const card = checkbox.closest(".color-upload-box");
+    const isChecked = checkbox.checked;
 
-    if (!input) {
-        return;
-    }
+    // Enable/Disable inputs
+    if (imageInput) imageInput.disabled = !isChecked;
+    if (videoInput) videoInput.disabled = !isChecked;
 
-    input.disabled = !checkbox.checked;
-
+    // UI active state
     if (card) {
-        card.classList.toggle("active", checkbox.checked);
+        card.classList.toggle("active", isChecked);
     }
 
-    if (!checkbox.checked) {
-        input.value = "";
+    // ❌ When unchecked → clear everything
+    if (!isChecked) {
+        if (imageInput) imageInput.value = "";
+        if (videoInput) videoInput.value = "";
 
-        if (container) {
-            container.querySelectorAll(".preview-thumb").forEach((item) => {
-                if (!item.querySelector(".primary-badge")) {
-                    item.remove();
-                }
-            });
-        }
     }
 }
+function previewVideos(event, colorId) {
+    const container = document.getElementById("video_preview_" + colorId);
+    if (!container) return;
+
+    // 🔥 clear old previews
+    container.innerHTML = "";
+
+    Array.from(event.target.files).forEach(file => {
+        const url = URL.createObjectURL(file);
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "video-thumb";
+
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+
+        wrapper.appendChild(video);
+        container.appendChild(wrapper);
+    });
+}
+
 </script>
 
 {% endblock %}

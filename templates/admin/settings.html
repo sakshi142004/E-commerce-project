@@ -1,43 +1,48 @@
 {% extends "admin/base_admin.html" %}
 {% block content %}
 
-<style>
-.settings-container {
+<style>.settings-container {
     max-width: 720px;
     margin: auto;
 }
 
+/* HEADING */
 .settings-title {
     font-size: 26px;
     font-weight: 700;
     margin-bottom: 20px;
+    color: #111111;
 }
 
+/* FORM GROUP */
 .form-group {
     margin-bottom: 18px;
 }
 
 .form-group label {
     font-size: 14px;
-    color: #ccc;
+    color: #111111;
     margin-bottom: 6px;
     display: block;
 }
 
+/* INPUT */
 .form-group input {
     width: 100%;
     padding: 12px 14px;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.08);
-    color: white;
+    border: 1px solid #ddd;
+    background: #ffffff;
+    color: #111111;
     outline: none;
 }
 
 .form-group input:focus {
     border-color: #0A5C56;
+    box-shadow: 0 0 0 4px rgba(10, 92, 86, 0.15);
 }
 
+/* BUTTON */
 .save-btn {
     width: 100%;
     padding: 14px;
@@ -47,12 +52,13 @@
     font-size: 15px;
     cursor: pointer;
     background: linear-gradient(135deg, #0A5C56, #083E3A);
-    color: white;
+    color: #ffffff;
     transition: 0.3s;
 }
 
 .save-btn:hover {
     transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.15);
 }
 </style>
 

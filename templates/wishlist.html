@@ -7,7 +7,7 @@
             <h1>Wishlist</h1>
             <p class="wishlist-note">Save your favorite products for later and move them to bag in one click.</p>
         </div>
-        <button class="primary-btn move-all" onclick="moveAllToCart()">Move All To Bag</button>
+        <button class="primary-btn move-all" onclick="moveAllToCart()">Move All To Card</button>
     </div>
 
     {% if items|length == 0 %}
@@ -44,82 +44,146 @@
 <!-- ✅ JAVASCRIPT -->
 
 <script>
+
+// ================= ADD TO CART WITH SIZE =================
+function openSizeModal(productId) {
+
+    fetch(`/product/sizes/${productId}`)
+        .then(res => res.json())
+        .then(sizes => {
+
+            if (!sizes || sizes.length === 0) {
+                alert("No sizes available");
+                return;
+            }
+
+            let sizeId = sizes[0].id; // default first size
+
+            return fetch(`/cart/toggle/${productId}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    size_id: sizeId
+                })
+            });
+        })
+        .then(res => res.json())
+        .then(data => {
+
+            if (!data) return;
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            alert("Added to cart ✅");
+
+            // update navbar count
+            const cartEl = document.getElementById("cartCount");
+            if (cartEl) {
+                cartEl.innerText = data.count;
+            }
+        })
+        .catch(err => {
+            console.error("Cart error:", err);
+            alert("Something went wrong");
+        });
+}
+
+
+// ================= PAGE LOAD =================
 document.addEventListener("DOMContentLoaded", () => {
 
-    // ADD TO CART
+    // ✅ ADD TO CART BUTTON
     document.querySelectorAll(".addCartBtn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             let id = this.getAttribute("data-id");
-
-            fetch('/add_to_cart/' + id)
-            .then(res => res.json())
-            .then(data => {
-                alert("Added to cart ✅");
-
-                if(document.getElementById("cartCount")){
-                    document.getElementById("cartCount").innerText = data.count;
-                }
-            });
+            openSizeModal(id);
         });
     });
 
-    // REMOVE FROM WISHLIST
+    // ✅ REMOVE FROM WISHLIST
     document.querySelectorAll(".removeBtn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             let id = this.getAttribute("data-id");
 
             fetch('/remove_wishlist/' + id)
-            .then(() => {
-                location.reload();
-            });
+                .then(() => location.reload());
         });
     });
 
 });
 
+
+// ================= MOVE ALL TO CART =================
 function moveAllToCart() {
+
     let buttons = Array.from(document.querySelectorAll('.addCartBtn'));
+
     if (!buttons.length) {
         alert('No items to move.');
         return;
     }
 
-    Promise.all(buttons.map(btn => {
-        let id = btn.getAttribute('data-id');
-        return fetch('/add_to_cart/' + id)
-            .then(res => res.json());
-    }))
+    Promise.all(
+        buttons.map(btn => {
+            let id = btn.getAttribute('data-id');
+
+            return fetch(`/product/sizes/${id}`)
+                .then(res => res.json())
+                .then(sizes => {
+
+                    if (!sizes || sizes.length === 0) return;
+
+                    let sizeId = sizes[0].id;
+
+                    return fetch(`/cart/toggle/${id}`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            size_id: sizeId
+                        })
+                    });
+                });
+        })
+    )
     .then(() => {
-        alert('Moved all wishlist items to bag');
+        alert('Moved all wishlist items to cart ✅');
         location.reload();
     })
     .catch(() => {
         alert('Something went wrong while moving items.');
     });
 }
+
 </script>
 
 <!-- ✅ CSS -->
 
 <style>
 
-body {
-    font-family: 'Cormorant Garamond', serif;
-}
+
 
 .wishlist-container {
-    padding-top: 80px;
-    padding-right: 20px;
-    padding-bottom: 40px;
-    padding-left: 20px;
+    font-family: 'Gotham' , sans-serif;
+     padding: 30px 20px 40px;
+     
 }
-
+.wishlist-container button {
+    padding: 10px 14px;
+    border-radius: 10px;
+}
 .wishlist-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 18px;
-    margin-bottom: 26px;
+    flex-wrap: wrap; /* 🔥 important */
 }
 
 .wishlist-top h1 {
@@ -132,6 +196,15 @@ body {
     margin: 8px 0 0;
     color: #55656c;
     max-width: 520px;
+    padding-bottom: 20px;
+}
+
+.move-all {
+    padding: 10px 18px !important;
+    font-size: 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+    width: auto !important;
 }
 
 .primary-btn {
@@ -237,7 +310,7 @@ body {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
-    color: #c12828;
+    color: var(--btn-gradient);
 }
 
 .card-body .addCartBtn {
@@ -285,7 +358,7 @@ body {
 
 .price {
     font-weight: bold;
-    color: #B12704;
+    color: var(--btn-gradient);
 }
 
 /* BUTTONS */
@@ -295,19 +368,14 @@ body {
     gap: 8px;
 }
 
-button {
-    padding: 8px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
+
 
 .addCartBtn {
-    background: #FFD814;
+    background:  var(--btn-gradient);
 }
 
 .addCartBtn:hover {
-    background: #F7CA00;
+    background: var(--btn-gradient);
 }
 
 .removeBtn {

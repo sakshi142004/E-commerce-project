@@ -25,6 +25,9 @@
                 <div class="details">
                     <h3>{{ p.name }}</h3>
                  <p class="price" id="price-{{ p.id }}">₹{{ p.price }}</p>
+                 </div>
+
+                 <div class="right-box">
                  <p class="item-total" id="item-total-{{ p.id }}">
     Total: ₹{{ p.price * p.quantity }}
 </p>
@@ -40,8 +43,9 @@
     <button class="wishBtn" data-id="{{ p.id }}">Move to Wishlist</button>
 </div>
                 </div>
-
             </div>
+
+            
             {% endfor %}
         </div>
 
@@ -194,7 +198,7 @@ document.querySelectorAll(".removeBtn").forEach(btn => {
         });
     });
 });
-function updateHeaderCounts(){
+function updateNavbarCounts(){
     fetch('/get_counts')
     .then(res => res.json())
     .then(data => {
@@ -427,14 +431,15 @@ document.querySelectorAll(".plus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
         let id = btn.dataset.id;
 
-      fetch(`/add_to_cart/${id}`)
-.then(res=>res.json())
-.then(()=>{
-    let qtyEl = document.getElementById("qty-"+id);
-    qtyEl.innerText = parseInt(qtyEl.innerText) + 1;
-    updateCartUI();
-    updateNavbarCounts(); 
-});
+        fetch(`/update_quantity/${id}/plus`)
+        .then(res=>res.json())
+        .then(data=>{
+            let qtyEl = document.getElementById("qty-"+id);
+            qtyEl.innerText = data.quantity;
+
+            updateCartUI();
+            updateNavbarCounts();
+        });
     });
 });
 
@@ -443,21 +448,20 @@ document.querySelectorAll(".minus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
         let id = btn.dataset.id;
 
-      fetch(`/decrease_cart/${id}`)
-.then(res=>res.json())
-.then(()=>{
-    let qtyEl = document.getElementById("qty-"+id);
-    let val = parseInt(qtyEl.innerText);
+        fetch(`/update_quantity/${id}/minus`)
+        .then(res=>res.json())
+        .then(data=>{
+            let qtyEl = document.getElementById("qty-"+id);
 
-    if(val > 1){
-        qtyEl.innerText = val - 1;
-    } else {
-        btn.closest(".cart-card").remove();
-    }
+            if(data.quantity > 0){
+                qtyEl.innerText = data.quantity;
+            } else {
+                btn.closest(".cart-card").remove();
+            }
 
-    updateCartUI();
-    updateNavbarCounts(); 
-});
+            updateCartUI();
+            updateNavbarCounts();
+        });
     });
 });
 
@@ -489,11 +493,12 @@ function moveToWishlist(id){
 <style>
 
 .cart-container{
-    padding-top: 80px;
+    padding-top: 30px;
     padding-right: 50px;
     padding-bottom: 50px;
     padding-left: 50px;
     background:linear-gradient(#f8fafc,#eef3f7);
+    font-family: 'Gotham', sans-serif;
 }
 
 .cart-grid{
@@ -503,17 +508,32 @@ function moveToWishlist(id){
 }
 
 .cart-card{
-    display:flex;
-    gap:20px;
-    padding:20px;
+    display:grid;
+    gap:15px;
+    grid-template-columns: 120px 1fr auto;  /* 🔥 left | content | right */
+    align-items:center;
+    padding: 18px;
     border-radius:15px;
     background:rgba(255,255,255,0.7);
     backdrop-filter:blur(10px);
     box-shadow:0 10px 25px rgba(0,0,0,0.08);
 }
+.details{
+    display:flex;
+    flex-direction:column;
+    gap:6px;  
+     /* 🔥 gap reduce */
+    margin-left: 20px;
+}
 
+.right-box{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;   /* 🔥 right align */
+    gap:8px;
+}
 .product-img{
-    width:130px;
+    width:140px;
     border-radius:12px;
 }
 
@@ -521,26 +541,50 @@ function moveToWishlist(id){
 
 .qty-box{
     display:flex;
-    gap:10px;
-    margin-top:10px;
+    align-items:center;
+    gap:6px;
 }
 
 .qty-btn{
-    background:#111;
+    background: var(--btn-gradient);
     color:#fff;
     border:none;
     padding:6px 10px;
     border-radius:6px;
     cursor:pointer;
 }
+.actions {
+    display: flex;
+    gap: 6px;   /* 🔥 spacing between buttons */
+    margin-top: 10px;
+}
+.wishBtn {
+    background: #e6f7ff;   /* light blue */
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: var(--btn-gradient);
+    cursor: pointer;
+    transition: 0.3s;
+}
 
-.removeBtn{
-    margin-top:10px;
-    background:#ffecec;
-    border:none;
-    padding:6px 12px;
-    border-radius:6px;
-    color:red;
+.wishBtn:hover {
+    background: var(--btn-gradient);
+    color: #fff;
+}
+.removeBtn {
+    background: #ffecec;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: red;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.removeBtn:hover {
+    background: red;
+    color: #fff;
 }
 
 .cart-summary{
@@ -608,7 +652,7 @@ function moveToWishlist(id){
     margin-top:10px;
     width:100%;
     padding:10px;
-    background:#111;
+    background: var(--btn-gradient);
     color:#fff;
     border:none;
     border-radius:8px;
@@ -622,7 +666,7 @@ function moveToWishlist(id){
 }
 .shop-btn{
     padding:12px 25px;
-    background:#111;
+    background: var(--btn-gradient);
     color:#fff;
     border-radius:30px;
     text-decoration:none;

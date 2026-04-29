@@ -18,7 +18,7 @@ body {
 }
 
 .has-fixed-navbar {
-    padding-top: 80px;
+    padding-top: 70px;
 }
 
 
@@ -86,7 +86,7 @@ body {
         top: 0;
         left: 0;
         width: 100%;
-        min-height: 80px;
+        min-height: 70px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -190,14 +190,15 @@ body {
 
     /* 🔥 LOGO */
     .logo {
-        height: 80px;
+        height: 76px;
         display: flex;
         align-items: center;
         flex-shrink: 0;
+        padding: 4px;
     }
 
     .logo img {
-        max-height: 80px;
+        max-height: 76px;
         width: auto;
         object-fit: contain;
     }
@@ -501,162 +502,125 @@ body {
         }
     }
 
-    @media (max-width: 768px) {
-       /* .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 0 12px;
-            min-height: 65px;
-            justify-content: space-between;
-            flex-wrap: nowrap;
-            z-index: 9999;
-            background: rgba(255, 255, 255, 0.05) !important;
-            display: flex;
-            align-items: center;
-            -webkit-backdrop-filter: blur(12px);
-            backdrop-filter: blur(12px);
-        }*/
+   @media (max-width: 768px) {
 
-        .navbar.is-homepage {
-             background: transparent !important;
-             backdrop-filter: none;
-             -webkit-backdrop-filter: none;
-             border-bottom: none;
-        }
+    /* 🔥 NAVBAR BASE FIX */
+    .navbar {
+        min-height: 60px;
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
 
-       .navbar.is-homepage.scrolled {
-    background: rgba(10, 92, 86, 0.95) !important;
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border-bottom: 1px solid rgba(255,255,255,0.14);
+    /* ✅ LEFT: LOGO */
+    .nav-left {
+        order: 1;
+        margin-right: auto;
+        display: flex;
+        align-items: center;
+    }
+
+    .logo img {
+        max-height: 50px;
+    }
+
+    /* ✅ RIGHT: ICONS */
+    .nav-right {
+        order: 2;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    /* ✅ HAMBURGER (RIGHT SIDE) */
+    .hamburger {
+        display: flex !important;
+        order: 3;
+        margin-left: 8px;
+        padding: 6px;
+        gap: 4px;
+    }
+
+    .hamburger span {
+        width: 22px;
+        height: 2px;
+    }
+
+    /* ❌ HIDE DESKTOP ITEMS */
+    .search-bar {
+        display: none !important;
+    }
+
+    .hide-mobile {
+        display: none !important;
+    }
+
+    /* 🔍 MOBILE SEARCH ICON */
+    .mobile-search-toggle {
+        display: flex !important;
+    }
+
+    /* 🔥 MENU (NO GAP FIXED HERE) */
+    /* 🔥 PREMIUM MOBILE MENU */
+.nav-center {
+    position: fixed;
+    top: 60px;
+    right: 10px;   /* 🔥 CHANGE: left → right */
+    left: auto;    /* 🔥 ADD THIS */
+
+    width: 260px;
+
+    background: linear-gradient(135deg, rgba(8,62,58,0.98), rgba(10,92,86,0.95));
+    
+    display: flex;
+    flex-direction: column;
+
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+
+    box-shadow: 
+        0 20px 50px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+
+    padding: 10px 0;
+
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    pointer-events: none;
+
+    transition: all 0.3s ease;
+    z-index: 9999;
+}
+/* SHOW STATE */
+.nav-center.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
 }
 
-        /* 📱 MOBILE NON-HOMEPAGE SAME LOOK */
+    /* 🔗 MENU LINKS */
+  .nav-center a {
+    padding: 16px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #e6f7f1;
 
-    .navbar.not-homepage {
-        background: rgba(10, 92, 86, 0.88) !important;
-        backdrop-filter: blur(22px);
-        -webkit-backdrop-filter: blur(22px);
-    }
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: all 0.25s ease;
+}
 
+.nav-center a:last-child {
+    border-bottom: none;
+}
 
-        .navbar.not-homepage.scrolled {
-            background: rgba(10, 92, 86, 0.90) !important;
-        }
+.nav-center a:hover {
+    background: rgba(255,255,255,0.06);
+    padding-left: 24px;
+}
 
-        /* Add padding to hero so navbar doesn't cover content */
-        .hero {
-            margin-top: 0 ! important;      }
-
-        /* ===== MOBILE NAVBAR LAYOUT ===== */
-        /* Hamburger on left */
-        .hamburger {
-            display: flex !important;
-            order: 1;
-            flex-shrink: 0;
-            margin-right: auto;
-            padding: 4px;
-            gap: 4px;
-        }
-
-        /* Logo centered */
-        .nav-left {
-            order: 2;
-            margin: 0 auto;
-        }
-
-        .logo img {
-            max-height: 60px;
-        }
-
-        /* Right icons */
-        .nav-right {
-            gap: 8px;
-            order: 3;
-            flex-shrink: 0;
-            margin-left: auto;
-        }
-
-        /* Search Bar hidden, Search Icon visible */
-        .search-bar {
-            display: none !important;
-        }
-
-        .mobile-search-toggle {
-            display: flex !important;
-        }
-
-        /* Mobile Menu - Smaller Card */
-        .nav-center {
-            position: fixed;
-            top: 70px;
-            left: 12px;
-            width: calc(100% - 24px);
-            max-width: 300px;
-            max-height: 65vh;
-            background: rgba(8, 62, 58, 0.96);
-            display: none;
-            flex-direction: column;
-            padding: 8px 0;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.12);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
-            transform: translateY(-10px);
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 9998;
-            overflow-y: auto;
-        }
-
-        .nav-center.show {
-            display: flex !important;
-            transform: translateY(0);
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .nav-center a {
-            display: block;
-            padding: 12px 20px;
-            font-size: 15px;
-            color: #e0f7fa;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            transition: all 0.2s ease;
-        }
-
-        .nav-center a:last-child {
-            border-bottom: none;
-        }
-
-        .nav-center a:hover {
-            background: rgba(10, 92, 86, 0.3);
-            padding-left: 26px;
-        }
-
-     .icon-box {
-        font-size: 16px;
-        width: 28px;
-        height: 28px;
-        padding: 2px;
-    }
-
-        .username {
-            display: none;
-        }
-          .account-link,
-    .user-profile-link {
-        padding: 4px 8px;
-        gap: 6px;
-    }
-
-    .account-link span,
-    .user-profile-link span {
-        font-size: 11px;
-    }
-    }
+}
 
     /* Ultra Mobile - 480px and below */
     @media (max-width: 480px) {
@@ -1173,7 +1137,16 @@ body {
 }
 /* ================= MOBILE 2x2 GRID (ONLY PRODUCTS PAGE) ================= */
 @media (max-width: 768px) {
+    /* ❌ HIDE AVATAR COMPLETELY ON MOBILE */
 
+    .avatar-img,
+    .premium-avatar,
+    .avatar {
+        display: none !important;
+    }
+       .user-profile-link {
+        display: none !important;
+    }
     .products-page .products-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr); /* ✅ 2x2 grid */
@@ -1564,7 +1537,7 @@ body::before {
 
             <span id="closeBtn">&times;</span>
 
-            <img src="/static/images/BP_OnlyLogo-01.png" class="auth-logo" alt="Logo">
+            <img src="/static/images/Bp_logo-white.png" class="auth-logo" alt="Logo">
 
             <h2 id="formTitle">Login</h2>
 
@@ -1592,13 +1565,13 @@ body::before {
     </div>
 </div>
 
-<header class="navbar" id="navbar" {% if request.path == '/' %}is-homepage{% else %}not-homepage{% endif %}>
+<header class="navbar {% if request.path == '/' %}is-homepage{% else %}not-homepage{% endif %}" id="navbar">
 
     <!-- LEFT: LOGO -->
     <div class="nav-left">
         <div class="logo">
             <a href="/">
-                <img src="/static/images/BP_OnlyLogo-01.png" alt="Logo">
+                <img src="\static\images\bp_logo-white.png" alt="Logo">
             </a>
         </div>
     </div>
@@ -1607,8 +1580,9 @@ body::before {
     <div class="nav-center" id="navCenter">
         <a href="/">Home</a>
         <a href="/blogs">Blogs</a>
-        <a href="#about">About Us</a>
-        <a href="#contact">Contact</a>
+        <a href="/#about">About Us</a>
+        <a href="/#contact">Contact</a>
+         <a href="/account" class="mobile-account-link">My Account</a>
     </div>
 
     <!-- MOBILE HAMBURGER MENU -->
@@ -1653,7 +1627,7 @@ body::before {
 {% if user %}
     <a href="/account" class="user-profile-link">
         {% if user.avatar %}
-            <img src="{{ user.avatar }}" class="avatar-img" alt="User Avatar">
+            <img src="{{ user.avatar }}" class="avatar-img">
         {% else %}
             <div class="avatar premium-avatar">
                 {{ user.username[0] }}
@@ -1661,7 +1635,7 @@ body::before {
         {% endif %}
     </a>
 {% else %}
-    <a href="/account" id="loginBtn" class="account-link">Login</a>
+    <a href="/account" class="user-profile-link">Login</a>
 {% endif %}
     </div>
 </header>
@@ -1702,8 +1676,8 @@ body::before {
       <ul>
         <li><a href="/">Home</a></li>
         <li><a href="/blogs">Blogs</a></li>
-        <li><a href="#about">About</a></li>
-        <li><a href="#contact">Contact</a></li>
+        <li><a href="/#about">About</a></li>
+        <li><a href="/#contact">Contact</a></li>
       </ul>
     </div>
 

@@ -11,23 +11,27 @@
 :root {
     --sidebar-width: 270px;
 
-    --bg-primary: #050606;
-    --bg-secondary: #0a0f0f;
+    /* ✅ LIGHT THEME */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
 
-    --card-bg: rgba(10, 92, 86, 0.08);
-    --card-border: rgba(10, 92, 86, 0.25);
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;
 
-    --text-primary: #ffffff;
-    --text-secondary: #9ca3af;
+    --text-primary: #111111;
+    --text-secondary: #6b7280;
 
+    /* ✅ BRAND COLOR */
     --accent: #0A5C56;
-    --accent-soft: rgba(10, 92, 86, 0.12);
+    --accent-gradient: linear-gradient(135deg, #0A5C56, #083E3A);
 
-    --line: rgba(10, 92, 86, 0.2);
+    --line: #e5e7eb;
 
-    --shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    --shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
-
+h1, h2, h3, h4, h5, h6 {
+    color: #000;
+}
 * {
     margin: 0;
     padding: 0;
@@ -35,17 +39,14 @@
     box-sizing: border-box;
     font-family: 'Poppins', 'Inter', sans-serif;
 }
-
-html,
-body {
-    background:
-          radial-gradient(circle at top left, rgba(10,92,86,0.25), transparent 40%),
-        radial-gradient(circle at bottom right, rgba(255,255,255,0.06), transparent 40%),
-        linear-gradient(135deg, #062f2c, #041f1d);
+html, body {
+    background: #ffffff;
+    color: var(--text-primary);
 }
 .dashboard-header {
-    background: rgba(255,255,255,0.08);
+    background:#ffffff;
     backdrop-filter: blur(14px);
+     border: 1px solid #e5e7eb;
     padding: 12px 16px;
     border-radius: 14px;
 }
@@ -55,11 +56,11 @@ body {
 }
 .card {
     padding: 22px;
-    border-radius: 18px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.25);
-    backdrop-filter: blur(18px);
-    color: white;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #111;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
 }
 .back-btn{
     display: none;
@@ -105,23 +106,7 @@ body {
 }
 
 /* Loader */
-#loader {
-    position: fixed;
-    inset: 0;
-    background: rgba(246, 248, 252, 0.85);
-    backdrop-filter: blur(22px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    pointer-events: none;
-}
 
-#loader img {
-    width: 86px;
-    height: auto;
-    animation: logoZoomBlur 2.5s ease forwards;
-}
 
 @keyframes logoZoomBlur {
     0% {
@@ -144,11 +129,6 @@ body {
     }
 }
 
-#loader.fade {
-    transition: opacity 0.8s ease, backdrop-filter 0.8s ease;
-    opacity: 0;
-    backdrop-filter: blur(0);
-}
 
 /* Sidebar */
 .sidebar {
@@ -157,11 +137,11 @@ body {
     position: fixed;
     top: 12px;
     left: 12px;
-    background: rgba(5, 20, 20, 0.9);
+    background:#ffffff;
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(10,92,86,0.2);
+    border: 1px solid #e5e7eb;
     border-radius: 28px;
-    box-shadow: var(--shadow);
+     box-shadow: 0 10px 30px rgba(0,0,0,0.08);
     padding: 24px 18px;
     display: flex;
     flex-direction: column;
@@ -169,7 +149,7 @@ body {
 }
 .sidebar a {
     text-decoration: none;
-    color: #bfbfbf;
+    color: #444;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -181,8 +161,8 @@ body {
 }
 
 .sidebar a:hover {
-    background: rgba(255,255,255,0.06);
-    color: #fff;
+    background: #f3f4f6;
+    color: #000;
     transform: translateX(4px);
 }
 
@@ -374,10 +354,7 @@ body {
 
 <body>
 <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-<!-- Loader -->
-<div id="loader">
-    <img src="/static/images/BP_OnlyLogo-01.png" alt="Logo">
-</div>
+
 
 <button class="back-btn" onclick="history.back()">←</button>
 <!-- Sidebar -->
@@ -467,29 +444,7 @@ document.querySelectorAll(".sidebar a").forEach(link => {
    
     });
 });
-window.addEventListener("load", () => {
-    const loader = document.getElementById("loader");
-    const menuBtn = document.querySelector(".menu-btn");
 
-    if (!sessionStorage.getItem("loaderShown")) {
-        sessionStorage.setItem("loaderShown", "true");
-
-        setTimeout(() => {
-            loader.classList.add("fade");
-
-            setTimeout(() => {
-                loader.style.display = "none";
-            }, 800);
-        }, 2500);
-    } else {
-        loader.style.display = "none";
-    }
-
-    // ✅ ONLY MOBILE
-    if (window.innerWidth <= 1024) {
-        menuBtn.style.display = "flex";
-    }
-});
 
 
 

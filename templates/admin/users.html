@@ -196,7 +196,7 @@ document.getElementById("searchUser").addEventListener("input", function(){
 .admin-users-page {
     min-height: 100vh;
     padding: 30px;
-    background: linear-gradient(135deg, #083E3A, #0A5C56 60%, #0f766e);
+    background:  #ffffff;
 }
 
 /* Header */
@@ -207,11 +207,11 @@ document.getElementById("searchUser").addEventListener("input", function(){
 .page-header h2 {
     font-size: 34px;
     font-weight: 700;
-    color: #ffffff;
+    color: #000;
 }
 
 .page-header p {
-    color: rgba(255,255,255,0.7);
+    color: #555;
     font-size: 14px;
 }
 
@@ -230,36 +230,36 @@ document.getElementById("searchUser").addEventListener("input", function(){
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.7);
 }
 
 .search-box input {
     width: 100%;
     padding: 14px 16px 14px 44px;
     border-radius: 14px;
-    border: 1px solid rgba(255,255,255,0.15);
+    border: 1px solid #ddd;
     background: rgba(255,255,255,0.08);
-    color: white;
+    color: #000;
     font-size: 14px;
     outline: none;
     backdrop-filter: blur(10px);
 }
 
 .search-box input::placeholder {
-    color: rgba(255,255,255,0.5);
+    color: #888;
 }
 
 .search-box input:focus {
-    border-color: rgba(255,255,255,0.3);
+    border-color: #0A5C56;
 }
 
 /* Table Card */
 .table-card {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: #fff;
+    border: 1px solid #e5e7eb;
     border-radius: 24px;
     backdrop-filter: blur(18px);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.08);
     overflow: hidden;
 }
 
@@ -274,25 +274,27 @@ document.getElementById("searchUser").addEventListener("input", function(){
 }
 
 .users-table thead {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.12);
 }
 
 .users-table th {
     padding: 18px;
-    color: rgba(255,255,255,0.7);
+    color: #444;
     font-size: 13px;
     text-transform: uppercase;
+    
+
 }
 
 .users-table td {
     padding: 18px;
-    color: #fff;
+    color: #000;
     font-size: 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid #eee;
 }
 
 .users-table tr:hover {
-    background: rgba(0,255,200,0.05);
+    background: rgba(10, 92, 86, 0.06);
 }
 
 /* User */
@@ -312,10 +314,11 @@ document.getElementById("searchUser").addEventListener("input", function(){
 
 .user-info strong {
     font-size: 14px;
+    color: #000;
 }
 
 .user-info small {
-    color: rgba(255,255,255,0.6);
+    color: #666;
     font-size: 11px;
 }
 
@@ -329,27 +332,28 @@ document.getElementById("searchUser").addEventListener("input", function(){
 }
 
 .id-badge {
-    background: rgba(255,255,255,0.1);
+    background: #f3f4f6;
+    color: #000;
 }
 
 .admin-badge {
-    background: rgba(0,255,200,0.15);
-    color: #00e6c8;
+     background: rgba(10,92,86,0.15);
+    color: #0A5C56;
 }
 
 .user-badge {
-    background: rgba(255,255,255,0.08);
-    color: #ccc;
+    background: rgba(10,92,86,0.15);
+    color: #0A5C56;
 }
 
 .active-badge {
-    background: rgba(0,255,150,0.15);
-    color: #00e676;
+     background: rgba(239,68,68,0.15);
+    color: #dc2626;
 }
 
 .inactive-badge {
     background: rgba(255,180,0,0.15);
-    color: #ffb300;
+    color: #ffffff;
 }
 
 /* Buttons */
@@ -365,16 +369,17 @@ document.getElementById("searchUser").addEventListener("input", function(){
     font-weight: 600;
     border: none;
     cursor: pointer;
+    color: #fff;
 }
 
 .action-btn {
-    background: linear-gradient(135deg, #00c6b2, #0A5C56);
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
     color: white;
 }
 
 .toggle-btn {
-    background: rgba(255,255,255,0.1);
-    color: white;
+    background: #e5e7eb;
+    color: #000;
 }
 
 .btn:hover {
@@ -387,40 +392,34 @@ document.getElementById("searchUser").addEventListener("input", function(){
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.75);
+    background: rgba(0,0,0,0.6);
     backdrop-filter: blur(8px);
     z-index: 999;
-
-    /* center */
     justify-content: center;
     align-items: center;
-
-    /* IMPORTANT */
-    overflow: hidden; /* background scroll block */
+    overflow: hidden;
 }
 
 /* SCROLL ONLY INSIDE */
 .modal-content {
-    width: 100%;
+   width: 100%;
     max-width: 1000px;
-    max-height: 85vh; /* 🔥 important */
-    overflow-y: auto; /* 🔥 scroll inside */
-    
-    background: rgba(255,255,255,0.08);
+    max-height: 85vh;
+    overflow-y: auto;
+    background: #fff;
     border-radius: 20px;
     padding: 20px;
-
-    border: 1px solid rgba(255,255,255,0.15);
+    border: 1px solid #e5e7eb;
 }
 
 .modal-header h3 {
-    color: white;
+    color: #000;
 }
 
 .close {
     font-size: 28px;
     cursor: pointer;
-    color: white;
+    color: #000;
 }
 
 /* Orders table inside modal */
@@ -432,12 +431,12 @@ document.getElementById("searchUser").addEventListener("input", function(){
 .orders-table th,
 .orders-table td {
     padding: 14px;
-    color: white;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #000;
+    border-bottom: 1px solid #eee;
 }
 
 .orders-table th {
-    color: rgba(255,255,255,0.6);
+    color: #555;
 }
 /* mobile */
 @media (max-width: 900px) {
@@ -465,8 +464,8 @@ document.getElementById("searchUser").addEventListener("input", function(){
         margin-bottom: 10px;
         padding: 10px;
         border-radius: 12px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: #fff;
+        border: 1px solid #eee;
     }
 
     .users-table td {
@@ -524,6 +523,7 @@ document.getElementById("searchUser").addEventListener("input", function(){
         padding: 6px;
         font-size: 11px;
         border-radius: 8px;
+        color: #fff;
     }
 
     /* ===== MODAL ===== */

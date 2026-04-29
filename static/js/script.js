@@ -88,75 +88,83 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        if (isLogin) {
+       if (isLogin) {
 
-            fetch('/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email, password })
-            })
-            .then(res => res.json())
-            .then(data => {
+    fetch('/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, password })
+    })
+    .then(res => res.json())
+    .then(data => {
 
-               if (data.name) {
-    msg.style.color = "green";
-    msg.innerText = "Login Success ✅";
-    window.dispatchEvent(new Event("user-login"));
+        if (data.name) {
+            msg.style.color = "green";
+            msg.innerText = "Login Success ✅";
 
-    // 🔥 update UI instantly (no reload)
-    closePopup();
+            window.dispatchEvent(new Event("user-login"));
+            closePopup();
 
-    // update navbar/login state instantly
-    const loginBtn = document.getElementById("loginBtn");
+            const navRight = document.getElementById("navRight");
 
-    if (loginBtn) {
-       loginBtn.innerHTML = `
-    <a href="/account" class="user-profile-link">
-        <img src="/static/avatar.png" class="avatar-img">
-    </a>
-`;
-    }
+            navRight.innerHTML = `
+                <div class="icon-box premium-icon" onclick="window.location='/wishlist'">
+                    <i class="fa-solid fa-heart"></i>
+                    <span class="badge" id="wishlistCount">0</span>
+                </div>
 
-    // 🔥 optional: update cart/wishlist counts immediately
-    if (typeof updateNavbarCounts === "function") {
-        updateNavbarCounts();
-    }
+                <div class="icon-box premium-icon" onclick="window.location='/cart'">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span class="badge" id="cartCount">0</span>
+                </div>
 
-    // optional toast delay
-    setTimeout(() => {
-        msg.innerText = "";
-    }, 1000);
-} else {
-                    msg.innerText = data.message;
-                }
-            });
+                <a href="/account" class="user-profile-link">
+                    <div class="avatar premium-avatar">
+                        ${data.name.charAt(0)}
+                    </div>
+                </a>
+            `;
+
+            if (typeof updateNavbarCounts === "function") {
+                updateNavbarCounts();
+            }
+
+            setTimeout(() => {
+                msg.innerText = "";
+            }, 1000);
 
         } else {
-
-            fetch('/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name, email, password })
-            })
-            .then(res => res.json())
-            .then(data => {
-
-                if (data.message.includes("success")) {
-                    msg.style.color = "green";
-                    msg.innerText = "Registered Successfully ✅";
-
-                    setTimeout(() => {
-                        switchBtn.click();
-                    }, 1000);
-                } else {
-                    msg.innerText = data.message;
-                }
-            });
+            msg.innerText = data.message;
         }
-    };
 
+    });
+
+} else {
+
+    fetch('/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, email, password })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        if (data.message.includes("success")) {
+            msg.style.color = "green";
+            msg.innerText = "Registered Successfully ✅";
+
+            setTimeout(() => {
+                switchBtn.click();
+            }, 1000);
+        } else {
+            msg.innerText = data.message;
+        }
+
+    });
+
+}
+};
 });
-
 window.addEventListener("user-login", () => {
     updateNavbarCounts();
 });
@@ -634,4 +642,4 @@ window.addEventListener('load', () => {
         loader.style.display = 'none';
     }
 });
-
+    

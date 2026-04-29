@@ -64,6 +64,11 @@ class Product(db.Model):
         backref='product',
         cascade="all, delete"
     )
+    reviews = db.relationship(
+        "Review",
+        backref="product",
+        cascade="all, delete"
+    )
 
 class ProductSize(db.Model):
     __tablename__ = "product_sizes"
@@ -89,7 +94,7 @@ class ProductVideo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
     video_url = db.Column(db.String(255))
-
+    color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
 
 class ProductTag(db.Model):
     __tablename__ = 'product_tags'
@@ -255,4 +260,33 @@ class Ticket(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class Review(db.Model):
+    __tablename__ = "reviews"
 
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref="reviews")
+
+class Warranty(db.Model):
+    __tablename__ = "warranty"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(100))
+    phone = db.Column(db.String(15))
+    email = db.Column(db.String(100))
+
+    address = db.Column(db.Text)
+    purchase = db.Column(db.String(50))  # online/offline/website
+
+    bill = db.Column(db.String(255))  # uploaded file name
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

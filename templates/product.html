@@ -3,13 +3,25 @@
 {% block title %}{{ product.name }} | Belt Store{% endblock %}
 
 {% block content %}
-
+<link href="https://fonts.cdnfonts.com/css/gotham" rel="stylesheet">
 <style>
-
-.product-gallery-main {
-    position: relative;
+body {
+    font-family: 'Gotham', sans-serif;
+}
+:root {
+    --btn-gradient: linear-gradient(135deg, #0A5C56, #083E3A);
+}
+* {
+    box-sizing: border-box;
 }
 
+.product-tabs,
+.tab-panel,
+.review-form {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
 /* ❤️ Wishlist heart on image */
 .wishlist-heart {
     position: absolute;
@@ -40,9 +52,9 @@
 }
     
 .product-detail-page {
-    padding-top: 80px;
+    padding-top: 30px;
     padding-right: 5%;
-    padding-bottom: 60px;
+    padding-bottom: 20px;
     padding-left: 5%;
     background: #f4f7fb;
     min-height: calc(100vh - 100px);
@@ -60,8 +72,8 @@
 
 .product-hero {
     display: grid;
-    grid-template-columns: minmax(360px, 1.2fr) 1fr;
-    gap: 36px;
+    grid-template-columns:  1fr 1fr;
+    gap: 24px;
     margin-bottom: 42px;
 }
 
@@ -69,21 +81,25 @@
     display: grid;
     gap: 16px;
 }
-
 .product-gallery-main {
-    position: relative;
-    border-radius: 28px;
-    overflow: hidden;
+     position: relative;
+    width: 100%;
+    max-width: 500px;      /* control width */
+    aspect-ratio: 1 / 1;   /* 🔥 PERFECT SQUARE */
     background: #fff;
-    box-shadow: 0 28px 70px rgba(0,0,0,0.08);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin: auto;
 }
-
+/* MAIN IMAGE */
 .product-gallery-main img,
 .product-gallery-main video {
     width: 100%;
-    height: 560px;
-    object-fit: cover;
-    display: block;
+    height: 100%;
+    object-fit: contain;   /* 🔥 NO CUT EVER */
 }
 
 .product-gallery-thumbs {
@@ -103,24 +119,25 @@
 }
 
 .product-gallery-thumbs button.active {
-    outline: 2px solid #c79b5d;
+    outline: 2px solid   #c79b5d;
 }
+
 
 .product-gallery-thumbs img,
 .product-gallery-thumbs video {
     width: 100%;
-    height: 100px;
+    height: 80px;     /* 🔥 small + clean */
     object-fit: cover;
+   
 }
-
 .product-info-panel {
     background: #fff;
     border-radius: 32px;
-    padding: 34px;
+    padding: 24px;
     box-shadow: 0 28px 70px rgba(0,0,0,0.06);
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
 }
 
 .product-title-row {
@@ -231,31 +248,38 @@
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    transform: translateY(-3px);
+    box-shadow: 0 22px 45px rgba(10, 92, 86, 0.28);
 }
 
 .btn-primary {
-   background: linear-gradient(135deg, #111, #333);
-    color: white;
-    box-shadow: 0 18px 38px rgba(0,0,0,0.12);
+    background: var(--btn-gradient);
+    color: #fff;
+    box-shadow: 0 18px 38px rgba(10, 92, 86, 0.25);
+    border: none;
 }
 
 .btn-secondary {
     background: #fff;
-     border: 1px solid #ddd;
-    color: #111;
+    border: 2px solid transparent;
+    background-image: linear-gradient(#fff, #fff), var(--btn-gradient);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    color: #0A5C56;
 }
 
 .btn-flat {
-     background: #c79b5d;
+    background: var(--btn-gradient);
     color: white;
-    border: 1px solid rgba(17,17,17,0.12);
+    border: none;
+    box-shadow: 0 14px 30px rgba(10, 92, 86, 0.18);
 }
 .product-actions button {
     flex: 1;
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 14px;
     font-weight: 600;
+    transition: 0.25s ease;
 }
 .product-actions button:hover {
     transform: translateY(-2px);
@@ -274,7 +298,7 @@
     background: #ffffff;
     border-radius: 18px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    box-shadow: var(--btn-gradient);
 }
 
 .size-chart h3 {
@@ -314,12 +338,24 @@
     padding: 12px 18px;
     border-radius: 16px;
     cursor: pointer;
+    transition: 0.25s ease;
 }
 
-.size-chip.active {
-    background: #111;
+/* 🔥 HOVER EFFECT (same theme gradient) */
+.size-chip:hover {
+    background: var(--btn-gradient);
     color: #fff;
-    border-color: #111;
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(10, 92, 86, 0.25);
+}
+
+/* ACTIVE state already strong, just refine */
+.size-chip.active {
+    background: var(--btn-gradient);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 12px 26px rgba(10, 92, 86, 0.28);
 }
 
 .product-tabs {
@@ -364,6 +400,8 @@
 }
 
 .tab-panel {
+    width: 100%;
+    max-width: 100%;
     display: none;
 }
 
@@ -393,10 +431,17 @@
     color: #444;
 }
 
+.review-card p,
+.product-short,
+.tab-panel p {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
 .review-form {
     margin-top: 26px;
     display: grid;
     gap: 18px;
+    width: 100%;
 }
 
 .review-form textarea {
@@ -410,6 +455,14 @@
     outline: none;
 }
 
+
+.review-form textarea,
+.review-form select,
+.review-form input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
 .review-form input,
 .review-form select {
     width: 100%;
@@ -470,8 +523,36 @@
 
 .related-card-body a {
     text-decoration: none;
-    color: #0b76c1;
+    color: var(--btn-gradient);
     font-weight: 700;
+}
+
+@media (max-width: 680px) {
+
+    /* 🔥 RELATED PRODUCTS 2x2 GRID */
+    .related-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    /* card compact for mobile */
+    .related-card img {
+        height: 160px;
+    }
+
+    .related-card-body {
+        padding: 12px 10px 16px;
+    }
+
+    .related-card-body h4 {
+        font-size: 14px;
+    }
+
+    .related-card-body .price-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
 }
 .color-dot {
     width: 28px;
@@ -488,9 +569,16 @@
 }
 
 
+/* Default = Add to Cart */
+.add-cart-btn {
+    background: var(--btn-gradient);
+    color: #fff;
+}
+
+/* Active = Remove from Cart */
 .add-cart-btn.active {
-    background: #454545;
-    color: white;
+    background: linear-gradient(135deg, #083E3A, #0A5C56); /* reverse gradient */
+    color: #fff;
 }
 
 @media (max-width: 990px) {
@@ -500,7 +588,7 @@
 
     .product-gallery-main img,
     .product-gallery-main video {
-        height: 420px;
+        height: 300px;
     }
 }
 
@@ -517,7 +605,22 @@
 <script id="images-data" type="application/json">
     {{ images | tojson }}
 </script>
+
 <script>
+const ALL_IMAGES = JSON.parse(document.getElementById("images-data").textContent);
+let selectedSize = null;
+
+/* ================= SIZE SELECT ================= */
+function selectSize(el) {
+    document.querySelectorAll(".size-chip").forEach(s => {
+        s.classList.remove("active");
+    });
+
+    el.classList.add("active");
+    selectedSize = el.dataset.size;
+}
+
+/* ================= CART TOGGLE ================= */
 function toggleCart(productId, btn) {
 
     if (!selectedSize) {
@@ -563,6 +666,7 @@ function toggleCart(productId, btn) {
     .finally(() => btn.disabled = false);
 }
 
+/* ================= CHECK CART ================= */
 function checkCart(productId) {
     return fetch(`/cart/check/${productId}`)
         .then(res => res.json())
@@ -570,62 +674,7 @@ function checkCart(productId) {
         .catch(() => false);
 }
 
-
-
-let selectedSize = null;
-
-function selectSize(el) {
-    document.querySelectorAll(".size-chip").forEach(s => {
-        s.classList.remove("active");
-    });
-
-    el.classList.add("active");
-    selectedSize = el.dataset.size;
-}
-document.addEventListener("DOMContentLoaded", () => {
-
-    // ✅ Add to cart
-   document.querySelectorAll(".add-cart-btn").forEach(btn => {
-
-    const id = btn.dataset.id;
-
-    // 🔥 Page load pe check karo already cart me hai ya nahi
-    checkCart(id).then(inCart => {
-        if (inCart) {
-            btn.classList.add("active");
-            btn.innerText = "Remove from Cart";
-        } else {
-            btn.innerText = "Add to Cart";
-        }
-    });
-
-    // 🔥 Click pe toggle
-    btn.addEventListener("click", () => {
-        toggleCart(id, btn);
-    });
-
-});
-
-   document.querySelectorAll(".wishlist-btn").forEach(btn => {
-    const id = btn.dataset.id;
-
-    fetch("/wishlist/check/" + id)
-        .then(res => res.json())
-        .then(data => {
-            if (data.in_wishlist) {
-                btn.innerHTML = "❤️";
-                btn.classList.add("active");
-            }
-        });
-
-    btn.addEventListener("click", () => {
-        addToWishlist(id, btn);
-    });
-});
-
-});
-
-
+/* ================= GALLERY ================= */
 function setGalleryImage(src, isVideo) {
     const main = document.getElementById('detailMainMedia');
 
@@ -637,20 +686,99 @@ function setGalleryImage(src, isVideo) {
         `;
     } else {
         main.innerHTML = `
-            <img id="mainImage" src="${src}" alt="product image">
+            <img src="${src}">
         `;
     }
 }
 
+/* ================= WISHLIST ================= */
+function addToWishlist(productId, btn) {
+    fetch("/wishlist/toggle/" + productId, {
+        method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.in_wishlist) {
+            btn.innerHTML = "❤️";
+            btn.classList.add("active");
+        } else {
+            btn.innerHTML = "♡";
+            btn.classList.remove("active");
+        }
+    });
+}
+
+/* ================= MAIN DOM READY ================= */
 document.addEventListener("DOMContentLoaded", () => {
 
+    const productId = Number("{{ product.id }}");
+
+    /* ===== CART BUTTONS ===== */
+    document.querySelectorAll(".add-cart-btn").forEach(btn => {
+
+        const id = btn.dataset.id;
+
+        checkCart(id).then(inCart => {
+            if (inCart) {
+                btn.classList.add("active");
+                btn.innerText = "Remove from Cart";
+            } else {
+                btn.innerText = "Add to Cart";
+            }
+        });
+
+        btn.addEventListener("click", () => {
+            toggleCart(id, btn);
+        });
+    });
+
+    /* ===== WISHLIST BUTTONS ===== */
+  /* ===== WISHLIST BUTTON ===== */
+document.querySelectorAll(".wishlist-btn").forEach(btn => {
+
+    const id = btn.dataset.id;
+
+    // initial state
+    checkWishlist(id).then(inWishlist => {
+        if (inWishlist) {
+            btn.classList.add("active");
+            btn.innerHTML = "❤️";
+        }
+    });
+
+    // click
+    btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addToWishlist(id, btn);
+    });
+});
+
+    /* ===== RESTORE SIZE ===== */
+    fetch(`/cart/selected_size/${productId}`)
+        .then(res => res.json())
+        .then(data => {
+
+            if (data.size_id) {
+                selectedSize = data.size_id;
+
+                document.querySelectorAll(".size-chip").forEach(chip => {
+                    if (chip.dataset.size == data.size_id) {
+                        chip.classList.add("active");
+                    }
+                });
+            }
+        });
+
+    /* ===== TABS ===== */
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanels = document.querySelectorAll('.tab-panel');
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
+
             tabButtons.forEach(btn => btn.classList.remove('active'));
             tabPanels.forEach(panel => panel.classList.remove('active'));
+
             button.classList.add('active');
             document.getElementById(button.dataset.tab).classList.add('active');
         });
@@ -658,44 +786,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
-function submitReview() {
-    const name = document.getElementById('reviewName').value.trim();
-    const rating = document.getElementById('reviewRating').value;
-    const text = document.getElementById('reviewText').value.trim();
+document.addEventListener("DOMContentLoaded", () => {
 
-    if (!name || !text) {
-        alert('Please enter your name and review.');
-        return;
-    }
+    document.querySelectorAll(".color-dot").forEach(el => {
+        el.addEventListener("click", function () {
+            changeColor(this.dataset.colorId, this);
+        });
+    });
 
-    alert('Thank you for your review! Our team will publish it soon.');
-    document.getElementById('reviewName').value = '';
-    document.getElementById('reviewRating').value = '5';
-    document.getElementById('reviewText').value = '';
-}
-
-
-window.addEventListener("DOMContentLoaded", () => {
-    const first = document.querySelector(".color-dot");
-    if (first) first.click();
 });
-
-const ALL_IMAGES = {{ images | tojson | safe }};
 function changeColor(colorId, el) {
-
     document.querySelectorAll(".color-dot").forEach(dot => {
         dot.classList.remove("active");
     });
     el.classList.add("active");
 
     const filtered = ALL_IMAGES.filter(img => img.color_id == colorId);
-
     if (filtered.length === 0) return;
 
-    // ✅ main image change
     setGalleryImage(filtered[0].image_url, false);
 
-    // ✅ thumbnails update
     const thumbs = document.querySelector('.product-gallery-thumbs');
     thumbs.innerHTML = "";
 
@@ -708,32 +818,108 @@ function changeColor(colorId, el) {
     });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
 
-    const heart = document.getElementById("wishlistHeart");
+function submitReview(productId, e) {
+    const reviewList = document.querySelector(".review-list") || document.getElementById("reviews");
+    const rating = document.getElementById('reviewRating').value;
+    const textEl = document.getElementById('reviewText');
+    const text = textEl.value.trim();
 
-    if (heart) {
-        const id = heart.dataset.id;
+    const btn = e.target; // ✅ correct event
 
-        // 🔥 check already in wishlist
-        fetch("/wishlist/check/" + id)
-            .then(res => res.json())
-            .then(data => {
-                if (data.in_wishlist) {
-                    heart.classList.add("active");
-                    heart.innerHTML = "❤️";
-                }
-            });
-
-        // ❤️ toggle click
-        heart.addEventListener("click", (e) => {
-            e.stopPropagation();
-
-            addToWishlist(id, heart);
-        });
+    if (!text) {
+        alert("Write something");
+        return;
     }
 
-});
+    // disable button
+    btn.disabled = true;
+    btn.innerText = "Submitting...";
+
+    fetch(`/review/add/${productId}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            rating: parseInt(rating), // ✅ safe conversion
+            comment: text
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        if (data.error === "login_required") {
+            openPopup();
+            return;
+        }
+
+        if (data.success) {
+
+            if (!reviewList) return;
+
+            const newReview = document.createElement("div");
+            newReview.classList.add("review-card");
+
+            newReview.innerHTML = `
+                <strong>${data.username} 
+                    <span style="color:#cd5f3b;">
+                        ${"⭐".repeat(data.rating)}
+                    </span>
+                </strong>
+                <p>"${data.comment}"</p>
+            `;
+
+            reviewList.prepend(newReview);
+
+            // clear form
+            textEl.value = "";
+            document.getElementById('reviewRating').value = "5";
+        }
+
+        if (data.error && data.error !== "login_required") {
+            alert(data.error);
+        }
+    })
+    .catch(err => {
+        console.error("Review error:", err);
+        alert("Something went wrong");
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerText = "Submit Review";
+    });
+}
+
+function checkWishlist(productId) {
+    return fetch(`/wishlist/check/${productId}`)
+        .then(res => res.json())
+        .then(data => data.in_wishlist)
+        .catch(() => false);
+}
+
+function addToWishlist(productId, btn) {
+    fetch(`/wishlist/toggle/${productId}`, {
+        method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        if (data.in_wishlist) {
+            btn.classList.add("active");
+            btn.innerHTML = "❤️";
+        } else {
+            btn.classList.remove("active");
+            btn.innerHTML = "♡";
+        }
+
+        // 🔥 LIVE COUNT UPDATE
+        if (data.count !== undefined) {
+            const wishlistCount = document.getElementById("wishlistCount");
+            if (wishlistCount) wishlistCount.innerText = data.count;
+        }
+    });
+}
 </script>
 
 <section class="product-detail-page">
@@ -748,9 +934,9 @@ document.addEventListener("DOMContentLoaded", () => {
          <div class="product-gallery-main">
 
     <!-- ❤️ FIXED HEART -->
-    <button class="wishlist-heart" id="wishlistHeart" data-id="{{ product.id }}">
-        ♡
-    </button>
+   <button class="wishlist-heart wishlist-btn" data-id="{{ product.id }}">
+    ♡
+</button>
 
     <!-- 🔥 ONLY THIS WILL CHANGE -->
     <div id="detailMainMedia">
@@ -844,12 +1030,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="property-card">
                     <strong>Colors</strong>
                     <div class="color-list">
-              {% for color in product.product_colors %}
+{% for color in product.product_colors %}
 <span class="color-dot"
-    style="background: {{ color.color.code }}"
-    onclick="changeColor('{{ color.color.id }}', this)">
+      style="background: {{ color.color.code }}"
+      data-color-id="{{ color.color.id }}">
 </span>
 {% endfor %}
+
                     </div>
                 </div>
                 <div class="property-card">
@@ -898,8 +1085,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     {{ tags[0].tag if tags else 'Premium' }}
                 </div>
             </div>
+            
             <div class="size-chart">
-              <div class="size-chart">
+             
     <h3>Belt Size Guide</h3>
     <table>
         <tr>
@@ -919,42 +1107,48 @@ document.addEventListener("DOMContentLoaded", () => {
         {% endfor %}
     </table>
 
-    <p style="padding:15px; font-size:14px; color:#555;">
-        💡 Tip: Best fit ke liye apni waist se 1 size bada choose karein.
-    </p>
+   
 </div>
-        </div>
+     </div>   
 
-        <div class="tab-panel" id="reviews">
-            <div class="review-list">
-                <div class="review-card">
-                    <strong>Jay K. <span style="color:#cd5f3b;">⭐⭐⭐⭐⭐</span></strong>
-                    <p>"The belt quality is excellent and the finish looks premium. Perfect for everyday wear."</p>
-                </div>
-                <div class="review-card">
-                    <strong>Priya S. <span style="color:#cd5f3b;">⭐⭐⭐⭐☆</span></strong>
-                    <p>"Great fit and material. I liked the buckle details and overall build."</p>
-                </div>
-                <div class="review-card">
-                    <strong>Ankit M. <span style="color:#cd5f3b;">⭐⭐⭐⭐⭐</span></strong>
-                    <p>"Fast delivery and the packaging was premium. Loved the product quality."</p>
-                </div>
-            </div>
+     <div class="tab-panel" id="reviews">
 
-            <div class="review-form">
-                <strong>Write a review</strong>
-                <input type="text" id="reviewName" placeholder="Your name">
-                <select id="reviewRating">
-                    <option value="5">5 stars</option>
-                    <option value="4">4 stars</option>
-                    <option value="3">3 stars</option>
-                    <option value="2">2 stars</option>
-                    <option value="1">1 star</option>
-                </select>
-                <textarea id="reviewText" placeholder="Share your experience..."></textarea>
-                <button class="btn btn-primary" type="button" onclick="submitReview()">Submit Review</button>
-            </div>
+    <p>Total Reviews: {{ reviews|length }}</p>
+
+    <div class="review-list">
+        {% for r in reviews %}
+        <div class="review-card">
+            <strong>{{ r.user.username if r.user else "Anonymous" }}
+                <span style="color:#cd5f3b;">
+                    {{ "⭐" * r.rating }}
+                </span>
+            </strong>
+            <p>"{{ r.comment }}"</p>
         </div>
+        {% endfor %}
+    </div>
+
+    <div class="review-form">
+        <strong>Write a review</strong>
+
+        <select id="reviewRating">
+            <option value="5">5 stars</option>
+            <option value="4">4 stars</option>
+            <option value="3">3 stars</option>
+            <option value="2">2 stars</option>
+            <option value="1">1 star</option>
+        </select>
+
+        <textarea id="reviewText" placeholder="Share your experience..."></textarea>
+
+        <button class="btn btn-primary"
+        type="button"
+        onclick="submitReview({{ product.id }}, event)">
+    Submit Review
+</button>
+    </div>
+
+</div>
     </div>
 
     <section class="related-products">

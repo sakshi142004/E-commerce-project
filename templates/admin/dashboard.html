@@ -42,8 +42,10 @@
 
 <style>
 /* BACKGROUND */
+/* BACKGROUND */
 body {
-    background: linear-gradient(135deg, #062f2c, #041f1d);
+    background: #ffffff;
+    color: #111;
 }
 
 /* HEADER */
@@ -54,11 +56,12 @@ body {
     margin-bottom: 20px;
 }
 
+/* BACK BUTTON */
 .back-btn {
     display: none;
     border: none;
-    background: rgba(255,255,255,0.1);
-    color: white;
+    background: #f3f4f6;
+    color: #111;
     font-size: 18px;
     padding: 8px 12px;
     border-radius: 10px;
@@ -68,46 +71,48 @@ body {
 /* TITLE */
 .dashboard-header h1 {
     font-size: 28px;
-    color: white;
+    color: #000;
 }
 
 .dashboard-header p {
-    color: #bdbdbd;
+    color: #6b7280;
     font-size: 14px;
 }
 
-/* CARDS */
+/* CARDS GRID */
 .cards {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 18px;
 }
 
-/* GLASS CARD */
+/* CARD (CLEAN WHITE) */
 .card {
-    padding: 24px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    backdrop-filter: blur(14px);
-    color: white;
+    padding: 22px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #111;
     cursor: pointer;
     transition: 0.3s;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.05);
 }
 
 .card:hover {
-    transform: translateY(-5px);
-    background: rgba(255,255,255,0.12);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
 }
 
+/* CARD TEXT */
 .card h3 {
     font-size: 14px;
-    color: #dcdcdc;
+    color: #6b7280;
 }
 
 .card span {
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 700;
+    color: #000;
 }
 
 /* DETAIL VIEW */
@@ -115,10 +120,30 @@ body {
     display: none;
     margin-top: 20px;
     padding: 20px;
-    border-radius: 18px;
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(14px);
-    color: white;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #111;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+}
+
+/* 🔥 BUTTONS (GLOBAL FIX) */
+button,
+.btn {
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover,
+.btn:hover {
+    transform: translateY(-2px);
+    opacity: 0.9;
 }
 
 /* MOBILE */
@@ -137,31 +162,26 @@ body {
         position: sticky;
         top: 10px;
         z-index: 50;
+        background: #fff;
     }
 
-   .back-btn {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    z-index: 300;
-    display: none;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(10px);
-    border: none;
-    padding: 10px 14px;
-    border-radius: 10px;
-    color: white;
-    font-size: 18px;
-}
+    .back-btn {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 300;
+        display: none;
+        background: #f3f4f6;
+        color: #111;
+        border-radius: 10px;
+        font-size: 18px;
+    }
 }
 
+/* TABLET FIX */
 @media (max-width: 1024px) {
 
     .main {
-        display: block;
-    }
-
-    .main.active {
         display: block;
     }
 

@@ -109,37 +109,79 @@
     </p>
 
     <div class="color-image-grid">
+{% for color in colors %}
+<div class="color-upload-box {% if color.id in selected_color_ids %}active{% endif %}">
 
-        {% for color in colors %}
-        <div class="color-upload-box">
+    <!-- COLOR HEADER -->
+    <label class="color-top">
+        <input type="checkbox"
+               name="colors"
+               value="{{ color.id }}"
+               {% if color.id in selected_color_ids %}checked{% endif %}
+               onchange="toggleUpload(this, {{ color.id }})">
 
-            <!-- COLOR SELECT -->
-            <label class="color-top">
-                <input type="checkbox"
-                       name="colors"
-                       value="{{ color.id }}"
-                       onchange="toggleUpload(this, {{ color.id }})">
+        <span class="color-circle" style="background: {{ color.code }}"></span>
+        <strong class="color-name">{{ color.name }}</strong>
+    </label>
 
-                <span class="color-circle" style="background: {{ color.code }}"></span>
-                <strong class="color-name">{{ color.name }}</strong>
-            </label>
+    <!-- IMAGE SECTION -->
+    <div class="media-block">
+        <p class="media-title">Images</p>
 
-            <!-- FILE INPUT -->
-            <input type="file"
-                   name="color_images_{{ color.id }}"
-                   id="upload_{{ color.id }}"
-                   multiple
-                   accept="image/*"
-                   disabled
-                   onchange="previewImages(event, {{ color.id }})">
+        <input type="file"
+               name="color_images_{{ color.id }}"
+               id="upload_{{ color.id }}"
+               multiple
+               accept="image/*"
+               {% if color.id not in selected_color_ids %}disabled{% endif %}
+               onchange="previewImages(event, {{ color.id }})">
 
-            <!-- PREVIEW -->
-            <div class="preview-container" id="preview_{{ color.id }}"></div>
-
+        <div class="preview-container" id="preview_{{ color.id }}">
+            {% if product %}
+              {% for img in product.images %}
+                {% if img.color_id == color.id %}
+                <div class="preview-thumb">
+                    <img src="{{ img.image_url }}">
+                    {% if img.is_primary %}
+                        <span class="primary-badge">Primary</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+          {%endif %}
         </div>
-        {% endfor %}
-
     </div>
+
+    <!-- VIDEO SECTION -->
+    <div class="media-block">
+        <p class="media-title">Videos</p>
+
+        <input type="file"
+               name="color_videos_{{ color.id }}"
+               id="video_upload_{{ color.id }}"
+               multiple
+               accept="video/*"
+               {% if color.id not in selected_color_ids %}disabled{% endif %}
+               onchange="previewVideos(event, {{ color.id }})">
+
+        <div class="preview-container" id="video_preview_{{ color.id }}">
+        {% if product %}
+            {% for vid in product.videos %}
+                {% if vid.color_id == color.id %}
+                <div class="video-thumb">
+                    <video controls>
+                        <source src="{{ vid.video_url }}" type="video/mp4">
+                    </video>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endfor %}
+</div>
 
     <!-- FALLBACK -->
     <div class="form-group mt-20">
@@ -149,10 +191,10 @@
     </div>
 </div>
              
-                <div class="form-group">
-                    <label>Upload Videos</label>
-                    <input type="file" name="videos" multiple class="premium-file">
-                </div>
+                <label>Upload Videos</label>
+    <input type="file" name="videos" multiple class="premium-file" onchange="previewVideos(event)">
+    
+    <div id="videoPreview" class="preview-container"></div>
             </div>
 
             <!-- TAGS -->
@@ -188,21 +230,25 @@
     </div>
 </div>
 
-<style>
-    .hint-text {
-    color: #ffffff;
+<style>/* TEXT */
+.hint-text {
+    color: #555;
     font-size: 13px;
     margin-bottom: 12px;
 }
+
 .color-name {
-    color: #ffffff;
+    color: #111;
 }
+
+/* PREVIEW */
 .preview-container {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
     margin-top: 8px;
 }
+
 .preview-container img {
     width: 45px;
     height: 45px;
@@ -211,83 +257,163 @@
     border: 1px solid #0A5C56;
 }
 
+/* DISABLED */
 .color-upload-box input[type="file"]:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
-    .color-image-grid {
+/* ===== COLOR GRID FIX ===== */
+.color-image-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
 }
 
+/* ===== COLOR CARD ===== */
 .color-upload-box {
-    border: 1px solid rgba(255,255,255,0.08);
-    padding: 12px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.02);
-    text-align: center;
+    border: 1px solid #e5e7eb;
+    padding: 16px;
+    border-radius: 16px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.25s ease;
 }
 
+.color-upload-box:hover {
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+}
+
+/* ACTIVE STATE */
+.color-upload-box.active {
+    border-color: #0A5C56;
+    box-shadow: 0 0 0 2px rgba(10,92,86,0.1);
+}
+
+/* ===== TOP HEADER ===== */
 .color-top {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
+    gap: 10px;
 }
 
-.color-upload-box input[type="file"] {
-    margin-top: 6px;
-    font-size: 12px;
+.color-top input {
+    transform: scale(1.1);
+    cursor: pointer;
 }
+
+.color-circle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+}
+
+.color-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ===== MEDIA BLOCK ===== */
+.media-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.media-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+}
+
+/* ===== FILE INPUT ===== */
+.color-upload-box input[type="file"] {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+/* ===== PREVIEW ===== */
+.preview-container {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.preview-container img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #0A5C56;
+}
+
+/* VIDEO */
+.preview-container video {
+    width: 60px;
+    height: 50px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+/* DISABLED */
+.color-upload-box input[type="file"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* PAGE */
 .product-page {
     padding: 32px;
     min-height: 100vh;
-    background:
-        radial-gradient(circle at top left, rgba(10,92,86,0.15), transparent 40%),
-        linear-gradient(135deg, #050606, #071313);
+    background: #ffffff;
 }
 
 /* HEADER */
 .page-header h2 {
     font-size: 36px;
-    color: #ffffff;
+    color: #111;
     margin-bottom: 6px;
     font-weight: 700;
 }
 
 .page-header p {
-    color: #9ca3af;
+    color: #666;
     margin-bottom: 30px;
 }
 
 /* MAIN CARD */
 .premium-form-card {
     padding: 36px;
-    border-radius: 28px;
-    background: rgba(10,92,86,0.08);
-    border: 1px solid rgba(10,92,86,0.25);
-    backdrop-filter: blur(20px);
-    box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
 /* SECTION */
 .form-section {
     margin-bottom: 36px;
     padding-bottom: 26px;
-    border-bottom: 1px solid rgba(10,92,86,0.2);
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .form-section h3 {
     font-size: 20px;
     margin-bottom: 18px;
-    color: #e5e7eb;
+    color: #111;
     font-weight: 600;
 }
 
 /* LABEL */
 .form-group label {
-    color: #cbd5e1;
+    color: #333;
     font-size: 14px;
     margin-bottom: 8px;
 }
@@ -299,10 +425,10 @@
 .premium-file {
     width: 100%;
     padding: 15px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.03);
-    color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #111;
     font-size: 14px;
     transition: all 0.25s ease;
 }
@@ -310,7 +436,7 @@
 /* PLACEHOLDER */
 .form-group input::placeholder,
 .form-group textarea::placeholder {
-    color: #6b7280;
+    color: #9ca3af;
 }
 
 /* FOCUS */
@@ -318,8 +444,7 @@
 .form-group textarea:focus,
 .form-group select:focus {
     border-color: #0A5C56;
-    box-shadow: 0 0 0 4px rgba(10,92,86,0.18);
-    background: rgba(255,255,255,0.05);
+    box-shadow: 0 0 0 3px rgba(10,92,86,0.15);
     outline: none;
 }
 
@@ -340,13 +465,12 @@
 .price-preview-box {
     margin-top: 18px;
     padding: 18px 22px;
-    border-radius: 20px;
+    border-radius: 16px;
     background: linear-gradient(135deg, #0A5C56, #083E3A);
     display: flex;
     justify-content: space-between;
     align-items: center;
     color: white;
-    box-shadow: 0 15px 40px rgba(10,92,86,0.4);
 }
 
 .price-preview-box strong {
@@ -356,43 +480,42 @@
 
 /* UPLOAD BOX */
 .upload-box {
-    border: 2px dashed rgba(10,92,86,0.4);
-    border-radius: 22px;
+    border: 2px dashed #d1d5db;
+    border-radius: 16px;
     padding: 40px;
     text-align: center;
     cursor: pointer;
-    background: rgba(255,255,255,0.02);
+    background: #fafafa;
     transition: all 0.3s ease;
 }
 
 .upload-box span {
     display: block;
-    color: #e5e7eb;
+    color: #111;
     font-weight: 600;
     margin-bottom: 6px;
 }
 
 .upload-box small {
-    color: #6b7280;
+    color: #777;
 }
 
 .upload-box:hover {
     border-color: #0A5C56;
-    background: rgba(10,92,86,0.08);
-    transform: translateY(-2px);
+    background: #f0fdfa;
 }
 
 /* IMAGE PREVIEW */
 .preview-grid img {
-    border-radius: 18px;
-    box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
 /* BUTTON */
 .premium-btn {
     width: 100%;
     padding: 18px;
-    border-radius: 18px;
+    border-radius: 14px;
     border: none;
     font-size: 16px;
     font-weight: 600;
@@ -400,21 +523,18 @@
     color: white;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 15px 35px rgba(10,92,86,0.4);
 }
 
 .premium-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 22px 50px rgba(10,92,86,0.6);
+    transform: translateY(-2px);
 }
 
-/* CROP MODAL */
+/* MODAL */
 .crop-modal {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.75);
-    backdrop-filter: blur(10px);
+    background: rgba(0,0,0,0.6);
     z-index: 9999;
     justify-content: center;
     align-items: center;
@@ -423,25 +543,27 @@
 .crop-box {
     width: 90%;
     max-width: 650px;
-    background: #0b0f0f;
-    border-radius: 22px;
+    background: #ffffff;
+    border-radius: 16px;
     padding: 24px;
-    border: 1px solid rgba(10,92,86,0.3);
+    border: 1px solid #e5e7eb;
 }
 
 .crop-box h3 {
-    color: white;
+    color: #111;
     margin-bottom: 15px;
 }
 
 .crop-actions button {
     padding: 12px 18px;
-    border-radius: 12px;
+    border-radius: 10px;
     border: none;
     background: linear-gradient(135deg, #0A5C56, #083E3A);
     color: white;
     cursor: pointer;
 }
+
+/* COLOR OPTIONS */
 .color-options {
     display: flex;
     flex-wrap: wrap;
@@ -459,8 +581,7 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 2px rgba(0,0,0,0.4);
+    border: 2px solid #ddd;
 }
 
 /* MOBILE */
@@ -474,6 +595,7 @@
         padding: 20px;
     }
 
+
     .page-header h2 {
         font-size: 28px;
     }
@@ -484,56 +606,173 @@
 
 <script>
 function toggleUpload(checkbox, colorId) {
-    const input = document.getElementById("upload_" + colorId);
+    const imageInput = document.getElementById("upload_" + colorId);
+    const videoInput = document.getElementById("video_upload_" + colorId);
+    const imagePreview = document.getElementById("preview_" + colorId);
+    const videoPreview = document.getElementById("video_preview_" + colorId);
 
-    input.disabled = !checkbox.checked;
+    const isChecked = checkbox.checked;
 
-    if (!checkbox.checked) {
-        input.value = "";
-        document.getElementById("preview_" + colorId).innerHTML = "";
+    if (imageInput) imageInput.disabled = !isChecked;
+    if (videoInput) videoInput.disabled = !isChecked;
+
+    if (!isChecked) {
+        if (imageInput) imageInput.value = "";
+        if (videoInput) videoInput.value = "";
+
+        if (imagePreview) imagePreview.innerHTML = "";
+        if (videoPreview) videoPreview.innerHTML = "";
     }
 }
 
-// MULTIPLE IMAGE PREVIEW (MAIN FIX 🔥)
+/* ================= IMAGE CROP SYSTEM ================= */
+
+const cropModal = document.getElementById("cropModal");
+const cropImage = document.getElementById("cropImage");
+
+let cropper;
+let cropQueue = [];
+let currentInput = null;
+let currentContainer = null;
+
+// OPEN CROPPER
+function openCropper(file) {
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        cropImage.src = e.target.result;
+        cropModal.style.display = "flex";
+
+        setTimeout(() => {
+            if (cropper) cropper.destroy();
+
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 1,
+                viewMode: 1
+            });
+        }, 100);
+    };
+
+    reader.readAsDataURL(file);
+}
+
+// SAVE CROPPED IMAGE
+function saveCrop() {
+    const canvas = cropper.getCroppedCanvas({
+        width: 600,
+        height: 600
+    });
+
+    canvas.toBlob(function(blob) {
+
+        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+
+        const dataTransfer = new DataTransfer();
+
+        // keep old files
+        if (currentInput.files.length) {
+            Array.from(currentInput.files).forEach(f => dataTransfer.items.add(f));
+        }
+
+        dataTransfer.items.add(file);
+        currentInput.files = dataTransfer.files;
+
+        // preview
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        currentContainer.appendChild(img);
+
+        closeCropModal();
+
+        // next image in queue
+        if (cropQueue.length) {
+            openCropper(cropQueue.shift());
+        }
+
+    }, "image/jpeg");
+}
+
+function closeCropModal() {
+    cropModal.style.display = "none";
+
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+}
+
+/* ================= IMAGE UPLOAD ================= */
+
+// COLOR IMAGES
 function previewImages(event, colorId) {
+    const input = event.target;
     const container = document.getElementById("preview_" + colorId);
 
-    // ❌ reset mat karo → append karo
-    const files = event.target.files;
+    cropQueue = Array.from(input.files);
+    currentInput = input;
+    currentContainer = container;
 
-    for (let file of files) {
-        const reader = new FileReader();
+    if (!cropQueue.length) return;
 
-        reader.onload = function(e) {
-            const img = document.createElement("img");
-            img.src = e.target.result;
-            container.appendChild(img);
-        };
-
-        reader.readAsDataURL(file);
-    }
+    openCropper(cropQueue.shift());
 }
 
-// DEFAULT IMAGE PREVIEW
+// DEFAULT IMAGES
 function previewDefault(event) {
+    const input = event.target;
     const container = document.getElementById("defaultPreview");
+
     container.innerHTML = "";
 
-    const files = event.target.files;
+    cropQueue = Array.from(input.files);
+    currentInput = input;
+    currentContainer = container;
 
-    for (let file of files) {
-        const reader = new FileReader();
+    if (!cropQueue.length) return;
 
-        reader.onload = function(e) {
-            const img = document.createElement("img");
-            img.src = e.target.result;
-            container.appendChild(img);
-        };
+    openCropper(cropQueue.shift());
+}
 
-        reader.readAsDataURL(file);
+/* ================= VIDEO PREVIEW ================= */
+
+// COLOR VIDEOS
+function previewVideos(event, colorId) {
+    if (colorId !== undefined) {
+        const container = document.getElementById("video_preview_" + colorId);
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        Array.from(event.target.files).forEach(file => {
+            const url = URL.createObjectURL(file);
+
+            const video = document.createElement("video");
+            video.src = url;
+            video.controls = true;
+            video.width = 80;
+
+            container.appendChild(video);
+        });
+    } else {
+        // DEFAULT VIDEOS
+        const container = document.getElementById("videoPreview");
+        container.innerHTML = "";
+
+        Array.from(event.target.files).forEach(file => {
+            const url = URL.createObjectURL(file);
+
+            const video = document.createElement("video");
+            video.src = url;
+            video.controls = true;
+            video.width = 80;
+
+            container.appendChild(video);
+        });
     }
 }
-/* PRICE CALCULATOR */
+
+/* ================= PRICE CALCULATOR ================= */
+
 const mrpInput = document.querySelector('[name="original_price"]');
 const discountInput = document.querySelector('[name="discount_percent"]');
 const preview = document.getElementById("finalPricePreview");
@@ -548,66 +787,6 @@ function updateFinalPrice() {
 
 mrpInput.addEventListener("input", updateFinalPrice);
 discountInput.addEventListener("input", updateFinalPrice);
-
-/* IMAGE PREVIEW + CROP */
-const imageInput = document.getElementById("imageInput");
-const previewContainer = document.getElementById("imagePreviewContainer");
-const cropModal = document.getElementById("cropModal");
-const cropImage = document.getElementById("cropImage");
-
-let cropper;
-let currentFile;
-
-imageInput.addEventListener("change", function(e) {
-    const files = Array.from(e.target.files);
-
-    previewContainer.innerHTML = "";
-
-    files.forEach(file => {
-        const reader = new FileReader();
-
-        reader.onload = function(event) {
-            cropImage.src = event.target.result;
-            cropModal.style.display = "flex";
-
-            currentFile = file;
-
-            setTimeout(() => {
-                if (cropper) cropper.destroy();
-
-                cropper = new Cropper(cropImage, {
-                    aspectRatio: 1,
-                    viewMode: 1
-                });
-            }, 100);
-        };
-
-        reader.readAsDataURL(file);
-    });
-});
-
-function saveCrop() {
-    const canvas = cropper.getCroppedCanvas({
-        width: 600,
-        height: 600
-    });
-
-    const img = document.createElement("img");
-    img.src = canvas.toDataURL("image/jpeg");
-
-    previewContainer.appendChild(img);
-
-    closeCropModal();
-}
-
-function closeCropModal() {
-    cropModal.style.display = "none";
-
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
-}
 </script>
 
 {% endblock %}

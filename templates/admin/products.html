@@ -22,21 +22,30 @@
       <div class="product-card">
 
     <!-- IMAGE -->
-    <div class="color-slider-section">
+   <div class="color-slider-section">
 
-    {% for pc in p.product_colors %}
+{% for pc in p.product_colors %}
 
-        {% set color_images = [] %}
+    {% set color_images = [] %}
+    {% set color_videos = [] %}
 
-        {% for img in p.images %}
-            {% if img.color_id == pc.color.id %}
-                {% set _ = color_images.append(img) %}
-            {% endif %}
-        {% endfor %}
+    {% for img in p.images %}
+        {% if img.color_id == pc.color.id %}
+            {% set _ = color_images.append(img) %}
+        {% endif %}
+    {% endfor %}
 
-        {% if color_images|length > 0 %}
+    {% for vid in p.videos %}
+        {% if vid.color_id == pc.color.id %}
+            {% set _ = color_videos.append(vid) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if color_images|length > 0 or color_videos|length > 0 %}
+    <div class="color-row">
+
+        <!-- LEFT: IMAGE SLIDER -->
         <div class="color-block">
-
             <div class="color-header">
                 <span class="color-dot" style="background: {{ pc.color.code }}"></span>
                 <span>{{ pc.color.name }}</span>
@@ -52,13 +61,24 @@
                 <button class="prev" onclick="moveSlide('{{ p.id }}_{{ pc.color.id }}', -1)">‹</button>
                 <button class="next" onclick="moveSlide('{{ p.id }}_{{ pc.color.id }}', 1)">›</button>
             </div>
+        </div>
 
+        <!-- RIGHT: VIDEO -->
+        {% if color_videos|length > 0 %}
+        <div class="video-block">
+            <video controls>
+                <source src="{{ color_videos[0].video_url }}" type="video/mp4">
+            </video>
         </div>
         {% endif %}
 
-    {% endfor %}
+    </div>
+    {% endif %}
+
+{% endfor %}
 
 </div>
+
 
     <!-- CONTENT -->
     <div class="card-content">
@@ -115,7 +135,17 @@
 </div>
 
 <style>
-
+    .color-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+.video-block video {
+    width: 260px;
+    height: 260px;
+    object-fit: cover;
+    border-radius: 14px;
+}
 /* COLOR SLIDER */
 .color-slider-section {
     display: flex;
@@ -127,7 +157,20 @@
 .color-block {
     margin-bottom: 12px;
 }
+.video-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    overflow-x: auto;
+}
 
+.product-video {
+    width: 180px;
+    height: 180px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: #000;
+}
 .color-header {
     display: flex;
     min-width: 220px;
@@ -135,7 +178,7 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: #fff;
+    color: #111111;
     margin-bottom: 6px;
 }
 
@@ -152,7 +195,7 @@
     height: 260px;
     border-radius: 14px;
     overflow: hidden;
-    background: #0b1f1e;
+    background: #ffffff;
 }
 
 .slides {
@@ -160,11 +203,12 @@
     transition: transform 0.4s ease;
     width: 100%;
     height: 100%
-  
 }
+
 .color-slider-section::-webkit-scrollbar {
     height: 6px;
 }
+
 .color-slider-section::-webkit-scrollbar-thumb {
     background: #0A5C56;
     border-radius: 10px;
@@ -174,18 +218,19 @@
     width: 100%;
     height: 100%;
     object-fit: contain;   /* 🔥 pura image dikhega (best for your case) */
-    background: #0b1f1e;   /* empty space clean lage */
+    background: #ffffff;   /* empty space clean lage */
     flex: 0 0 100%;
     display: block;
     margin: auto;
 }
+
 /* BUTTONS */
 .slider button {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0,0,0,0.5);
-    color: white;
+    background: rgba(255,255,255,0.85);
+    color: #111111;
     border: none;
     padding: 4px 8px;
     cursor: pointer;
@@ -201,7 +246,7 @@
     min-height: 100vh;
     background:
         radial-gradient(circle at top left, rgba(10,92,86,0.15), transparent 40%),
-        linear-gradient(135deg, #050606, #071313);
+        linear-gradient(135deg, #ffffff, #f3f4f6);
 }
 
 /* HEADER */
@@ -216,13 +261,13 @@
 
 .top-bar h2 {
     font-size: 36px;
-    color: #fff;
+    color: #111111;
     margin-bottom: 6px;
     font-weight: 700;
 }
 
 .top-bar p {
-    color: #9ca3af;
+    color: #666666;
     font-size: 14px;
 }
 
@@ -252,9 +297,9 @@
 
 /* CARD */
 .product-card {
-     width: 100%;
+    width: 100%;
     padding: 16px;
-    background: rgba(10,92,86,0.08);
+    background: #ffffff;
     border: 1px solid rgba(10,92,86,0.25);
     backdrop-filter: blur(18px);
     border-radius: 26px;
@@ -266,7 +311,7 @@
 .product-card:hover {
     transform: translateY(-8px) scale(1.01);
     border-color: rgba(10,92,86,0.5);
-    box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+    box-shadow: 0 25px 60px rgba(0,0,0,0.15);
 }
 
 /* IMAGE */
@@ -296,7 +341,7 @@
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
-    color: #fff;
+    color: #ffffff;
 }
 
 /* CONTENT */
@@ -314,14 +359,14 @@
 
 .product-top h3 {
     font-size: 18px;
-    color: #fff;
+    color: #111111;
     margin: 0;
     line-height: 1.4;
 }
 
 .rating-box {
-    background: rgba(255,255,255,0.08);
-    color: #facc15;
+    background: rgba(0,0,0,0.06);
+    color: #0A5C56;
     padding: 6px 10px;
     border-radius: 12px;
     font-size: 13px;
@@ -334,12 +379,12 @@
 
 .meta-list p {
     font-size: 13px;
-    color: #9ca3af;
+    color: #666666;
     margin: 5px 0;
 }
 
 .meta-list span {
-    color: #e5e7eb;
+    color: #111111;
     font-weight: 600;
 }
 
@@ -354,12 +399,12 @@
 .current-price {
     font-size: 24px;
     font-weight: 700;
-    color: #ffffff;
+    color: #111111;
 }
 
 .old-price {
     font-size: 16px;
-    color: #6b7280;
+    color: #999999;
     text-decoration: line-through;
 }
 
@@ -393,9 +438,9 @@
 
 /* DELETE */
 .delete-btn {
-    background: rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.05);
     color: #ff4d4d;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(0,0,0,0.08);
 }
 
 .delete-btn:hover {
@@ -404,69 +449,61 @@
 }
 
 /* MOBILE */
-/* ================= MOBILE AMAZON STYLE ================= */
-/* ================= MOBILE 2x2 CLEAN GRID ================= */
 @media (max-width: 768px) {
 
     .products-page {
         padding: 14px;
     }
+
     .product-top h3 {
-    margin-bottom: 4px;
-}
+        margin-bottom: 4px;
+    }
 
-.card-content p {
-    margin: 0; /* 🔥 remove unwanted gap */
-}
-    /* GRID */
-   .product-grid {
-    display: flex;
-    flex-direction: column;
-}
+    .card-content p {
+        margin: 0;
+    }
 
-    /* CARD */
+    .product-grid {
+        display: flex;
+        flex-direction: column;
+    }
+
     .product-card {
         border-radius: 16px;
         overflow: hidden;
     }
 
-    /* IMAGE PERFECT SQUARE */
     .image-box {
         width: 100%;
-        aspect-ratio: 1 / 1; /* 🔥 square */
+        aspect-ratio: 1 / 1;
         overflow: hidden;
     }
 
     .image-box img {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* 🔥 full fill */
+        object-fit: cover;
     }
 
-    /* CONTENT TIGHT */
     .card-content {
         padding: 10px;
     }
 
-    /* TITLE */
     .product-top h3 {
         font-size: 14px;
         line-height: 1.3;
-        margin-bottom: 4px; /* 🔥 gap kam */
+        margin-bottom: 4px;
     }
 
-    /* RATING */
     .rating-box {
         font-size: 10px;
         padding: 3px 6px;
     }
 
-    /* REMOVE EXTRA META */
     .meta-list {
         display: none;
     }
 
-    /* PRICE */
     .price-box {
         margin: 6px 0;
         gap: 6px;
@@ -480,7 +517,6 @@
         font-size: 11px;
     }
 
-    /* ACTION BUTTONS SMALL */
     .actions {
         gap: 6px;
     }
@@ -491,7 +527,6 @@
         border-radius: 8px;
     }
 
-    /* DISCOUNT */
     .discount-badge {
         font-size: 10px;
         padding: 3px 7px;
