@@ -336,6 +336,14 @@ body {
         border-color: rgba(0,229,255,0.4);
     }
 
+    .mobile-account-link {
+        display: none !important;
+    }
+
+    .nav-right .user-profile-link {
+        display: inline-flex;
+    }
+
     /* ============ HAMBURGER MENU - PROFESSIONAL ============ */
     .hamburger {
         display: none;
@@ -609,6 +617,10 @@ body {
 
     border-bottom: 1px solid rgba(255,255,255,0.05);
     transition: all 0.25s ease;
+}
+
+.nav-center .mobile-account-link {
+    display: block !important;
 }
 
 .nav-center a:last-child {
@@ -1099,6 +1111,14 @@ body {
     flex-shrink: 0;
 }
 
+.navbar .user-profile-link {
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 8px 12px;
+    border-radius: 999px;
+}
+
 
 /* mobile */
 @media (max-width: 800px) {
@@ -1139,12 +1159,12 @@ body {
 @media (max-width: 768px) {
     /* ❌ HIDE AVATAR COMPLETELY ON MOBILE */
 
-    .avatar-img,
-    .premium-avatar,
-    .avatar {
+    .nav-right .avatar-img,
+    .nav-right .premium-avatar,
+    .nav-right .avatar {
         display: none !important;
     }
-       .user-profile-link {
+    .nav-right .user-profile-link {
         display: none !important;
     }
     .products-page .products-grid {
@@ -1635,7 +1655,7 @@ body::before {
         {% endif %}
     </a>
 {% else %}
-    <a href="/account" class="user-profile-link">Login</a>
+    <a href="#" id="loginBtn" class="user-profile-link">Login</a>
 {% endif %}
     </div>
 </header>

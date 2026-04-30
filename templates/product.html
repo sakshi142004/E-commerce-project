@@ -79,7 +79,7 @@ body {
 
 .product-gallery {
     display: grid;
-    gap: 16px;
+    gap: 10px;
 }
 .product-gallery-main {
      position: relative;
@@ -87,25 +87,28 @@ body {
     max-width: 500px;      /* control width */
     aspect-ratio: 1 / 1;   /* 🔥 PERFECT SQUARE */
     background: #fff;
-    border-radius: 20px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     margin: auto;
+      padding: 8px;     
 }
 /* MAIN IMAGE */
 .product-gallery-main img,
 .product-gallery-main video {
     width: 100%;
     height: 100%;
-    object-fit: contain;   /* 🔥 NO CUT EVER */
+    object-fit: contain; 
+    padding: 4px;  /* 🔥 NO CUT EVER */
 }
 
 .product-gallery-thumbs {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
+    gap: 6px;
+    margin-top: 6px;
 }
 
 .product-gallery-thumbs button {
@@ -126,13 +129,14 @@ body {
 .product-gallery-thumbs img,
 .product-gallery-thumbs video {
     width: 100%;
-    height: 80px;     /* 🔥 small + clean */
+    aspect-ratio: 1 / 1;   /* 🔥 square thumbnails */
+    height: auto;
     object-fit: cover;
    
 }
 .product-info-panel {
     background: #fff;
-    border-radius: 32px;
+    border-radius: 16px;
     padding: 24px;
     box-shadow: 0 28px 70px rgba(0,0,0,0.06);
     display: flex;
@@ -593,13 +597,132 @@ body {
 }
 
 @media (max-width: 680px) {
+
+    /* 🔥 overall spacing tighter */
     .product-detail-page {
-        padding: 30px 18px;
+        padding: 18px 14px;
     }
 
-    .product-gallery-thumbs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* 🔥 gallery spacing fix */
+    .product-gallery {
+        gap: 6px !important;
     }
+
+    /* 🔥 MAIN IMAGE - full width + clean square */
+    .product-gallery-main {
+        max-width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 14px;
+        padding: 6px;
+    }
+
+    .product-gallery-main img,
+    .product-gallery-main video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 2px;
+    }
+
+    /* 🔥 THUMBNAILS - compact row */
+    .product-gallery-thumbs {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px !important;
+        margin-top: 4px !important;
+    }
+
+    /* 🔥 thumbnails square */
+    .product-gallery-thumbs img,
+    .product-gallery-thumbs video {
+        aspect-ratio: 1 / 1;
+        height: auto;
+        object-fit: cover;
+    }
+
+    /* 🔥 remove extra card spacing */
+    .product-info-panel {
+        padding: 16px;
+        border-radius: 18px;
+        gap: 12px;
+    }
+
+    /* 🔥 buttons stack better */
+    .product-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .product-actions button {
+        width: 100%;
+    }
+     .product-title-row h1 {
+        font-size: 20px !important;
+        line-height: 1.2;
+    }
+
+    /* ================= RATING SMALL ================= */
+    .rating-pill {
+        font-size: 12px;
+    }
+
+    .rating-pill span {
+        font-size: 12px;
+    }
+
+    /* ================= PRICE SMALL ================= */
+    .price-new {
+        font-size: 22px !important;
+    }
+
+    .price-old {
+        font-size: 14px;
+    }
+
+    .discount-badge {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    /* ================= PROPERTY BOX TEXT SMALL ================= */
+    .property-card {
+        padding: 12px 14px;
+        font-size: 13px;
+    }
+
+    .property-card strong {
+        font-size: 12px;
+    }
+
+    /* ================= BUTTONS ROW (ADD TO CART + BUY NOW) ================= */
+    .product-actions {
+        flex-direction: row !important;  /* 🔥 side by side */
+        gap: 8px;
+    }
+
+    .product-actions button {
+        flex: 1;
+        padding: 12px;
+        font-size: 13px;
+        border-radius: 14px;
+    }
+
+    /* ================= COLORS + SIZES SMALL ================= */
+    .color-dot {
+        width: 22px;
+        height: 22px;
+    }
+
+    .size-chip {
+        padding: 8px 12px;
+        font-size: 12px;
+        border-radius: 12px;
+    }
+
+    .color-list,
+    .size-list {
+        gap: 8px;
+    }
+
 }
 </style>
 <script id="images-data" type="application/json">
@@ -608,7 +731,9 @@ body {
 
 <script>
 const ALL_IMAGES = JSON.parse(document.getElementById("images-data").textContent);
+const DETAIL_PRODUCT_ID = Number("{{ product.id }}");
 let selectedSize = null;
+let selectedColorId = new URLSearchParams(window.location.search).get("color") || null;
 
 /* ================= SIZE SELECT ================= */
 function selectSize(el) {
@@ -643,7 +768,8 @@ function toggleCart(productId, btn) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            size_id: selectedSize
+            size_id: selectedSize,
+            color_id: selectedColorId
         })
     })
     .then(res => res.json())
@@ -668,7 +794,7 @@ function toggleCart(productId, btn) {
 
 /* ================= CHECK CART ================= */
 function checkCart(productId) {
-    return fetch(`/cart/check/${productId}`)
+    return fetch(`/cart/check/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`)
         .then(res => res.json())
         .then(data => data.in_cart)
         .catch(() => false);
@@ -693,7 +819,7 @@ function setGalleryImage(src, isVideo) {
 
 /* ================= WISHLIST ================= */
 function addToWishlist(productId, btn) {
-    fetch("/wishlist/toggle/" + productId, {
+    fetch(`/wishlist/toggle/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`, {
         method: "POST"
     })
     .then(res => res.json())
@@ -711,7 +837,7 @@ function addToWishlist(productId, btn) {
 /* ================= MAIN DOM READY ================= */
 document.addEventListener("DOMContentLoaded", () => {
 
-    const productId = Number("{{ product.id }}");
+    const productId = DETAIL_PRODUCT_ID;
 
     /* ===== CART BUTTONS ===== */
     document.querySelectorAll(".add-cart-btn").forEach(btn => {
@@ -754,7 +880,7 @@ document.querySelectorAll(".wishlist-btn").forEach(btn => {
 });
 
     /* ===== RESTORE SIZE ===== */
-    fetch(`/cart/selected_size/${productId}`)
+    fetch(`/cart/selected_size/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`)
         .then(res => res.json())
         .then(data => {
 
@@ -794,8 +920,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    const colorFromUrl = new URLSearchParams(window.location.search).get("color");
+    if (colorFromUrl) {
+        const selectedColor = document.querySelector(`.color-dot[data-color-id="${colorFromUrl}"]`);
+        if (selectedColor) {
+            changeColor(colorFromUrl, selectedColor);
+        }
+    } else {
+        const firstColor = document.querySelector(".color-dot");
+        if (firstColor) {
+            changeColor(firstColor.dataset.colorId, firstColor);
+        }
+    }
+
 });
 function changeColor(colorId, el) {
+    selectedColorId = colorId;
+
     document.querySelectorAll(".color-dot").forEach(dot => {
         dot.classList.remove("active");
     });
@@ -815,6 +956,24 @@ function changeColor(colorId, el) {
                 <img src="${img.image_url}">
             </button>
         `;
+    });
+
+    refreshVariantButtons();
+}
+
+function refreshVariantButtons() {
+    document.querySelectorAll(".add-cart-btn").forEach(btn => {
+        checkCart(DETAIL_PRODUCT_ID).then(inCart => {
+            btn.classList.toggle("active", inCart);
+            btn.innerText = inCart ? "Remove from Cart" : "Add to Cart";
+        });
+    });
+
+    document.querySelectorAll(".wishlist-btn").forEach(btn => {
+        checkWishlist(DETAIL_PRODUCT_ID).then(inWishlist => {
+            btn.classList.toggle("active", inWishlist);
+            btn.innerHTML = inWishlist ? "❤️" : "♡";
+        });
     });
 }
 
@@ -892,14 +1051,14 @@ function submitReview(productId, e) {
 }
 
 function checkWishlist(productId) {
-    return fetch(`/wishlist/check/${productId}`)
+    return fetch(`/wishlist/check/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`)
         .then(res => res.json())
         .then(data => data.in_wishlist)
         .catch(() => false);
 }
 
 function addToWishlist(productId, btn) {
-    fetch(`/wishlist/toggle/${productId}`, {
+    fetch(`/wishlist/toggle/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`, {
         method: "POST"
     })
     .then(res => res.json())
@@ -1017,9 +1176,7 @@ function addToWishlist(productId, btn) {
         Add to Cart
     </button>
 
-    <button class="btn btn-secondary wishlist-btn" data-id="{{ product.id }}">
-        Add to Wishlist
-    </button>
+    
 
     <button class="btn btn-flat" onclick="window.location.href='/cart'">
         Buy Now

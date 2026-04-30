@@ -22,7 +22,7 @@
         <div class="card">
             <div class="card-image-wrap">
               <img src="{{ p.image_url or '/static/images/default.png' }}">
-                <button class="icon-btn removeBtn" data-id="{{ p.id }}" title="Remove from wishlist">
+                <button class="icon-btn removeBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" title="Remove from wishlist">
                     <i class="fa-solid fa-trash"></i>
                 </button>
                 {% if p.discount %}
@@ -31,8 +31,14 @@
             </div>
             <div class="card-body">
                 <h3>{{ p.name }}</h3>
+                {% if p.color_name %}
+                    <p class="wishlist-variant">
+                        <span style="background: {{ p.color_code }}"></span>
+                        {{ p.color_name }}
+                    </p>
+                {% endif %}
                 <p class="price">₹{{ p.price }}</p>
-                <button class="addCartBtn primary-btn" data-id="{{ p.id }}">Add To Cart</button>
+                <button class="addCartBtn primary-btn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}">Add To Cart</button>
             </div>
         </div>
         {% endfor %}
@@ -46,7 +52,7 @@
 <script>
 
 // ================= ADD TO CART WITH SIZE =================
-function openSizeModal(productId) {
+function openSizeModal(productId, colorId = "") {
 
     fetch(`/product/sizes/${productId}`)
         .then(res => res.json())
@@ -65,7 +71,8 @@ function openSizeModal(productId) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    size_id: sizeId
+                    size_id: sizeId,
+                    color_id: colorId || null
                 })
             });
         })
@@ -101,7 +108,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".addCartBtn").forEach(btn => {
         btn.addEventListener("click", function () {
             let id = this.getAttribute("data-id");
-            openSizeModal(id);
+            let color = this.getAttribute("data-color") || "";
+            openSizeModal(id, color);
         });
     });
 
@@ -109,8 +117,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".removeBtn").forEach(btn => {
         btn.addEventListener("click", function () {
             let id = this.getAttribute("data-id");
+            let color = this.getAttribute("data-color") || "";
 
-            fetch('/remove_wishlist/' + id)
+            fetch(`/remove_wishlist/${id}?color_id=${color}`)
                 .then(() => location.reload());
         });
     });
@@ -131,6 +140,7 @@ function moveAllToCart() {
     Promise.all(
         buttons.map(btn => {
             let id = btn.getAttribute('data-id');
+            let color = btn.getAttribute('data-color') || "";
 
             return fetch(`/product/sizes/${id}`)
                 .then(res => res.json())
@@ -146,9 +156,10 @@ function moveAllToCart() {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({
-                            size_id: sizeId
+                            size_id: sizeId,
+                            color_id: color || null
                         })
-                    });
+                    }).then(() => fetch(`/remove_wishlist/${id}?color_id=${color}`));
                 });
         })
     )
@@ -177,6 +188,22 @@ function moveAllToCart() {
 .wishlist-container button {
     padding: 10px 14px;
     border-radius: 10px;
+}
+
+.wishlist-variant {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    color: #58706c;
+    font-size: 13px;
+}
+
+.wishlist-variant span {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12);
 }
 .wishlist-top {
     display: flex;

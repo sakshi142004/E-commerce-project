@@ -476,19 +476,25 @@ p {
     transform: translateY(-10px);
     box-shadow: 0 24px 70px rgba(0,0,0,0.12);
 }
-
+.product-image-wrapper img,
+.product-card img,
+.product-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;   /* 🔥 perfect square */
+    object-fit: cover;     /* fill karega without distortion */
+    border-radius: 12px;
+    display: block;
+}
 .product-image-wrapper {
     position: relative;
     background: #f5f5f5;
-    border-radius: 24px 24px 0 0;
+   
     overflow: hidden;
 }
 
 .product-image-wrapper img {
-    width: 100%;
-    height: 340px;
-    object-fit: cover;
-    display: block;
+   
+  
     transition: transform 0.45s ease;
 }
 
@@ -996,20 +1002,40 @@ border: 1px solid rgba(10, 92, 86, 0.25);
   .cat-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
 
   .cat-row {
     width: 100%;
     flex-direction: row;
     text-align: left;
-    gap: 14px;
+    padding: 12px 14px;
+    gap: 10px;
   }
 
   .cat-image {
     width: 70px;
     height: 70px;
     margin-bottom: 0;
+  }
+   .cat-info h3 {
+    font-size: 16px;   /* was too big */
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .cat-info p {
+    font-size: 12px;   /* reduce text size */
+    line-height: 1.4;
+    margin-top: 4px;
+    color: #666;
+  }
+
+  /* remove extra vertical spacing feel */
+  .cat-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
 }
@@ -1072,10 +1098,13 @@ a.blog-card {
 
 @media (max-width: 768px) {
 
-    .section-space {
-        padding: 45px 16px; /* 🔥 thoda compact */
-    }
-
+   .section-space {
+    padding: 35px 14px !important;
+    margin: 0 !important;
+  }
+    .section-heading {
+    margin-bottom: 18px !important;
+  }
     /* 🔥 SMALL + PREMIUM HEADING */
     .section-heading h2 {
         font-size: 20px;   /* pehle 30px tha */
@@ -1084,9 +1113,14 @@ a.blog-card {
 
     .section-heading span {
         font-size: 11px;
-        letter-spacing: 1.5px;
+        letter-spacing: 1px;
     }
-
+     .why.section-space,
+  .categories.section-space,
+  .materials.section-space {
+    padding-top: 30px !important;
+    padding-bottom: 30px !important;
+  }
     /* MATERIAL CARDS */
     .lux-card {
         padding: 20px 16px;
@@ -1463,24 +1497,24 @@ p, li, span {
         box-shadow: 0 6px 14px rgba(0,0,0,0.06);
     }
 
-    .faq-question {
-        font-size: 15px;
-        padding: 16px 18px;
-    }
+   .faq-question {
+    font-size: 14px !important;   /* was 20px */
+    padding: 14px 16px;
+    line-height: 1.4;
+  }
 
-    .faq-question span {
-        font-size: 20px;
-    }
+  .faq-question span {
+    font-size: 18px;  /* + icon smaller */
+  }
 
-    .faq-answer {
-        font-size: 14px;
-        padding: 0 18px;
-        line-height: 1.5;
-    }
+  .faq-answer {
+    font-size: 13px;
+    padding: 0 16px;
+  }
 
-    .faq-item.active .faq-answer {
-        padding: 0 18px 16px;
-    }
+  .faq-item.active .faq-answer {
+    padding: 0 16px 14px;
+  }
 
     /* ===== CONTACT COMPACT ===== */
 

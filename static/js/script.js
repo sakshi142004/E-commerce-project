@@ -211,7 +211,7 @@ function addToCart(productId) {
 
 // ADD TO WISHLIST
 /*
-function addToWishlist(productId ,btn = null) {
+function addToWishlist(productId, btn = null, colorId = null) {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
@@ -225,7 +225,7 @@ function addToWishlist(productId ,btn = null) {
         document.getElementById("wishlistCount").innerText = data.count;
     });
 }*/
-function addToWishlist(productId ,btn = null) {
+function addToWishlist(productId, btn = null, colorId = null) {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
@@ -233,7 +233,7 @@ function addToWishlist(productId ,btn = null) {
         return;
     }
 
-    fetch(`/wishlist/toggle/${productId}`)
+    fetch(`/wishlist/toggle/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
     .then(res => res.json())
     .then(data => {
 
@@ -383,11 +383,28 @@ function loadProducts() {
 }
 */
 // ✅ OUTSIDE (global)
-function checkWishlist(productId) {
-    return fetch("/wishlist/check/" + productId)
+function checkWishlist(productId, colorId = null) {
+    return fetch(`/wishlist/check/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
         .then(res => res.json())
         .then(data => data.in_wishlist)
         .catch(() => false);
+}
+
+function getProductBaseId(product) {
+    return product.product_id || product.id;
+}
+
+function getProductColorId(product) {
+    return product.color_variant?.id || product.colors?.[0]?.id || null;
+}
+
+function getProductDetailUrl(product) {
+    const productId = getProductBaseId(product);
+    const colorId = getProductColorId(product);
+
+    return colorId
+        ? `/product/${productId}?color=${colorId}`
+        : `/product/${productId}`;
 }
 
 
@@ -403,6 +420,9 @@ function loadProducts() {
 
             data.slice(0, 4).forEach(product => {
 
+                const productId = getProductBaseId(product);
+                const variantColor = product.color_variant || product.colors?.[0] || null;
+                const colorId = variantColor?.id || null;
                 const image = product.images?.[0] || "/static/images/default.png";
 
                 const ratingHTML = product.rating
@@ -418,17 +438,15 @@ function loadProducts() {
                     : "";
 
                 // ✅ COLORS
-                const colorsHTML = product.colors?.length
+                const colorsHTML = variantColor
                     ? `<div class="color-options">
-                        ${product.colors.map(c => `
-                            <span 
-                                class="color-circle"
-                                style="background:${c.code}"
-                                title="${c.name}"
-                                data-color="${c.id}"
-                                data-product="${product.id}"
-                            ></span>
-                        `).join("")}
+                        <span 
+                            class="color-circle"
+                            style="background:${variantColor.code}"
+                            title="${variantColor.name}"
+                            data-color="${variantColor.id}"
+                            data-product="${productId}"
+                        ></span>
                        </div>`
                     : "";
 
@@ -439,7 +457,7 @@ function loadProducts() {
                     <div class="product-image-wrapper">
                         ${discountHTML}
 
-                        <button class="wishlist-btn" data-id="${product.id}">
+                        <button class="wishlist-btn" data-id="${productId}">
                             ♡
                         </button>
 
@@ -502,11 +520,11 @@ function loadProducts() {
 
                 /* ================= PRODUCT CLICK ================= */
                 div.addEventListener("click", () => {
-                    window.location.href = "/product/" + product.id;
+                    window.location.href = getProductDetailUrl(product);
                 });
 
                 /* ================= WISHLIST ================= */
-                checkWishlist(product.id).then(inWishlist => {
+                checkWishlist(productId, colorId).then(inWishlist => {
                     if (inWishlist) {
                         wishlistBtn.classList.add("active");
                         wishlistBtn.innerHTML = "❤️";
@@ -516,7 +534,7 @@ function loadProducts() {
                 wishlistBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
 
-                    addToWishlist(product.id, wishlistBtn);
+                    addToWishlist(productId, wishlistBtn, colorId);
 
                     wishlistBtn.classList.toggle("active");
                     wishlistBtn.innerHTML = wishlistBtn.classList.contains("active")

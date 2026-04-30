@@ -29,9 +29,11 @@ CREATE TABLE wishlist (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     product_id INT,
+    color_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (color_id) REFERENCES colors(id)
 );
 
 CREATE TABLE orders (
@@ -76,10 +78,12 @@ CREATE TABLE order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT,
     product_id INT,
+    color_id INT NULL,
     quantity INT,
     price DECIMAL(10,2),
     FOREIGN KEY (order_id) REFERENCES orders(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (color_id) REFERENCES colors(id)
 );
 
 ALTER TABLE orders 
@@ -227,9 +231,13 @@ CREATE TABLE cart (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     product_id INT,
+    color_id INT NULL,
+    size_id INT NULL,
     quantity INT DEFAULT 1,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (color_id) REFERENCES colors(id),
+    FOREIGN KEY (size_id) REFERENCES product_sizes(id)
 );
 
 

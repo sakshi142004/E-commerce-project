@@ -18,12 +18,18 @@
         <!-- LEFT -->
         <div class="cart-items">
             {% for p in products %}
-            <div class="cart-card">
+            <div class="cart-card" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">
 
                 <img src="{{ p.image_url or '/static/images/default.png' }}" class="product-img">
 
                 <div class="details">
                     <h3>{{ p.name }}</h3>
+                    {% if p.color_name %}
+                    <p class="cart-variant">
+                        <span style="background: {{ p.color_code }}"></span>
+                        {{ p.color_name }}
+                    </p>
+                    {% endif %}
                  <p class="price" id="price-{{ p.id }}">₹{{ p.price }}</p>
                  </div>
 
@@ -35,12 +41,12 @@
                     <div class="qty-box">
                         <button class="qty-btn minus" data-id="{{ p.id }}">−</button>
                         <span class="qty-number" id="qty-{{ p.id }}">{{ p.quantity }}</span>
-                        <button class="qty-btn plus" data-id="{{ p.id }}">+</button>
+                        <button class="qty-btn plus" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">+</button>
                     </div>
 
    <div class="actions">
-    <button class="removeBtn" data-id="{{ p.id }}">Remove</button>
-    <button class="wishBtn" data-id="{{ p.id }}">Move to Wishlist</button>
+    <button class="removeBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">Remove</button>
+    <button class="wishBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">Move to Wishlist</button>
 </div>
                 </div>
             </div>
@@ -178,10 +184,12 @@ document.addEventListener("DOMContentLoaded", function(){
 document.querySelectorAll(".removeBtn").forEach(btn => {
     btn.addEventListener("click", function () {
 
-        let id = this.dataset.id;
         let card = this.closest(".cart-card");
+        let id = this.dataset.id || card.dataset.id;
+        let color = this.dataset.color || card.dataset.color || "";
+        let size = this.dataset.size || card.dataset.size || "";
 
-        fetch(`/remove_cart/${id}`)
+        fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`)
         .then(res => res.json())
         .then(data => {
 
@@ -203,10 +211,10 @@ function updateNavbarCounts(){
     .then(res => res.json())
     .then(data => {
 
-        let cartEl = document.querySelector(".cart-count");
+        let cartEl = document.getElementById("cartCount") || document.querySelector(".cart-count");
         if(cartEl) cartEl.innerText = data.cart;
 
-        let wishEl = document.querySelector(".wishlist-count");
+        let wishEl = document.getElementById("wishlistCount") || document.querySelector(".wishlist-count");
         if(wishEl) wishEl.innerText = data.wishlist;
     });
 }
@@ -218,11 +226,14 @@ window.addEventListener("pageshow", function () {
 // MOVE TO WISHLIST
 document.querySelectorAll(".wishBtn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
-        let id = btn.dataset.id;
+        let card = btn.closest(".cart-card");
+        let id = btn.dataset.id || card.dataset.id;
+        let color = btn.dataset.color || card.dataset.color || "";
+        let size = btn.dataset.size || card.dataset.size || "";
 
-        fetch(`/add_to_wishlist/${id}`)
+        fetch(`/add_to_wishlist/${id}?color_id=${color}`)
         .then(()=>{
-            return fetch(`/remove_cart/${id}`);
+            return fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`);
         })
         .then(()=>{
             alert("Moved to wishlist ❤️");
@@ -429,12 +440,15 @@ function placeOrder(){
 
 document.querySelectorAll(".plus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
-        let id = btn.dataset.id;
+        let card = btn.closest(".cart-card");
+        let id = btn.dataset.id || card.dataset.id;
+        let color = btn.dataset.color || card.dataset.color || "";
+        let size = btn.dataset.size || card.dataset.size || "";
 
-        fetch(`/update_quantity/${id}/plus`)
+        fetch(`/update_quantity/${id}/plus?color_id=${color}&size_id=${size}`)
         .then(res=>res.json())
         .then(data=>{
-            let qtyEl = document.getElementById("qty-"+id);
+            let qtyEl = card.querySelector(".qty-number");
             qtyEl.innerText = data.quantity;
 
             updateCartUI();
@@ -446,12 +460,15 @@ document.querySelectorAll(".plus").forEach(btn=>{
 // ➖ Decrease Quantity
 document.querySelectorAll(".minus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
-        let id = btn.dataset.id;
+        let card = btn.closest(".cart-card");
+        let id = btn.dataset.id || card.dataset.id;
+        let color = btn.dataset.color || card.dataset.color || "";
+        let size = btn.dataset.size || card.dataset.size || "";
 
-        fetch(`/update_quantity/${id}/minus`)
+        fetch(`/update_quantity/${id}/minus?color_id=${color}&size_id=${size}`)
         .then(res=>res.json())
         .then(data=>{
-            let qtyEl = document.getElementById("qty-"+id);
+            let qtyEl = card.querySelector(".qty-number");
 
             if(data.quantity > 0){
                 qtyEl.innerText = data.quantity;
@@ -466,8 +483,8 @@ document.querySelectorAll(".minus").forEach(btn=>{
 });
 
 
-function removeItem(id){
-    fetch(`/remove_cart/${id}`)
+function removeItem(id, color = "", size = ""){
+    fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`)
     .then(()=>{
        updateCartUI();
         updateNavbarCounts(); 
@@ -475,10 +492,10 @@ function removeItem(id){
     });
 }
 
-function moveToWishlist(id){
-    fetch(`/add_to_wishlist/${id}`)
+function moveToWishlist(id, color = "", size = ""){
+    fetch(`/add_to_wishlist/${id}?color_id=${color}`)
     .then(()=>{
-        return fetch(`/remove_cart/${id}`);
+        return fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`);
     })
     .then(()=>{
         alert("Moved to wishlist ❤️");
@@ -517,6 +534,22 @@ function moveToWishlist(id){
     background:rgba(255,255,255,0.7);
     backdrop-filter:blur(10px);
     box-shadow:0 10px 25px rgba(0,0,0,0.08);
+}
+
+.cart-variant {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    color: #58706c;
+    font-size: 13px;
+}
+
+.cart-variant span {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12);
 }
 .details{
     display:flex;

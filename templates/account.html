@@ -488,16 +488,17 @@ function loadWishlist(){
                     <img src="${p.images[0]?.image_url || '/static/images/default.png'}" alt="${p.name}">
                     <div>
                         <h4>${p.name}</h4>
+                        ${p.color_name ? '<p>' + p.color_name + '</p>' : ""}
                         <p>₹${p.price}</p>
                     </div>
-                    <button class="secondary-btn" onclick="removeFromWishlist(${p.id})">Remove</button>
+                    <button class="secondary-btn" onclick="removeFromWishlist(${p.id}, ${p.color_id || "null"})">Remove</button>
                 </div>`).join("");
         document.getElementById("wishlistList").innerHTML = html;
     });
 }
 
-function removeFromWishlist(productId){
-    fetch(`/api/wishlist/${productId}`, {method:'DELETE'})
+function removeFromWishlist(productId, colorId = null){
+    fetch(`/api/wishlist/${productId}${colorId ? `?color_id=${colorId}` : ""}`, {method:'DELETE'})
     .then(res=>res.json())
     .then(d=>{alert(d.message); loadWishlist();});
 }

@@ -7,7 +7,8 @@ db = SQLAlchemy()
 
 wishlist = db.Table('wishlist',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id')),
-    db.Column('product_id', db.Integer, db.ForeignKey('products.id'))
+    db.Column('product_id', db.Integer, db.ForeignKey('products.id')),
+    db.Column('color_id', db.Integer, db.ForeignKey('colors.id'), nullable=True)
 )
 class User(db.Model):
     __tablename__ = "users"
@@ -186,6 +187,7 @@ class OrderItem(db.Model):
 
     quantity = db.Column(db.Integer)
     price = db.Column(db.Float)
+    color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
 
 
 # Wishlist association table

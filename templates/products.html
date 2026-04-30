@@ -178,31 +178,7 @@
 
 /* MOBILE */
 @media (max-width: 768px) {
-      .products-header {
-        flex-direction: column;   /* vertical stack */
-        align-items: flex-start;  /* left align */
-        gap: 10px;
-    }
-
-    /* TITLE FULL WIDTH */
-    .products-title {
-        width: 100%;
-    }
-
-    /* FILTER LEFT SIDE BELOW */
-    .filter-controls {
-        width: 100%;
-        justify-content: flex-start;  /* left align */
-        gap: 10px;
-    }
-
-    .filter-group {
-        flex: 1;
-    }
-
-    #productSort {
-        width: 100%;   /* full width dropdown */
-    }
+    
     .color-row {
         flex-direction: column;
     }
@@ -211,8 +187,55 @@
         width: 100%;
         height: 220px;
     }
-}
 
+
+  /* 🔥 HEADER STACK FIX */
+  .products-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  /* 🔥 TITLE FULL WIDTH + SINGLE CLEAN LINE */
+  .products-title h2 {
+    font-size: 22px;
+    white-space: nowrap;   /* 👈 force single line */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .products-title .eyebrow {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  .products-title .subtitle {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  /* 🔥 FILTER BELOW TITLE (ONLY MOBILE) */
+  .filter-controls {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .filter-group label {
+    font-size: 10px;
+  }
+
+  #productSort {
+    font-size: 12px;
+    height: 34px;
+  }
+
+  .filter-pill {
+    height: 34px;
+    font-size: 12px;
+  }
+}
 /* RATING */
 .rating{
     color: #1a7f37;
@@ -462,6 +485,23 @@
 let activeColorFilter = new URLSearchParams(window.location.search).get("color") || "";
 let selectedProductId = null;
 let selectedSizeId = null;
+
+function getProductBaseId(product) {
+    return product.product_id || product.id;
+}
+
+function getProductColorId(product) {
+    return product.color_variant?.id || product.colors?.[0]?.id || null;
+}
+
+function getProductDetailUrl(product) {
+    const productId = getProductBaseId(product);
+    const colorId = getProductColorId(product);
+
+    return colorId
+        ? `/product/${productId}?color=${colorId}`
+        : `/product/${productId}`;
+}
 /* ================= FILTER LOGIC ================= */
 function applyProductFilters() {
     if (!allProductsData.length) return;
@@ -496,7 +536,7 @@ function applyProductFilters() {
 }
 
 /* ================= CART ================= */
-function toggleCart(productId, btn) {
+function toggleCart(productId, btn, colorId = null) {
 
     const isLoggedIn = document.querySelector(".avatar, .avatar-img");
 
@@ -513,7 +553,7 @@ function toggleCart(productId, btn) {
     // ❌ REMOVE FLOW (NO SIZE MODAL)
   if (isActive) {
 
-    fetch(`/remove_cart/${productId}`)
+    fetch(`/remove_cart/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
         .then(res => res.json())
         .then(data => {
 
@@ -529,12 +569,12 @@ function toggleCart(productId, btn) {
 
     // 🟡 ADD FLOW → OPEN SIZE MODAL
     selectedSizeId = null;
-    openSizeModal(productId);
+    openSizeModal(productId, colorId);
 }
 
 
 /* ================= OPEN SIZE MODAL ================= */
-function openSizeModal(productId) {
+function openSizeModal(productId, colorId = null) {
 
     fetch(`/product/sizes/${productId}`)
         .then(res => res.json())
@@ -568,7 +608,8 @@ function openSizeModal(productId) {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({
-                            size_id: selectedSizeId
+                            size_id: selectedSizeId,
+                            color_id: colorId
                         })
                     })
                     .then(res => res.json())
@@ -582,7 +623,7 @@ function openSizeModal(productId) {
                         document.getElementById("cartCount").innerText = data.count;
 
                         const cartBtn = document.querySelector(
-                            `.add-cart-btn[data-id="${productId}"]`
+                            `.add-cart-btn[data-id="${productId}"][data-color="${colorId || ""}"]`
                         );
 
                         if (cartBtn) {
@@ -619,8 +660,8 @@ function closeSizeModal() {
 }
 
 /* ================= CHECK CART ================= */
-function checkCart(productId) {
-    return fetch(`/cart/check/${productId}`)
+function checkCart(productId, colorId = null) {
+    return fetch(`/cart/check/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
         .then(res => res.json())
         .then(data => data.in_cart)
         .catch(() => false);
@@ -646,16 +687,18 @@ function renderProductsGrid(products) {
 
     products.forEach(product => {
 
+        const productId = getProductBaseId(product);
+        const variantColor = product.color_variant || product.colors?.[0] || null;
+        const colorId = variantColor?.id || null;
         const defaultImage = product.images?.[0] || "/static/images/default.png";
 
-        const colorsHTML = product.colors?.length
+        const colorsHTML = variantColor
             ? `<div class="color-row">
-                ${product.colors.map(c => `
-                    <span class="color-dot"
-                        style="background:${c.code}"
-                        data-color="${c.id}">
-                    </span>
-                `).join("")}
+                <span class="color-dot active"
+                    style="background:${variantColor.code}"
+                    title="${variantColor.name}"
+                    data-color="${variantColor.id}">
+                </span>
             </div>`
             : "";
 
@@ -692,7 +735,7 @@ function renderProductsGrid(products) {
 
                 ${colorsHTML}
 
-              <button class="add-cart-btn" data-id="${product.id}">
+              <button class="add-cart-btn" data-id="${productId}" data-color="${colorId || ""}">
     Add to Cart
 </button>
             </div>
@@ -703,7 +746,7 @@ function renderProductsGrid(products) {
         const cartBtn = div.querySelector(".add-cart-btn");
 
         /* ❤️ WISHLIST INITIAL */
-        checkWishlist(product.id).then(inWishlist => {
+        checkWishlist(productId, colorId).then(inWishlist => {
             if (inWishlist) {
                 wishlistBtn.classList.add("active");
                 wishlistBtn.innerHTML = "❤️";
@@ -713,11 +756,11 @@ function renderProductsGrid(products) {
         /* ❤️ WISHLIST CLICK */
         wishlistBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            addToWishlist(product.id, wishlistBtn);
+            addToWishlist(productId, wishlistBtn, colorId);
         });
 
         /* 🛒 CART INITIAL */
-        checkCart(product.id).then(inCart => {
+        checkCart(productId, colorId).then(inCart => {
             if (inCart) {
                 cartBtn.classList.add("active");
                 cartBtn.innerText = "Remove from Cart";
@@ -727,7 +770,7 @@ function renderProductsGrid(products) {
         /* 🛒 CART CLICK */
      cartBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleCart(product.id, cartBtn);
+    toggleCart(productId, cartBtn, colorId);
 });
 
         /* 🎨 IMAGE HOVER */
@@ -745,7 +788,7 @@ function renderProductsGrid(products) {
 
             dot.addEventListener("click", (e) => {
                 e.stopPropagation();
-                window.location.href = `/product/${product.id}?color=${dot.dataset.color}`;
+                window.location.href = `/product/${productId}?color=${dot.dataset.color}`;
             });
         });
 
@@ -757,7 +800,7 @@ function renderProductsGrid(products) {
                 e.target.closest(".wishlist-btn")
             ) return;
 
-            window.location.href = `/product/${product.id}`;
+            window.location.href = getProductDetailUrl(product);
         });
 
         container.appendChild(div);

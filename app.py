@@ -4,7 +4,7 @@ from turtle import color
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import joinedload
 from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
@@ -58,8 +58,33 @@ os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_UPLOAD_FOLDER, exist_ok=True)
 
 
+def ensure_column(table_name, column_name, column_sql):
+    inspector = inspect(db.engine)
+    if not inspector.has_table(table_name):
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns(table_name)
+    }
+
+    if column_name not in existing_columns:
+        db.session.execute(text(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}"
+        ))
+        db.session.commit()
+
+
+def ensure_variant_columns():
+    ensure_column("wishlist", "color_id", "INT NULL")
+    ensure_column("cart", "size_id", "INT NULL")
+    ensure_column("cart", "color_id", "INT NULL")
+    ensure_column("order_items", "color_id", "INT NULL")
+
+
 with app.app_context():
     db.create_all()
+    ensure_variant_columns()
 
 
 @login_manager.user_loader
@@ -81,6 +106,26 @@ def allowed_file(filename, filetype="image"):
         return ext in {"png", "jpg", "jpeg", "webp"}
     else:
         return ext in {"mp4", "mov", "avi"}
+
+
+def normalize_optional_int(value):
+    if value in (None, "", "null", "None", "undefined"):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def request_color_id(data=None):
+    data = data or {}
+    return normalize_optional_int(
+        data.get("color_id") or request.args.get("color_id") or request.args.get("color")
+    )
+
+
+def nullable_match_sql(column_name, param_name):
+    return f"(({column_name} IS NULL AND :{param_name} IS NULL) OR {column_name}=:{param_name})"
     
 
 def admin_required(f):
@@ -1004,63 +1049,70 @@ def login():
     })
 
 
-
 @app.route('/products')
 def products():
+
     products = Product.query.all()
 
     result = []
 
     for p in products:
+
         images = ProductImage.query.filter_by(product_id=p.id).all()
         videos = ProductVideo.query.filter_by(product_id=p.id).all()
         tags = ProductTag.query.filter_by(product_id=p.id).all()
         sizes = ProductSize.query.filter_by(product_id=p.id).all()
 
-        # ✅ color-wise grouping (Amazon hover feature ke liye important)
         color_images = defaultdict(list)
 
         for img in images:
             if img.color_id:
                 color_images[img.color_id].append(img.image_url)
 
-        result.append({
-            "id": p.id,
-            "name": p.name,
-            "price": p.price,
-            "original_price": p.original_price,
-            "discount_percent": p.discount_percent,
-            "rating": p.rating,
-            "offer": p.offer,
-            "guarantee": p.guarantee,
-            "material": p.material,
-            "description": p.description,
-            "size_unit": p.size_unit or "inch",
+        # ✅ DEFAULT PRODUCT (NO COLOR)
+        if not p.product_colors:
+            result.append({
+                "id": f"{p.id}",
+                "name": p.name,
+                "price": p.price,
+                "original_price": p.original_price,
+                "discount_percent": p.discount_percent,
+                "rating": p.rating,
+                "images": [img.image_url for img in images],
+                "colors": [],
+                "color_variant": None
+            })
 
-            # ✅ IMPORTANT FOR AMAZON STYLE HOVER
-            "color_images": dict(color_images),
+        # ⭐ COLOR VARIANT PRODUCTS
+        for pc in p.product_colors:
 
-            "images": [img.image_url for img in images],
-            "videos": [vid.video_url for vid in videos],
-            "tags": [t.tag for t in tags],
+            result.append({
+                "id": f"{p.id}-{pc.color_id}",   # 🔥 UNIQUE VARIANT ID
+                "product_id": p.id,
 
-            "sizes": [
-                {
-                    "label": s.size_label,
-                    "value": s.size_value
-                }
-                for s in sizes
-            ],
+                "name": p.name,
+                "price": p.price,
+                "original_price": p.original_price,
+                "discount_percent": p.discount_percent,
+                "rating": p.rating,
 
-            "colors": [
-                {
+                # ⭐ ONLY THAT COLOR IMAGES
+                "images": color_images.get(pc.color_id, []),
+
+                "color_variant": {
+                    "id": pc.color.id,
                     "name": pc.color.name,
-                    "code": pc.color.code,
-                    "id": pc.color.id
-                }
-                for pc in p.product_colors
-            ]
-        })
+                    "code": pc.color.code
+                },
+
+                "colors": [
+                    {
+                        "name": pc.color.name,
+                        "code": pc.color.code,
+                        "id": pc.color.id
+                    }
+                ]
+            })
 
     return jsonify(result)
 
@@ -1206,16 +1258,28 @@ def cart_page():
 
     items = db.session.execute(text("""
     SELECT 
+        c.id AS cart_id,
         p.id,
         p.name,
         p.price,
+        c.color_id,
+        c.size_id,
+        co.name AS color_name,
+        co.code AS color_code,
         (SELECT image_url 
          FROM product_images 
          WHERE product_id = p.id 
+         ORDER BY
+             CASE
+                 WHEN c.color_id IS NOT NULL AND color_id = c.color_id THEN 0
+                 WHEN is_primary = 1 THEN 1
+                 ELSE 2
+             END
          LIMIT 1) AS image_url,
         c.quantity
     FROM cart c
     JOIN products p ON c.product_id = p.id
+    LEFT JOIN colors co ON c.color_id = co.id
     WHERE c.user_id = :uid
     """), {"uid": user.id}).fetchall()
 
@@ -1232,11 +1296,16 @@ def cart_page():
         total_items += qty
 
         clean_items.append({
+            "cart_id": p.cart_id,
             "id": p.id,
             "name": p.name,
             "price": price,
             "quantity": qty,
-            "image_url": p.image_url
+            "image_url": p.image_url,
+            "color_id": p.color_id,
+            "size_id": p.size_id,
+            "color_name": p.color_name,
+            "color_code": p.color_code
         })
 
     return render_template(
@@ -1252,10 +1321,14 @@ def remove_cart(id):
         return jsonify({"success": False}), 401
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
 
     db.session.execute(text("""
         DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": id})
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        AND (:sid IS NULL OR size_id=:sid)
+    """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
 
@@ -1276,21 +1349,31 @@ def decrease_cart(id):
         return "Unauthorized", 401
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
 
     item = db.session.execute(text("""
-        SELECT quantity FROM cart WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": id}).fetchone()
+        SELECT quantity FROM cart
+        WHERE user_id=:uid AND product_id=:pid
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        AND (:sid IS NULL OR size_id=:sid)
+        LIMIT 1
+    """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id}).fetchone()
 
     if item:
         if item.quantity > 1:
             db.session.execute(text("""
                 UPDATE cart SET quantity = quantity - 1
                 WHERE user_id=:uid AND product_id=:pid
-            """), {"uid": user.id, "pid": id})
+                AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+                AND (:sid IS NULL OR size_id=:sid)
+            """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
         else:
             db.session.execute(text("""
                 DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
-            """), {"uid": user.id, "pid": id})
+                AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+                AND (:sid IS NULL OR size_id=:sid)
+            """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
     return jsonify({"success": True, "message": "Updated"})
@@ -1332,17 +1415,19 @@ def add_to_wishlist(id):
         return jsonify({"error": "Login required"}), 401
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
 
     # prevent duplicate
     existing = db.session.execute(text("""
         SELECT * FROM wishlist WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": id}).fetchone()
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+    """), {"uid": user.id, "pid": id, "cid": color_id}).fetchone()
 
     if not existing:
         db.session.execute(text("""
-            INSERT INTO wishlist (user_id, product_id)
-            VALUES (:uid, :pid)
-        """), {"uid": user.id, "pid": id})
+            INSERT INTO wishlist (user_id, product_id, color_id)
+            VALUES (:uid, :pid, :cid)
+        """), {"uid": user.id, "pid": id, "cid": color_id})
         db.session.commit()
 
     # count from DB
@@ -1360,12 +1445,21 @@ def get_wishlist():
     user = User.query.filter_by(email=session['email']).first()
 
     items = db.session.execute(text("""
-        SELECT p.*, pi.image_url 
+        SELECT p.*, w.color_id, co.name AS color_name, co.code AS color_code,
+               (SELECT pi.image_url
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY
+                    CASE
+                        WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
+                        WHEN pi.is_primary = 1 THEN 1
+                        ELSE 2
+                    END
+                LIMIT 1) AS image_url
         FROM wishlist w
         JOIN products p ON w.product_id = p.id
-        LEFT JOIN product_images pi ON p.id = pi.product_id
+        LEFT JOIN colors co ON w.color_id = co.id
         WHERE w.user_id = :uid
-        GROUP BY p.id
     """), {"uid": user.id}).fetchall()
 
     return jsonify([dict(row._mapping) for row in items])
@@ -1376,10 +1470,15 @@ def remove_wishlist(id):
         return "Unauthorized", 401
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
 
     db.session.execute(
-        text("DELETE FROM wishlist WHERE user_id=:uid AND product_id=:pid"),
-        {"uid": user.id, "pid": id}
+        text("""
+            DELETE FROM wishlist
+            WHERE user_id=:uid AND product_id=:pid
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        """),
+        {"uid": user.id, "pid": id, "cid": color_id}
     )
     db.session.commit()
 
@@ -1393,13 +1492,23 @@ def wishlist_page():
     user = User.query.filter_by(email=session['email']).first()
 
     items = db.session.execute(text("""
-        SELECT p.*, 
+        SELECT p.*,
+               w.color_id,
+               co.name AS color_name,
+               co.code AS color_code,
                (SELECT pi.image_url 
                 FROM product_images pi 
-                WHERE pi.product_id = p.id 
+                WHERE pi.product_id = p.id
+                ORDER BY
+                    CASE
+                        WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
+                        WHEN pi.is_primary = 1 THEN 1
+                        ELSE 2
+                    END
                 LIMIT 1) as image_url
         FROM wishlist w
         JOIN products p ON w.product_id = p.id
+        LEFT JOIN colors co ON w.color_id = co.id
         WHERE w.user_id = :uid
     """), {"uid": user.id}).fetchall()
 
@@ -1411,42 +1520,47 @@ def check_wishlist(product_id):
         return jsonify({"in_wishlist": False})
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
 
     exists = db.session.execute(text("""
         SELECT 1 FROM wishlist 
         WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": product_id}).fetchone()
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+    """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     return jsonify({"in_wishlist": bool(exists)})
 
 
 
 
-@app.route('/wishlist/toggle/<int:product_id>')
+@app.route('/wishlist/toggle/<int:product_id>', methods=["GET", "POST"])
 def toggle_wishlist(product_id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
 
     existing = db.session.execute(text("""
         SELECT 1 FROM wishlist 
         WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": product_id}).fetchone()
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+    """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     if existing:
         # ❌ REMOVE
         db.session.execute(text("""
             DELETE FROM wishlist 
             WHERE user_id=:uid AND product_id=:pid
-        """), {"uid": user.id, "pid": product_id})
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        """), {"uid": user.id, "pid": product_id, "cid": color_id})
         in_wishlist = False
     else:
         # ✅ ADD
         db.session.execute(text("""
-            INSERT INTO wishlist (user_id, product_id)
-            VALUES (:uid, :pid)
-        """), {"uid": user.id, "pid": product_id})
+            INSERT INTO wishlist (user_id, product_id, color_id)
+            VALUES (:uid, :pid, :cid)
+        """), {"uid": user.id, "pid": product_id, "cid": color_id})
         in_wishlist = True
 
     db.session.commit()
@@ -1469,6 +1583,7 @@ def toggle_cart(product_id):
 
     data = request.get_json() or {}
     size_id = data.get("size_id")
+    color_id = request_color_id(data)
 
     user = User.query.filter_by(email=session['email']).first()
 
@@ -1479,30 +1594,35 @@ def toggle_cart(product_id):
     existing = db.session.execute(text("""
         SELECT * FROM cart 
         WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
     """), {
         "uid": user.id,
         "pid": product_id,
-        "sid": size_id
+        "sid": size_id,
+        "cid": color_id
     }).fetchone()
 
     if existing:
         db.session.execute(text("""
             DELETE FROM cart 
             WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
         """), {
             "uid": user.id,
             "pid": product_id,
-            "sid": size_id
+            "sid": size_id,
+            "cid": color_id
         })
         in_cart = False
     else:
         db.session.execute(text("""
-            INSERT INTO cart (user_id, product_id, size_id, quantity)
-            VALUES (:uid, :pid, :sid, 1)
+            INSERT INTO cart (user_id, product_id, color_id, size_id, quantity)
+            VALUES (:uid, :pid, :cid, :sid, 1)
         """), {
             "uid": user.id,
             "pid": product_id,
-            "sid": size_id
+            "sid": size_id,
+            "cid": color_id
         })
         in_cart = True
 
@@ -1526,12 +1646,14 @@ def check_cart(product_id):
         return jsonify({"in_cart": False})
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
 
     exists = db.session.execute(text("""
         SELECT 1 FROM cart 
         WHERE user_id=:uid AND product_id=:pid
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
         LIMIT 1
-    """), {"uid": user.id, "pid": product_id}).fetchone()
+    """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     return jsonify({"in_cart": bool(exists)})
 
@@ -1561,10 +1683,16 @@ def update_quantity(product_id, action):
         return jsonify({"status": "error"})
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
 
     cart_item = db.session.execute(text("""
-        SELECT * FROM cart WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": product_id}).fetchone()
+        SELECT * FROM cart
+        WHERE user_id=:uid AND product_id=:pid
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        AND (:sid IS NULL OR size_id=:sid)
+        LIMIT 1
+    """), {"uid": user.id, "pid": product_id, "cid": color_id, "sid": size_id}).fetchone()
 
     if not cart_item:
         return jsonify({"status": "not_found"})
@@ -1579,11 +1707,15 @@ def update_quantity(product_id, action):
     if qty <= 0:
         db.session.execute(text("""
             DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
-        """), {"uid": user.id, "pid": product_id})
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+            AND (:sid IS NULL OR size_id=:sid)
+        """), {"uid": user.id, "pid": product_id, "cid": color_id, "sid": size_id})
     else:
         db.session.execute(text("""
             UPDATE cart SET quantity=:q WHERE user_id=:uid AND product_id=:pid
-        """), {"q": qty, "uid": user.id, "pid": product_id})
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+            AND (:sid IS NULL OR size_id=:sid)
+        """), {"q": qty, "uid": user.id, "pid": product_id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
 
@@ -1616,13 +1748,15 @@ def get_selected_size(product_id):
         return jsonify({"size_id": None})
 
     user = User.query.filter_by(email=session['email']).first()
+    color_id = request_color_id()
 
     row = db.session.execute(text("""
         SELECT size_id 
         FROM cart 
         WHERE user_id=:uid AND product_id=:pid
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
         LIMIT 1
-    """), {"uid": user.id, "pid": product_id}).fetchone()
+    """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     return jsonify({
         "size_id": row.size_id if row else None
@@ -1739,7 +1873,7 @@ def checkout_review():
 
     # ✅ Fetch cart items
     cart_items = db.session.execute(text("""
-        SELECT product_id, quantity 
+        SELECT product_id, color_id, quantity 
         FROM cart 
         WHERE user_id = :uid
     """), {"uid": user.id}).fetchall()
@@ -1758,11 +1892,14 @@ def checkout_review():
     for item in cart_items:
         product = Product.query.get(item.product_id)
         if product:
+            color = Color.query.get(item.color_id) if item.color_id else None
             item_total = product.price * item.quantity
             total += item_total
             cart_details.append({
                 "product_id": product.id,
                 "product_name": product.name,
+                "color_id": item.color_id,
+                "color_name": color.name if color else None,
                 "quantity": item.quantity,
                 "price": product.price,
                 "item_total": item_total
@@ -1819,7 +1956,7 @@ def checkout():
 
     # ✅ Fetch cart items
     cart_items = db.session.execute(text("""
-        SELECT product_id, quantity 
+        SELECT product_id, color_id, quantity 
         FROM cart 
         WHERE user_id = :uid
     """), {"uid": user.id}).fetchall()
@@ -1872,6 +2009,7 @@ def checkout():
         db.session.add(OrderItem(
             order_id=order.id,
             product_id=pid,
+            color_id=item.color_id,
             quantity=qty,
             price=product.price
         ))
@@ -2256,13 +2394,33 @@ def api_wishlist():
         return jsonify({"message": "Not logged in"}), 401
 
     user = User.query.filter_by(email=session['email']).first()
-    products = user.wishlist_products
+    rows = db.session.execute(text("""
+        SELECT p.id, p.name, p.price, w.color_id,
+               co.name AS color_name,
+               (SELECT pi.image_url
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY
+                    CASE
+                        WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
+                        WHEN pi.is_primary = 1 THEN 1
+                        ELSE 2
+                    END
+                LIMIT 1) AS image_url
+        FROM wishlist w
+        JOIN products p ON w.product_id = p.id
+        LEFT JOIN colors co ON w.color_id = co.id
+        WHERE w.user_id=:uid
+    """), {"uid": user.id}).fetchall()
+
     return jsonify([{
-        "id": p.id,
-        "name": p.name,
-        "price": p.price,
-        "images": [{"image_url": img.image_url} for img in p.images if img.is_primary]
-    } for p in products])
+        "id": row.id,
+        "name": row.name,
+        "price": row.price,
+        "color_id": row.color_id,
+        "color_name": row.color_name,
+        "images": [{"image_url": row.image_url}] if row.image_url else []
+    } for row in rows])
 
 @app.route('/api/wishlist/<int:product_id>', methods=['DELETE'])
 def api_remove_wishlist(product_id):
@@ -2270,11 +2428,18 @@ def api_remove_wishlist(product_id):
         return jsonify({"message": "Not logged in"}), 401
 
     user = User.query.filter_by(email=session['email']).first()
-    product = Product.query.get(product_id)
-    if product in user.wishlist_products:
-        user.wishlist_products.remove(product)
-        db.session.commit()
+    color_id = request_color_id()
+
+    result = db.session.execute(text("""
+        DELETE FROM wishlist
+        WHERE user_id=:uid AND product_id=:pid
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+    """), {"uid": user.id, "pid": product_id, "cid": color_id})
+    db.session.commit()
+
+    if result.rowcount:
         return jsonify({"message": "Removed from wishlist"})
+
     return jsonify({"message": "Not in wishlist"}), 404
 
 @app.route('/api/payment-methods', methods=['GET', 'POST'])
