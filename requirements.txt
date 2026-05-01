@@ -5,7 +5,7 @@ Flask-Login==0.6.3
 
 SQLAlchemy==2.0.25
 pymysql==1.1.2
-
+psycopg2-binary==2.9.9
 cloudinary==1.36.0
 
 gunicorn==21.2.0
