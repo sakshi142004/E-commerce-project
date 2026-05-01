@@ -150,7 +150,21 @@ def admin_required(f):
 
     return decorated_function
 
+@app.route("/__seed__", methods=["GET"])
+def run_seed_route():
 
+    # 🔒 simple security key
+    if request.args.get("key") != "1234":
+        return "Forbidden", 403
+
+    from seed import seed_colors, seed_products, seed_admin
+
+    with app.app_context():
+        seed_colors()
+        seed_products()
+        seed_admin()
+
+    return "Seed Done Successfully"
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(days=7)  # 🔥 7 days login
