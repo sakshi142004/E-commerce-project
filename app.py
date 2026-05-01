@@ -32,20 +32,7 @@ cloudinary.config(
 
 db.init_app(app)
 
-# =========================
-# 🔥 SEED DATA (PRODUCTION SAFE)
-# =========================
-def run_seed():
-    from seed import seed_colors, seed_products, seed_admin
 
-    seed_colors()
-    seed_products()
-    seed_admin()
-
-    
-# run only once per startup (safe guard)
-if os.environ.get("RUN_SEED", "false") == "true":
-    run_seed()
 
 # ✅ Login Manager AFTER app
 login_manager = LoginManager()
@@ -172,29 +159,30 @@ app.permanent_session_lifetime = timedelta(days=7)  # 🔥 7 days login
 def admin_login():
 
     if request.method == "POST":
-        data = request.get_json()
-        
-        user = User.query.filter_by(email=data.get("email")).first()
 
-        from werkzeug.security import check_password_hash
+        data = request.get_json(silent=True)
 
-        if user and check_password_hash(user.password, data.get("password")) and user.is_admin:
+        # fallback for HTML form
+        if not data:
+            data = request.form
+
+        email = data.get("email")
+        password = data.get("password")
+
+        user = User.query.filter_by(email=email).first()
+
+        if user and check_password_hash(user.password, password) and user.is_admin:
 
             session['admin'] = True
             session['email'] = user.email
 
-            # 🔥 REMEMBER ME LOGIC
-            if data.get("remember"):
-                session.permanent = True   # long session
-            else:
-                session.permanent = False  # normal session
+            session.permanent = bool(data.get("remember"))
 
             return jsonify({"message": "Admin login success"})
 
         return jsonify({"message": "Invalid admin credentials"}), 401
 
     return render_template("admin/login.html")
-
 
 @app.route("/secure-admin-portal-9821")
 @admin_required

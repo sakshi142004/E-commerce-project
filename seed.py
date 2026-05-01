@@ -1,33 +1,32 @@
-from app import app
-from models import db, Color, Product, ProductColor
+from models import db, Color, Product, ProductColor, User
 from werkzeug.security import generate_password_hash
-from models import User
 
-# =========================
-# 🔹 SEED COLORS
-# =========================
+# COLORS
 def seed_colors():
-    if Color.query.count() == 0:
-        colors = [
-            Color(name="Black", code="#000000"),
-            Color(name="Brown", code="#8B4513"),
-            Color(name="White", code="#FFFFFF"),
-            Color(name="Blue", code="#0000FF"),
-            Color(name="Red", code="#FF0000"),
-        ]
-
-        db.session.add_all(colors)
-        db.session.commit()
-        print("✅ Colors seeded successfully")
-    else:
+    if Color.query.first():
         print("ℹ️ Colors already exist")
+        return
+
+    colors = [
+        Color(name="Black", code="#000000"),
+        Color(name="Brown", code="#8B4513"),
+        Color(name="White", code="#FFFFFF"),
+        Color(name="Blue", code="#0000FF"),
+        Color(name="Red", code="#FF0000"),
+    ]
+
+    db.session.add_all(colors)
+    db.session.commit()
+    print("✅ Colors seeded")
 
 
-# =========================
-# 🔹 SEED PRODUCTS
-# =========================
+# PRODUCTS
 def seed_products():
-    products_data = [
+    if Product.query.first():
+        print("ℹ️ Products already exist")
+        return
+
+    products = [
         {
             "name": "GL Crossliner",
             "price": 699,
@@ -37,7 +36,7 @@ def seed_products():
             "offer": "Limited Offer",
             "guarantee": "2-Year Assurance",
             "material": "100% Genuine Leather",
-            "description": "Slightly glossy finish, crossing lines texture. Dual-Coated Finish, Signature Wrinkle-Free Strip, Feather-Light Comfort, Micro-Adjustable Precision, Precision Stitching, Rust-Resistant Hardware."
+            "description": "Crossing lines texture, glossy finish..."
         },
         {
             "name": "GL Drill",
@@ -48,7 +47,7 @@ def seed_products():
             "offer": "Hot Deal",
             "guarantee": "2-Year Assurance",
             "material": "100% Genuine Leather",
-            "description": "Matt finish with carbon fiber design, decent modern look. Dual-Coated Finish, Signature Wrinkle-Free Strip, Feather-Light Comfort, Micro-Adjustable Precision, Precision Stitching, Rust-Resistant Hardware."
+            "description": "Matt carbon fiber design..."
         },
         {
             "name": "GL Fortzila",
@@ -59,58 +58,40 @@ def seed_products():
             "offer": "Best Seller",
             "guarantee": "2-Year Assurance",
             "material": "100% Genuine Leather",
-            "description": "Dot texture all over belt, glossy formal premium look. Dual-Coated Finish, Signature Wrinkle-Free Strip, Feather-Light Comfort, Micro-Adjustable Precision, Precision Stitching, Rust-Resistant Hardware."
+            "description": "Dot texture premium formal look..."
         }
     ]
 
     colors = Color.query.all()
 
-    for p in products_data:
-        existing = Product.query.filter_by(name=p["name"]).first()
-        if existing:
-            continue
-
+    for p in products:
         product = Product(**p)
         db.session.add(product)
-        db.session.flush()  # get product id
+        db.session.flush()
 
-        # attach all colors (Black + Brown etc.)
-        for color in colors:
+        for c in colors:
             db.session.add(ProductColor(
                 product_id=product.id,
-                color_id=color.id
+                color_id=c.id
             ))
 
     db.session.commit()
-    print("✅ Products seeded successfully")
+    print("✅ Products seeded")
 
+
+# ADMIN
 def seed_admin():
-    admin_email = "admin@gmail.com"
-
-    existing = User.query.filter_by(email=admin_email).first()
-    if existing:
+    if User.query.filter_by(email="admin@gmail.com").first():
         print("ℹ️ Admin already exists")
         return
 
     admin = User(
         username="admin",
-        email=admin_email,
+        email="admin@gmail.com",
         password=generate_password_hash("admin123"),
         is_admin=True
     )
 
     db.session.add(admin)
     db.session.commit()
-    print("✅ Admin created successfully")
-
-# =========================
-# 🔹 RUN SEED
-# =========================
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-
-        seed_colors()
-        seed_products()
-        seed_admin()
-        print("✅ All seed data inserted")
+    print("✅ Admin created")
