@@ -32,6 +32,21 @@ cloudinary.config(
 
 db.init_app(app)
 
+# =========================
+# 🔥 SEED DATA (PRODUCTION SAFE)
+# =========================
+def run_seed():
+    from seed import seed_colors, seed_products, seed_admin
+
+    seed_colors()
+    seed_products()
+    seed_admin()
+
+    
+# run only once per startup (safe guard)
+if os.environ.get("RUN_SEED", "false") == "true":
+    run_seed()
+
 # ✅ Login Manager AFTER app
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -148,75 +163,7 @@ def admin_required(f):
 
     return decorated_function
 
-@app.route("/seed-colors")
-def seed_colors():
 
-    colors = [
-        {"name": "Black", "code": "#000000"},
-        {"name": "Brown", "code": "#8B4513"},
-        {"name": "Tan", "code": "#D2B48C"},
-        {"name": "Blue", "code": "#1E3A8A"},
-        {"name": "Red", "code": "#DC2626"},
-        {"name": "White", "code": "#FFFFFF"},
-        {"name": "Grey", "code": "#6B7280"},
-        {"name": "Green", "code": "#065F46"},
-    ]
-
-    for c in colors:
-        exists = Color.query.filter_by(name=c["name"]).first()
-        if not exists:
-            db.session.add(Color(name=c["name"], code=c["code"]))
-
-    db.session.commit()
-
-    return "✅ Colors inserted successfully"
-
-@app.route("/check-colors")
-def check_colors():
-    colors = Color.query.all()
-    return {
-        "count": len(colors),
-        "colors": [
-            {"id": c.id, "name": c.name, "code": c.code}
-            for c in colors
-        ]
-    }
-
-@app.route('/check-db')
-def check_db():
-    products = Product.query.all()
-
-    data = []
-    for p in products:
-        data.append({
-            "id": p.id,
-            "name": p.name,
-            "price": p.price
-        })
-
-    return {
-        "count": len(products),
-        "products": data
-    }
-@app.route("/create-admin")
-def create_admin():
-    from werkzeug.security import generate_password_hash
-
-    existing = User.query.filter_by(email="admin@gmail.com").first()
-    if existing:
-        return "Admin already exists"
-
-    admin = User(
-        username="admin",   # ❗ required
-        email="admin@gmail.com",
-        password=generate_password_hash("admin123"),  # 🔐 password
-        is_admin=True
-    )
-
-    db.session.add(admin)
-    db.session.commit()
-
-    return "Admin created"
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(days=7)  # 🔥 7 days login
