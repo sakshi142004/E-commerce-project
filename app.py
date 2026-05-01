@@ -32,7 +32,8 @@ cloudinary.config(
 
 db.init_app(app)
 
-
+if os.environ.get("RUN_SEED") == "true":
+    run_seed()
 
 # ✅ Login Manager AFTER app
 login_manager = LoginManager()

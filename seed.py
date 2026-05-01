@@ -1,5 +1,7 @@
+from app import app
 from models import db, Color, Product, ProductColor, User
 from werkzeug.security import generate_password_hash
+
 
 # COLORS
 def seed_colors():
@@ -95,3 +97,15 @@ def seed_admin():
     db.session.add(admin)
     db.session.commit()
     print("✅ Admin created")
+
+
+# RUN ALL
+if __name__ == "__main__":
+    with app.app_context():   # 🔥 IMPORTANT FIX
+        db.create_all()
+
+        seed_colors()
+        seed_products()
+        seed_admin()
+
+        print("🚀 ALL DATA SEEDED SUCCESSFULLY")
