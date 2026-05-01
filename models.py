@@ -292,3 +292,22 @@ class Warranty(db.Model):
     bill = db.Column(db.String(255))  # uploaded file name
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Cart(db.Model):
+    __tablename__ = "cart"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+
+    quantity = db.Column(db.Integer, default=1)
+
+    size_id = db.Column(db.Integer, db.ForeignKey('product_sizes.id'), nullable=True)
+    color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
+
+    # relationships (optional but useful)
+    user = db.relationship('User', backref='cart_items')
+    product = db.relationship('Product')
+    size = db.relationship('ProductSize')
+    color = db.relationship('Color')

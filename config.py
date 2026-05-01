@@ -1,16 +1,29 @@
 import os
 
-
 class Config:
-    SECRET_KEY = '95c32ec77c8d69db8b76e50fab0d6a9d'
+    # 🔐 Security
+    SECRET_KEY = os.environ.get("SECRET_KEY", "fallback-secret-key")
 
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:root@localhost/belt_paradise'
+    # 🗄️ Database (Render PostgreSQL fix included)
+    db_url = os.environ.get("DATABASE_URL")
+
+    if db_url:
+        # Fix for Render (postgres:// → postgresql://)
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+        SQLALCHEMY_DATABASE_URI = db_url
+    else:
+        # Local fallback
+        SQLALCHEMY_DATABASE_URI = "sqlite:///site.db"
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # 📁 File uploads
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "static/images")
 
-    CLOUDINARY_CLOUD_NAME = "dhjl5plm8"
-    CLOUDINARY_API_KEY = "881392445818876"
-    CLOUDINARY_API_SECRET = "wJcwQke-UHL4YQAAskXSYDFNiTE"
-
+    # ☁️ Cloudinary
+    CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME")
+    CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY")
+    CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET")

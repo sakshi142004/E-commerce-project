@@ -22,62 +22,81 @@
       <div class="product-card">
 
     <!-- IMAGE -->
-   <div class="color-slider-section">
+  <div class="color-slider-section">
 
-{% for pc in p.product_colors %}
+{% if p.product_colors|length > 0 %}
 
-    {% set color_images = [] %}
-    {% set color_videos = [] %}
+    {% for pc in p.product_colors %}
 
-    {% for img in p.images %}
-        {% if img.color_id == pc.color.id %}
-            {% set _ = color_images.append(img) %}
-        {% endif %}
-    {% endfor %}
+        {% set color_images = [] %}
+        {% set color_videos = [] %}
 
-    {% for vid in p.videos %}
-        {% if vid.color_id == pc.color.id %}
-            {% set _ = color_videos.append(vid) %}
-        {% endif %}
-    {% endfor %}
+        {% for img in p.images %}
+            {% if img.color_id and img.color_id == pc.color.id %}
+                {% set _ = color_images.append(img) %}
+            {% endif %}
+        {% endfor %}
 
-    {% if color_images|length > 0 or color_videos|length > 0 %}
-    <div class="color-row">
+        {% for vid in p.videos %}
+            {% if vid.color_id and vid.color_id == pc.color.id %}
+                {% set _ = color_videos.append(vid) %}
+            {% endif %}
+        {% endfor %}
 
-        <!-- LEFT: IMAGE SLIDER -->
-        <div class="color-block">
-            <div class="color-header">
-                <span class="color-dot" style="background: {{ pc.color.code }}"></span>
-                <span>{{ pc.color.name }}</span>
-            </div>
+        {% if color_images|length > 0 or color_videos|length > 0 %}
+        <div class="color-row">
 
-            <div class="slider" id="slider_{{ p.id }}_{{ pc.color.id }}">
-                <div class="slides">
-                    {% for img in color_images %}
-                        <img src="{{ img.image_url }}">
-                    {% endfor %}
+            <div class="color-block">
+                <div class="color-header">
+                    <span class="color-dot" style="background: {{ pc.color.code }}"></span>
+                    <span>{{ pc.color.name }}</span>
                 </div>
 
-                <button class="prev" onclick="moveSlide('{{ p.id }}_{{ pc.color.id }}', -1)">‹</button>
-                <button class="next" onclick="moveSlide('{{ p.id }}_{{ pc.color.id }}', 1)">›</button>
-            </div>
-        </div>
+                <div class="slider" id="slider_{{ p.id }}_{{ pc.color.id }}">
+                    <div class="slides">
+                        {% for img in color_images %}
+                            <img src="{{ img.image_url }}">
+                        {% endfor %}
+                    </div>
 
-        <!-- RIGHT: VIDEO -->
-        {% if color_videos|length > 0 %}
-        <div class="video-block">
-            <video controls>
-                <source src="{{ color_videos[0].video_url }}" type="video/mp4">
-            </video>
+                    <button class="prev" onclick="moveSlide('{{ p.id }}_{{ pc.color.id }}', -1)">‹</button>
+                    <button class="next" onclick="moveSlide('{{ p.id }}_{{ pc.color.id }}', 1)">›</button>
+                </div>
+            </div>
+
+            {% if color_videos|length > 0 %}
+            <div class="video-block">
+                <video controls>
+                    <source src="{{ color_videos[0].video_url }}" type="video/mp4">
+                </video>
+            </div>
+            {% endif %}
+
         </div>
         {% endif %}
 
-    </div>
-    {% endif %}
+    {% endfor %}
 
-{% endfor %}
+{% else %}
+
+    <!-- 🔥 fallback (no colors) -->
+    <div class="slider" id="slider_{{ p.id }}">
+        <div class="slides">
+            {% for img in p.images %}
+                {% if not img.color_id %}
+                    <img src="{{ img.image_url }}">
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <button class="prev" onclick="moveSlide('{{ p.id }}', -1)">‹</button>
+        <button class="next" onclick="moveSlide('{{ p.id }}', 1)">›</button>
+    </div>
+
+{% endif %}
 
 </div>
+
 
 
     <!-- CONTENT -->

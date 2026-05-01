@@ -81,11 +81,10 @@ def ensure_variant_columns():
     ensure_column("cart", "color_id", "INT NULL")
     ensure_column("order_items", "color_id", "INT NULL")
 
-
-with app.app_context():
-    db.create_all()
-    ensure_variant_columns()
-
+if os.environ.get("FLASK_ENV") == "development":
+    with app.app_context():
+        db.create_all()
+        ensure_variant_columns()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -149,6 +148,75 @@ def admin_required(f):
 
     return decorated_function
 
+@app.route("/seed-colors")
+def seed_colors():
+
+    colors = [
+        {"name": "Black", "code": "#000000"},
+        {"name": "Brown", "code": "#8B4513"},
+        {"name": "Tan", "code": "#D2B48C"},
+        {"name": "Blue", "code": "#1E3A8A"},
+        {"name": "Red", "code": "#DC2626"},
+        {"name": "White", "code": "#FFFFFF"},
+        {"name": "Grey", "code": "#6B7280"},
+        {"name": "Green", "code": "#065F46"},
+    ]
+
+    for c in colors:
+        exists = Color.query.filter_by(name=c["name"]).first()
+        if not exists:
+            db.session.add(Color(name=c["name"], code=c["code"]))
+
+    db.session.commit()
+
+    return "✅ Colors inserted successfully"
+
+@app.route("/check-colors")
+def check_colors():
+    colors = Color.query.all()
+    return {
+        "count": len(colors),
+        "colors": [
+            {"id": c.id, "name": c.name, "code": c.code}
+            for c in colors
+        ]
+    }
+
+@app.route('/check-db')
+def check_db():
+    products = Product.query.all()
+
+    data = []
+    for p in products:
+        data.append({
+            "id": p.id,
+            "name": p.name,
+            "price": p.price
+        })
+
+    return {
+        "count": len(products),
+        "products": data
+    }
+@app.route("/create-admin")
+def create_admin():
+    from werkzeug.security import generate_password_hash
+
+    existing = User.query.filter_by(email="admin@gmail.com").first()
+    if existing:
+        return "Admin already exists"
+
+    admin = User(
+        username="admin",   # ❗ required
+        email="admin@gmail.com",
+        password=generate_password_hash("admin123"),  # 🔐 password
+        is_admin=True
+    )
+
+    db.session.add(admin)
+    db.session.commit()
+
+    return "Admin created"
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(days=7)  # 🔥 7 days login
@@ -453,6 +521,8 @@ def edit_product(id):
         # 🔥 COLORS RESET + ADD
         # =========================
         ProductColor.query.filter_by(product_id=id).delete()
+        ProductImage.query.filter_by(product_id=id).delete()
+        ProductVideo.query.filter_by(product_id=id).delete()
 
         # ⚠️ OPTIONAL: OLD COLOR IMAGES DELETE
       
@@ -1049,55 +1119,80 @@ def login():
     })
 
 
+from collections import defaultdict
+from flask import jsonify
+
 @app.route('/products')
 def products():
-
-    products = Product.query.all()
+    all_products = Product.query.all()
 
     result = []
 
-    for p in products:
+    for p in all_products:
 
+        # 📦 related data
         images = ProductImage.query.filter_by(product_id=p.id).all()
-        videos = ProductVideo.query.filter_by(product_id=p.id).all()
-        tags = ProductTag.query.filter_by(product_id=p.id).all()
-        sizes = ProductSize.query.filter_by(product_id=p.id).all()
 
+        # 🎨 color-wise images mapping
         color_images = defaultdict(list)
 
         for img in images:
             if img.color_id:
                 color_images[img.color_id].append(img.image_url)
 
-        # ✅ DEFAULT PRODUCT (NO COLOR)
+        # 🖼️ fallback images (no color)
+        fallback_images = [img.image_url for img in images if not img.color_id]
+
+        # ❌ SKIP if no images at all
+        if not images:
+            continue
+
+        # =========================
+        # ✅ CASE 1: NO COLORS PRODUCT
+        # =========================
         if not p.product_colors:
             result.append({
-                "id": f"{p.id}",
-                "name": p.name,
-                "price": p.price,
-                "original_price": p.original_price,
-                "discount_percent": p.discount_percent,
-                "rating": p.rating,
-                "images": [img.image_url for img in images],
-                "colors": [],
-                "color_variant": None
-            })
-
-        # ⭐ COLOR VARIANT PRODUCTS
-        for pc in p.product_colors:
-
-            result.append({
-                "id": f"{p.id}-{pc.color_id}",   # 🔥 UNIQUE VARIANT ID
+                "id": p.id,
                 "product_id": p.id,
 
                 "name": p.name,
                 "price": p.price,
                 "original_price": p.original_price,
-                "discount_percent": p.discount_percent,
-                "rating": p.rating,
+                "discount_percent": p.discount_percent or 0,
+                "rating": p.rating or 0,
 
-                # ⭐ ONLY THAT COLOR IMAGES
-                "images": color_images.get(pc.color_id, []),
+                "images": fallback_images if fallback_images else [images[0].image_url],
+
+                "color_variant": None,
+                "colors": []
+            })
+
+        # =========================
+        # 🎨 CASE 2: COLOR VARIANTS
+        # =========================
+        for pc in p.product_colors:
+
+            imgs = color_images.get(pc.color_id)
+
+            # 🧠 fallback logic
+            if not imgs:
+                imgs = fallback_images if fallback_images else [images[0].image_url]
+
+            # ❌ still empty → skip
+            if not imgs:
+                continue
+
+            result.append({
+                "id": f"{p.id}_{pc.color_id}",   # ✅ UNIQUE CARD ID
+                "product_id": p.id,
+
+                "name": p.name,
+                "price": p.price,
+                "original_price": p.original_price,
+                "discount_percent": p.discount_percent or 0,
+                "rating": p.rating or 0,
+
+                "images": imgs,
 
                 "color_variant": {
                     "id": pc.color.id,
@@ -1107,9 +1202,9 @@ def products():
 
                 "colors": [
                     {
+                        "id": pc.color.id,
                         "name": pc.color.name,
-                        "code": pc.color.code,
-                        "id": pc.color.id
+                        "code": pc.color.code
                     }
                 ]
             })
@@ -2595,4 +2690,4 @@ def logout():
 
 # ================= RUN =================
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
