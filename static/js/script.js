@@ -413,6 +413,7 @@ function loadProducts() {
     fetch("/products")
         .then(res => res.json())
         .then(data => {
+            console.log(data) 
             const container = document.getElementById("products");
             if (!container) return;
 
