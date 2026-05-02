@@ -3,11 +3,11 @@ from flask_login import login_required, current_user
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
-from flask_login import LoginManager, login_user, current_user
+from flask_login import LoginManager, login_user
 from functools import wraps
 import os
 from datetime import datetime
@@ -15,87 +15,51 @@ import uuid
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from flask_migrate import Migrate
 
 
-
-app = Flask(__name__)   # ✅ FIRST create app
-
+app = Flask(__name__)
 app.config.from_object(Config)
 
-import cloudinary
+# ✅ Cloudinary config (KEEP)
 cloudinary.config(
     cloud_name=app.config["CLOUDINARY_CLOUD_NAME"],
     api_key=app.config["CLOUDINARY_API_KEY"],
     api_secret=app.config["CLOUDINARY_API_SECRET"]
 )
 
+# ✅ DB init (KEEP)
 db.init_app(app)
 
-
-
-# ✅ Login Manager AFTER app
+# ✅ Login Manager (KEEP)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
-
-
-
+# ✅ Mail (KEEP - but env vars required)
 mail = Mail(app)
-# 🔥 access like this
-UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
-from flask_migrate import Migrate
 
+# ✅ Migrations (IMPORTANT for Railway)
 migrate = Migrate(app, db)
 
-import os
+# ❌ REMOVE LOCAL STORAGE (Railway pe useless)
+# UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
+# IMAGE_UPLOAD_FOLDER = os.path.join(app.root_path, "static/images")
+# VIDEO_UPLOAD_FOLDER = os.path.join(app.root_path, "static/videos")
+# os.makedirs(...)
 
-IMAGE_UPLOAD_FOLDER = os.path.join(app.root_path, "static/images")
-VIDEO_UPLOAD_FOLDER = os.path.join(app.root_path, "static/videos")
+# ❌ REMOVE THESE (DANGEROUS IN PRODUCTION)
+# def ensure_column(...)
+# def ensure_variant_columns(...)
 
-# ✅ Auto create folders (NO ERROR EVER)
-os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(VIDEO_UPLOAD_FOLDER, exist_ok=True)
+# ❌ REMOVE THIS BLOCK COMPLETELY
+# with app.app_context():
+#     db.create_all()
+#     ensure_variant_columns()
 
-os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(VIDEO_UPLOAD_FOLDER, exist_ok=True)
-
-
-def ensure_column(table_name, column_name, column_sql):
-    inspector = inspect(db.engine)
-    if not inspector.has_table(table_name):
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns(table_name)
-    }
-
-    if column_name not in existing_columns:
-        db.session.execute(text(
-            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}"
-        ))
-        db.session.commit()
-
-
-def ensure_variant_columns():
-    ensure_column("wishlist", "color_id", "INT NULL")
-    ensure_column("cart", "size_id", "INT NULL")
-    ensure_column("cart", "color_id", "INT NULL")
-    ensure_column("order_items", "color_id", "INT NULL")
-# PURANA (galat)
-
-# ✅ SIRF YEH RAKHO
+# ✅ OPTIONAL DEBUG PRINT (SAFE)
 with app.app_context():
-    db.create_all()
     print("DB IN USE:", db.engine.url)
-    if "sqlite" in str(db.engine.url):
-        db.session.execute(text("PRAGMA foreign_keys=ON"))
-    ensure_variant_columns()
-    
-    # ✅ ADD THIS - verify cart columns
-    cols = db.session.execute(text("PRAGMA table_info(cart)")).fetchall()
-    print("Cart columns at startup:", [c[1] for c in cols])
 
 
 @login_manager.user_loader
@@ -160,24 +124,6 @@ def admin_required(f):
 
     return decorated_function
 
-@app.route("/__reset__", methods=["GET"])
-def reset_seed():
-    if request.args.get("key") != "1234":
-        return "Forbidden", 403
-    
-    from models import ProductImage, ProductColor, ProductSize, ProductTag, ProductVideo
-    
-    # Delete in correct order
-    ProductImage.query.delete()
-    ProductVideo.query.delete()
-    ProductColor.query.delete()
-    ProductSize.query.delete()
-    ProductTag.query.delete()
-    Product.query.delete()
-    Color.query.delete()
-    db.session.commit()
-    
-    return "Reset done! Now go to /__seed__?key=1234"
 @app.route("/__seed__", methods=["GET"])
 def run_seed_route():
 
@@ -197,28 +143,6 @@ def run_seed_route():
 
 
 
-@app.route("/__fix_columns__", methods=["GET"])
-def fix_columns():
-    if request.args.get("key") != "1234":
-        return "Forbidden", 403
-    
-    ensure_variant_columns()
-    
-    # Verify karo ki columns add hue
-    from sqlalchemy import inspect
-    inspector = inspect(db.engine)
-    cart_cols = [c["name"] for c in inspector.get_columns("cart")]
-    wishlist_cols = [c["name"] for c in inspector.get_columns("wishlist")]
-    
-    return f"""
-    ✅ Columns fixed!<br>
-    Cart columns: {cart_cols}<br>
-    Wishlist columns: {wishlist_cols}
-    """
-
-
-
-print(app.config["SQLALCHEMY_DATABASE_URI"])
 
 from datetime import timedelta
 
@@ -1363,6 +1287,7 @@ def inject_counts():
 
     return dict(cart_count=0, wishlist_count=0, user=None)
 # ================= CART =================
+from sqlalchemy import text
 
 @app.route('/cart')
 def cart_page():
@@ -1374,14 +1299,8 @@ def cart_page():
         session.clear()
         return redirect('/')
 
-    # ✅ Direct sqlite3 use karo - SQLAlchemy cache bypass
-    import sqlite3
-    db_path = r"C:\Users\saksh\OneDrive\Documents\BELT-PARSE COM\E-commerce-project\instance\site.db"
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    
-    cur.execute("""
+    # ✅ PostgreSQL compatible query (SQLAlchemy)
+    rows = db.session.execute(text("""
         SELECT 
             c.id AS cart_id,
             p.id,
@@ -1391,30 +1310,34 @@ def cart_page():
             c.size_id,
             COALESCE(co.name, '') AS color_name,
             COALESCE(co.code, '') AS color_code,
-            (SELECT image_url 
-             FROM product_images 
-             WHERE product_id = p.id 
-             ORDER BY is_primary DESC
-             LIMIT 1) AS image_url,
+            (
+                SELECT image_url 
+                FROM product_images 
+                WHERE product_id = p.id 
+                ORDER BY is_primary DESC
+                LIMIT 1
+            ) AS image_url,
             c.quantity
         FROM cart c
         JOIN products p ON c.product_id = p.id
         LEFT JOIN colors co ON co.id = c.color_id
-        WHERE c.user_id = ?
-    """, (user.id,))
-    
-    rows = cur.fetchall()
-    conn.close()
+        WHERE c.user_id = :uid
+    """), {"uid": user.id}).fetchall()
 
     total = 0
     total_items = 0
     clean_items = []
 
     for p in rows:
+        # 🔥 row mapping fix (important for PostgreSQL)
+        p = dict(p._mapping)
+
         price = int(p['price']) if p['price'] else 0
         qty = int(p['quantity']) if p['quantity'] else 0
+
         total += price * qty
         total_items += qty
+
         clean_items.append({
             "cart_id": p['cart_id'],
             "id": p['id'],
