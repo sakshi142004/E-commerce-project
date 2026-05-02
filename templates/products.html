@@ -552,8 +552,8 @@ function toggleCart(productId, btn, colorId = null) {
 
     // ❌ REMOVE FLOW (NO SIZE MODAL)
   if (isActive) {
-
-    fetch(`/remove_cart/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
+    const sizeId = btn.dataset.size || "";
+    fetch(`/remove_cart/${productId}?color_id=${colorId || ""}&size_id=${sizeId}`)
         .then(res => res.json())
         .then(data => {
 
@@ -662,9 +662,7 @@ function closeSizeModal() {
 /* ================= CHECK CART ================= */
 function checkCart(productId, colorId = null) {
     return fetch(`/cart/check/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
-        .then(res => res.json())
-        .then(data => data.in_cart)
-        .catch(() => false);
+        .then(res => res.json());   // FULL object return karo
 }
 
 
@@ -760,12 +758,13 @@ function renderProductsGrid(products) {
         });
 
         /* 🛒 CART INITIAL */
-        checkCart(productId, colorId).then(inCart => {
-            if (inCart) {
-                cartBtn.classList.add("active");
-                cartBtn.innerText = "Remove from Cart";
-            }
-        });
+  checkCart(productId, colorId).then(data => {
+    if (data.in_cart) {
+        cartBtn.classList.add("active");
+        cartBtn.innerText = "Remove from Cart";
+        cartBtn.dataset.size = data.size_id;
+    }
+});
 
         /* 🛒 CART CLICK */
      cartBtn.addEventListener("click", (e) => {

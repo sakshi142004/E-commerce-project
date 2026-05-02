@@ -629,16 +629,27 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
 let cropper;
+let currentFiles = [];
+let currentIndex = 0;
 let currentInput;
 let currentColorId;
 
 function previewImages(event, colorId) {
 
-    const file = event.target.files[0];
-    if (!file) return;
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
 
+    currentFiles = files;
+    currentIndex = 0;
     currentInput = event.target;
     currentColorId = colorId;
+
+    openCropper();
+}
+
+function openCropper() {
+
+    const file = currentFiles[currentIndex];
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -651,16 +662,12 @@ function previewImages(event, colorId) {
         if (cropper) cropper.destroy();
 
         cropper = new Cropper(img, {
-            aspectRatio: 1, // 🔥 square
+            aspectRatio: 1,
             viewMode: 1
         });
     };
 
     reader.readAsDataURL(file);
-}
-function closeCrop() {
-    document.getElementById("cropModal").style.display = "none";
-    if (cropper) cropper.destroy();
 }
 
 function applyCrop() {
@@ -672,32 +679,56 @@ function applyCrop() {
 
     canvas.toBlob(function(blob) {
 
-        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+        const file = new File([blob], `cropped_${Date.now()}.jpg`, {
+            type: "image/jpeg"
+        });
 
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
+        // 🔥 replace current file
+        currentFiles[currentIndex] = file;
 
-        currentInput.files = dataTransfer.files;
+        // 🔁 next image
+        currentIndex++;
 
-        // 🔥 Now show preview (your old logic)
-        const container = document.getElementById("preview_" + currentColorId);
+        if (currentIndex < currentFiles.length) {
+            openCropper(); // next image crop
+        } else {
 
-        if (container) {
-            const url = URL.createObjectURL(file);
+            // ✅ ALL CROPPED → set back to input
+            const dataTransfer = new DataTransfer();
 
-            const wrapper = document.createElement("div");
-            wrapper.className = "preview-thumb";
+            currentFiles.forEach(f => dataTransfer.items.add(f));
 
-            const img = document.createElement("img");
-            img.src = url;
+            currentInput.files = dataTransfer.files;
 
-            wrapper.appendChild(img);
-            container.appendChild(wrapper);
+            // ✅ preview all
+            const container = document.getElementById("preview_" + currentColorId);
+
+            if (container) {
+                container.innerHTML = ""; // clear
+
+                currentFiles.forEach(file => {
+                    const url = URL.createObjectURL(file);
+
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "preview-thumb";
+
+                    const img = document.createElement("img");
+                    img.src = url;
+
+                    wrapper.appendChild(img);
+                    container.appendChild(wrapper);
+                });
+            }
+
+            closeCrop();
         }
 
-        closeCrop();
-
     }, "image/jpeg");
+}
+
+function closeCrop() {
+    document.getElementById("cropModal").style.display = "none";
+    if (cropper) cropper.destroy();
 }
 window.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".color-upload-box").forEach((box) => {

@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
-from sqlalchemy import text
+from sqlalchemy import exists, text
 from sqlalchemy.orm import joinedload
 from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
@@ -270,14 +270,12 @@ def admin_products():
     ).all()
 
     return render_template("admin/products.html", products=products)
-
 @app.route("/admin/products/add", methods=["GET", "POST"])
 @admin_required
 def add_product():
 
     if request.method == "POST":
         name = request.form.get("name")
-        offer = request.form.get("offer")
         guarantee = request.form.get("guarantee")
         material = request.form.get("material")
         description = request.form.get("description")
@@ -296,7 +294,7 @@ def add_product():
             discount_percent=discount_percent,
             rating=float(rating) if rating else None,
             size_unit=size_unit,
-            offer = f"{discount_percent}% OFF" if discount_percent > 0 else None,
+            offer=f"{discount_percent}% OFF" if discount_percent > 0 else None,
             guarantee=guarantee,
             material=material,
             description=description
@@ -305,7 +303,9 @@ def add_product():
         db.session.add(product)
         db.session.commit()
 
+        # =========================
         # ✅ SIZES
+        # =========================
         sizes = request.form.get("sizes")
         if sizes:
             for s in sizes.split(","):
@@ -317,16 +317,13 @@ def add_product():
                         size_value=float(s)
                     ))
 
-        # 🎨 COLORS + MULTIPLE IMAGES
+        # =========================
+        # 🎨 COLORS + IMAGES
+        # =========================
         selected_colors = request.form.getlist("colors")
-        first_image_set = False
-
-        if not selected_colors:
-            print("No colors selected → using default images")
 
         for color_id in selected_colors:
 
-            # save color relation
             db.session.add(ProductColor(
                 product_id=product.id,
                 color_id=int(color_id)
@@ -334,9 +331,7 @@ def add_product():
 
             images = request.files.getlist(f"color_images_{color_id}")
 
-            if not images or images[0].filename == "":
-                print(f"No image uploaded for color {color_id}")
-                continue
+            first_for_color = False   # 🔥 IMPORTANT (per color)
 
             for img in images:
                 if img and allowed_file(img.filename, "image"):
@@ -347,48 +342,56 @@ def add_product():
                         product_id=product.id,
                         image_url=result["secure_url"],
                         color_id=int(color_id),
-                        is_primary=not first_image_set
+                        is_primary=not first_for_color   # ✅ per color primary
                     ))
 
-                    first_image_set = True
+                    first_for_color = True
 
-        # ⚠️ FALLBACK (no images at all)
-        if not first_image_set:
-            default_images = request.files.getlist("images")
+        # =========================
+        # 🔥 DEFAULT (NO COLOR)
+        # =========================
+        default_images = request.files.getlist("images")
 
-            for img in default_images:
-                if img and allowed_file(img.filename, "image"):
+        first_default = False
 
-                    result = cloudinary.uploader.upload(img)
+        for img in default_images:
+            if img and allowed_file(img.filename, "image"):
 
-                    db.session.add(ProductImage(
-                        product_id=product.id,
-                        image_url=result["secure_url"],
-                        is_primary=True
-                    ))
+                result = cloudinary.uploader.upload(img)
 
-                    break
+                db.session.add(ProductImage(
+                    product_id=product.id,
+                    image_url=result["secure_url"],
+                    color_id=None,
+                    is_primary=not first_default
+                ))
 
+                first_default = True
+
+        # =========================
         # 🎥 VIDEOS
+        # =========================
         for color_id in selected_colors:
+            videos = request.files.getlist(f"color_videos_{color_id}")
 
-           videos = request.files.getlist(f"color_videos_{color_id}")
+            for vid in videos:
+                if vid and allowed_file(vid.filename, "video"):
 
-           for vid in videos:
-              if vid and allowed_file(vid.filename, "video"):
+                    result = cloudinary.uploader.upload(
+                        vid,
+                        resource_type="video",
+                        folder="products/videos"
+                    )
 
-                  result = cloudinary.uploader.upload(
-                     vid,
-                     resource_type="video",
-                     folder="products/videos"
-            )
+                    db.session.add(ProductVideo(
+                        product_id=product.id,
+                        video_url=result["secure_url"],
+                        color_id=int(color_id)
+                    ))
 
-                  db.session.add(ProductVideo(
-                     product_id=product.id,
-                     video_url=result["secure_url"],
-                     color_id=int(color_id)   # ✅ LINKED
-            ))
+        # =========================
         # 🏷 TAGS
+        # =========================
         tags = request.form.get("tags")
         if tags:
             for t in tags.split(","):
@@ -400,14 +403,14 @@ def add_product():
         db.session.commit()
         return redirect("/admin/products")
 
-    # ✅ GET
+    # GET
     colors = Color.query.all()
     return render_template(
-    "admin/add_product.html",
-    colors=colors,
-    product=None,
-    selected_color_ids=[]
-)
+        "admin/add_product.html",
+        colors=colors,
+        product=None,
+        selected_color_ids=[]
+    )
 @app.route("/admin/products/edit/<int:id>", methods=["GET", "POST"])
 @admin_required
 def edit_product(id):
@@ -426,7 +429,7 @@ def edit_product(id):
         product.size_unit = request.form.get("size_unit", "inch")
 
         # =========================
-        # PRICE CALCULATION
+        # PRICE
         # =========================
         original_price = int(request.form.get("original_price", 0))
         discount_percent = int(request.form.get("discount_percent", 0))
@@ -439,28 +442,20 @@ def edit_product(id):
         product.price = int(final_price)
         product.rating = float(rating) if rating else None
 
-        # ✅ AUTO OFFER TAG (IMPORTANT)
-        if discount_percent > 0:
-            product.offer = f"{discount_percent}% OFF"
-        else:
-            product.offer = None
+        product.offer = f"{discount_percent}% OFF" if discount_percent > 0 else None
 
         # =========================
-        # 🔥 COLORS RESET + ADD
+        # COLORS RESET
         # =========================
         ProductColor.query.filter_by(product_id=id).delete()
-        ProductImage.query.filter_by(product_id=id).delete()
-        ProductVideo.query.filter_by(product_id=id).delete()
-
-        # ⚠️ OPTIONAL: OLD COLOR IMAGES DELETE
-      
 
         selected_colors = request.form.getlist("colors")
-        first_image_set = False
 
+        # =========================
+        # ADD COLORS + NEW IMAGES
+        # =========================
         for color_id in selected_colors:
 
-            # save color relation
             db.session.add(ProductColor(
                 product_id=id,
                 color_id=int(color_id)
@@ -477,13 +472,11 @@ def edit_product(id):
                         product_id=id,
                         image_url=result["secure_url"],
                         color_id=int(color_id),
-                        is_primary=not first_image_set
+                        is_primary=False
                     ))
 
-                    first_image_set = True
-
         # =========================
-        # 🔥 DEFAULT IMAGES
+        # DEFAULT IMAGES (NO COLOR)
         # =========================
         default_images = request.files.getlist("images")
 
@@ -495,48 +488,74 @@ def edit_product(id):
                 db.session.add(ProductImage(
                     product_id=id,
                     image_url=result["secure_url"],
-                    is_primary=not first_image_set
+                    color_id=None,
+                    is_primary=False
                 ))
 
-                first_image_set = True
+        # =========================
+        # 🔥 ENSURE PRIMARY PER COLOR
+        # =========================
+        colors = ProductColor.query.filter_by(product_id=id).all()
+
+        for pc in colors:
+
+            primary = ProductImage.query.filter_by(
+                product_id=id,
+                color_id=pc.color_id,
+                is_primary=True
+            ).first()
+
+            if not primary:
+                first_img = ProductImage.query.filter_by(
+                    product_id=id,
+                    color_id=pc.color_id
+                ).first()
+
+                if first_img:
+                    first_img.is_primary = True
 
         # =========================
-        # 🔥 ENSURE PRIMARY IMAGE
+        # 🔥 DEFAULT PRIMARY (NO COLOR)
         # =========================
-        primary_exists = ProductImage.query.filter_by(
+        no_color_primary = ProductImage.query.filter_by(
             product_id=id,
+            color_id=None,
             is_primary=True
         ).first()
 
-        if not primary_exists:
-            first_img = ProductImage.query.filter_by(product_id=id).first()
+        if not no_color_primary:
+            first_img = ProductImage.query.filter_by(
+                product_id=id,
+                color_id=None
+            ).first()
+
             if first_img:
                 first_img.is_primary = True
 
         # =========================
-        # 🔵 VIDEOS ADD
+        # VIDEOS
         # =========================
         for color_id in selected_colors:
 
-              videos = request.files.getlist(f"color_videos_{color_id}")
+            videos = request.files.getlist(f"color_videos_{color_id}")
 
-              for vid in videos:
-                 if vid and allowed_file(vid.filename, "video"):
+            for vid in videos:
+                if vid and allowed_file(vid.filename, "video"):
 
-                     result = cloudinary.uploader.upload(
-                         vid,
-                         resource_type="video",
-                         folder="products/videos"
-            )
+                    result = cloudinary.uploader.upload(
+                        vid,
+                        resource_type="video",
+                        folder="products/videos"
+                    )
 
-                     db.session.add(ProductVideo(
-                        product_id=product.id,
+                    db.session.add(ProductVideo(
+                        product_id=id,
                         video_url=result["secure_url"],
-                        color_id=int(color_id)   # ✅ LINKED
-            ))
+                        color_id=int(color_id)
+                    ))
 
         # =========================
-        # 📏 SIZES RESET + ADD
+        # SIZES
         # =========================
         ProductSize.query.filter_by(product_id=id).delete()
 
@@ -553,7 +572,7 @@ def edit_product(id):
                     ))
 
         # =========================
-        # 🏷 TAGS RESET + ADD
+        # TAGS
         # =========================
         ProductTag.query.filter_by(product_id=id).delete()
 
@@ -569,15 +588,13 @@ def edit_product(id):
                     ))
 
         # =========================
-        # 💾 SAVE
+        # SAVE
         # =========================
         db.session.commit()
 
         return redirect("/admin/products")
 
-    # =========================
     # GET
-    # =========================
     colors = Color.query.all()
 
     return render_template(
@@ -640,17 +657,17 @@ def delete_image(id):
 def set_primary_image(id):
     image = ProductImage.query.get_or_404(id)
 
-    # reset all
-    ProductImage.query.filter_by(product_id=image.product_id).update({"is_primary": False})
+    # 🔥 ONLY same color reset
+    ProductImage.query.filter_by(
+        product_id=image.product_id,
+        color_id=image.color_id
+    ).update({"is_primary": False})
 
-    # set this one
     image.is_primary = True
 
     db.session.commit()
 
     return redirect(request.referrer)
-
-
 
 
 def generate_slug(title):
@@ -1578,7 +1595,7 @@ def check_wishlist(product_id):
         SELECT 1 FROM wishlist 
         WHERE user_id=:uid 
         AND product_id=:pid
-        AND (color_id IS :cid OR color_id=:cid)
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
     """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     return jsonify({"in_wishlist": bool(exists)})
@@ -1596,7 +1613,7 @@ def toggle_wishlist(product_id):
         SELECT 1 FROM wishlist 
         WHERE user_id=:uid 
         AND product_id=:pid
-        AND (color_id IS :cid OR color_id=:cid)
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
     """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     if existing:
@@ -1604,7 +1621,7 @@ def toggle_wishlist(product_id):
             DELETE FROM wishlist 
             WHERE user_id=:uid 
             AND product_id=:pid
-            AND (color_id IS :cid OR color_id=:cid)
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
         """), {"uid": user.id, "pid": product_id, "cid": color_id})
         in_wishlist = False
     else:
@@ -1638,7 +1655,7 @@ def toggle_cart(product_id):
 
     user = get_user()
 
-    if size_id is None:
+    if not size_id:
         return jsonify({"error": "size_required"}), 400
 
     existing = db.session.execute(text("""
@@ -1646,7 +1663,7 @@ def toggle_cart(product_id):
         WHERE user_id=:uid 
         AND product_id=:pid 
         AND size_id=:sid
-        AND (color_id IS :cid OR color_id=:cid)
+        AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
     """), {
         "uid": user.id,
         "pid": product_id,
@@ -1660,7 +1677,7 @@ def toggle_cart(product_id):
             WHERE user_id=:uid 
             AND product_id=:pid 
             AND size_id=:sid
-            AND (color_id IS :cid OR color_id=:cid)
+            AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
         """), {
             "uid": user.id,
             "pid": product_id,
@@ -1699,13 +1716,16 @@ def check_cart(product_id):
     color_id = request.args.get("color_id")
 
     exists = db.session.execute(text("""
-        SELECT 1 FROM cart 
-        WHERE user_id=:uid AND product_id=:pid
-        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        SELECT size_id FROM cart 
+         WHERE user_id=:uid AND product_id=:pid
+         AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
         LIMIT 1
-    """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
+"""), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
-    return jsonify({"in_cart": bool(exists)})
+    return jsonify({
+      "in_cart": bool(exists),
+      "size_id": exists.size_id if exists else None
+})
 
 @app.route('/get_counts')
 def get_counts():
@@ -1749,7 +1769,7 @@ def update_quantity(product_id, action):
     if not cart_item:
         return jsonify({"status": "not_found"})
 
-    qty = cart_item.quantity
+    qty = int(cart_item.quantity) if cart_item else 0
 
     if action == "plus":
         qty += 1
