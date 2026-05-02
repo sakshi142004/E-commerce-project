@@ -1,6 +1,5 @@
 from collections import defaultdict
-from turtle import color
-
+from flask_login import login_required, current_user
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
@@ -45,7 +44,9 @@ login_manager.login_view = "login"
 mail = Mail(app)
 # 🔥 access like this
 UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
+from flask_migrate import Migrate
 
+migrate = Migrate(app, db)
 
 import os
 
@@ -82,11 +83,20 @@ def ensure_variant_columns():
     ensure_column("cart", "size_id", "INT NULL")
     ensure_column("cart", "color_id", "INT NULL")
     ensure_column("order_items", "color_id", "INT NULL")
+# PURANA (galat)
 
-if os.environ.get("FLASK_ENV") == "development":
-    with app.app_context():
-        db.create_all()
-        ensure_variant_columns()
+# ✅ SIRF YEH RAKHO
+with app.app_context():
+    db.create_all()
+    print("DB IN USE:", db.engine.url)
+    if "sqlite" in str(db.engine.url):
+        db.session.execute(text("PRAGMA foreign_keys=ON"))
+    ensure_variant_columns()
+    
+    # ✅ ADD THIS - verify cart columns
+    cols = db.session.execute(text("PRAGMA table_info(cart)")).fetchall()
+    print("Cart columns at startup:", [c[1] for c in cols])
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -150,6 +160,24 @@ def admin_required(f):
 
     return decorated_function
 
+@app.route("/__reset__", methods=["GET"])
+def reset_seed():
+    if request.args.get("key") != "1234":
+        return "Forbidden", 403
+    
+    from models import ProductImage, ProductColor, ProductSize, ProductTag, ProductVideo
+    
+    # Delete in correct order
+    ProductImage.query.delete()
+    ProductVideo.query.delete()
+    ProductColor.query.delete()
+    ProductSize.query.delete()
+    ProductTag.query.delete()
+    Product.query.delete()
+    Color.query.delete()
+    db.session.commit()
+    
+    return "Reset done! Now go to /__seed__?key=1234"
 @app.route("/__seed__", methods=["GET"])
 def run_seed_route():
 
@@ -165,6 +193,33 @@ def run_seed_route():
         seed_admin()
 
     return "Seed Done Successfully"
+
+
+
+
+@app.route("/__fix_columns__", methods=["GET"])
+def fix_columns():
+    if request.args.get("key") != "1234":
+        return "Forbidden", 403
+    
+    ensure_variant_columns()
+    
+    # Verify karo ki columns add hue
+    from sqlalchemy import inspect
+    inspector = inspect(db.engine)
+    cart_cols = [c["name"] for c in inspector.get_columns("cart")]
+    wishlist_cols = [c["name"] for c in inspector.get_columns("wishlist")]
+    
+    return f"""
+    ✅ Columns fixed!<br>
+    Cart columns: {cart_cols}<br>
+    Wishlist columns: {wishlist_cols}
+    """
+
+
+
+print(app.config["SQLALCHEMY_DATABASE_URI"])
+
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(days=7)  # 🔥 7 days login
@@ -1018,9 +1073,14 @@ def register():
         return jsonify({"message": "Missing fields"}), 400
     if len(data['password']) < 6:
       return jsonify({"message": "Password too short"}), 400
-    existing = User.query.filter_by(email=data['email']).first()
-    if existing:
-        return jsonify({"message": "Email already exists"}), 400
+    existing_user = User.query.filter_by(username=data['name']).first()
+
+    if existing_user:
+       return jsonify({"message": "Username already exists"}), 400
+
+    existing_email = User.query.filter_by(email=data['email']).first()
+    if existing_email:
+        return jsonify({"message": "Email already registered"}), 400
 
     # ✅ HASH PASSWORD
     hashed_password = generate_password_hash(data['password'])
@@ -1042,31 +1102,43 @@ def register():
 
 # ================= LOGIN =================
 from werkzeug.security import check_password_hash
+from flask import request, jsonify, session
 
 # LOGIN FIX
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    if not data or not data.get('email') or not data.get('password'):
-      return jsonify({"message": "Email and password required"}), 400
 
-    user = User.query.filter_by(email=data.get('email')).first()
+    if not data:
+        return jsonify({"message": "Invalid request"}), 400
+
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({"message": "Email and password required"}), 400
+
+    user = User.query.filter_by(email=email).first()
 
     if not user:
         return jsonify({"message": "User not found"}), 404
 
-    if not check_password_hash(user.password, data.get('password')):
+    if not check_password_hash(user.password, password):
         return jsonify({"message": "Wrong password"}), 401
 
-    session['user'] = user.username
-    session['email'] = user.email
+    session.clear()
+
     session['user_id'] = user.id
+    session['username'] = user.username
+    session['email'] = user.email
+    session['is_admin'] = user.is_admin
 
     return jsonify({
         "message": "Login successful",
-        "name": user.username
-    })
-
+        "name": user.username,   # ✅ IMPORTANT FIX
+        "email": user.email,
+        "id": user.id
+    }), 200
 
 from collections import defaultdict
 from flask import jsonify
@@ -1292,64 +1364,68 @@ def inject_counts():
     return dict(cart_count=0, wishlist_count=0, user=None)
 # ================= CART =================
 
-
 @app.route('/cart')
 def cart_page():
     if 'email' not in session:
         return redirect('/')
 
     user = User.query.filter_by(email=session['email']).first()
+    if not user:
+        session.clear()
+        return redirect('/')
 
-    items = db.session.execute(text("""
-    SELECT 
-        c.id AS cart_id,
-        p.id,
-        p.name,
-        p.price,
-        c.color_id,
-        c.size_id,
-        co.name AS color_name,
-        co.code AS color_code,
-        (SELECT image_url 
-         FROM product_images 
-         WHERE product_id = p.id 
-         ORDER BY
-             CASE
-                 WHEN c.color_id IS NOT NULL AND color_id = c.color_id THEN 0
-                 WHEN is_primary = 1 THEN 1
-                 ELSE 2
-             END
-         LIMIT 1) AS image_url,
-        c.quantity
-    FROM cart c
-    JOIN products p ON c.product_id = p.id
-    LEFT JOIN colors co ON c.color_id = co.id
-    WHERE c.user_id = :uid
-    """), {"uid": user.id}).fetchall()
+    # ✅ Direct sqlite3 use karo - SQLAlchemy cache bypass
+    import sqlite3
+    db_path = r"C:\Users\saksh\OneDrive\Documents\BELT-PARSE COM\E-commerce-project\instance\site.db"
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT 
+            c.id AS cart_id,
+            p.id,
+            p.name,
+            p.price,
+            c.color_id,
+            c.size_id,
+            COALESCE(co.name, '') AS color_name,
+            COALESCE(co.code, '') AS color_code,
+            (SELECT image_url 
+             FROM product_images 
+             WHERE product_id = p.id 
+             ORDER BY is_primary DESC
+             LIMIT 1) AS image_url,
+            c.quantity
+        FROM cart c
+        JOIN products p ON c.product_id = p.id
+        LEFT JOIN colors co ON co.id = c.color_id
+        WHERE c.user_id = ?
+    """, (user.id,))
+    
+    rows = cur.fetchall()
+    conn.close()
 
-    # 🔥 FIX: force int conversion
     total = 0
     total_items = 0
-
     clean_items = []
-    for p in items:
-        price = int(p.price) if p.price else 0
-        qty = int(p.quantity) if p.quantity else 0
 
+    for p in rows:
+        price = int(p['price']) if p['price'] else 0
+        qty = int(p['quantity']) if p['quantity'] else 0
         total += price * qty
         total_items += qty
-
         clean_items.append({
-            "cart_id": p.cart_id,
-            "id": p.id,
-            "name": p.name,
+            "cart_id": p['cart_id'],
+            "id": p['id'],
+            "name": p['name'],
             "price": price,
             "quantity": qty,
-            "image_url": p.image_url,
-            "color_id": p.color_id,
-            "size_id": p.size_id,
-            "color_name": p.color_name,
-            "color_code": p.color_code
+            "image_url": p['image_url'],
+            "color_id": p['color_id'],
+            "size_id": p['size_id'],
+            "color_name": p['color_name'],
+            "color_code": p['color_code']
         })
 
     return render_template(
@@ -1365,8 +1441,8 @@ def remove_cart(id):
         return jsonify({"success": False}), 401
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request_color_id()
-    size_id = normalize_optional_int(request.args.get("size_id"))
+    color_id = request.args.get("color_id") 
+    size_id = request.args.get("size_id")
 
     db.session.execute(text("""
         DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
@@ -1393,8 +1469,8 @@ def decrease_cart(id):
         return "Unauthorized", 401
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request_color_id()
-    size_id = normalize_optional_int(request.args.get("size_id"))
+    color_id = request.args.get("color_id")
+    size_id = request.args.get("size_id")
 
     item = db.session.execute(text("""
         SELECT quantity FROM cart
@@ -1514,7 +1590,8 @@ def remove_wishlist(id):
         return "Unauthorized", 401
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request_color_id()
+    color_id = request.args.get("color_id")
+    size_id = request.args.get("size_id")
 
     db.session.execute(
         text("""
@@ -1528,13 +1605,19 @@ def remove_wishlist(id):
 
     return "Removed"
 
+def get_user():
+    return User.query.filter_by(email=session.get('email')).first()
+
 @app.route('/wishlist')
 def wishlist_page():
     if 'email' not in session:
         return redirect('/')
 
     user = User.query.filter_by(email=session['email']).first()
-
+    if not user:
+       session.clear()
+       return redirect('/')
+    
     items = db.session.execute(text("""
         SELECT p.*,
                w.color_id,
@@ -1543,16 +1626,15 @@ def wishlist_page():
                (SELECT pi.image_url 
                 FROM product_images pi 
                 WHERE pi.product_id = p.id
-                ORDER BY
-                    CASE
-                        WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
-                        WHEN pi.is_primary = 1 THEN 1
-                        ELSE 2
+                ORDER BY 
+                    CASE 
+                        WHEN pi.is_primary = 1 THEN 1 
+                        ELSE 2 
                     END
-                LIMIT 1) as image_url
+                LIMIT 1) AS image_url
         FROM wishlist w
         JOIN products p ON w.product_id = p.id
-        LEFT JOIN colors co ON w.color_id = co.id
+        LEFT JOIN colors co ON co.id = w.color_id
         WHERE w.user_id = :uid
     """), {"uid": user.id}).fetchall()
 
@@ -1563,18 +1645,20 @@ def check_wishlist(product_id):
     if 'email' not in session:
         return jsonify({"in_wishlist": False})
 
-    user = User.query.filter_by(email=session['email']).first()
+    user = get_user()
+    if not user:
+        return jsonify({"in_wishlist": False})
+
     color_id = request_color_id()
 
     exists = db.session.execute(text("""
         SELECT 1 FROM wishlist 
-        WHERE user_id=:uid AND product_id=:pid
-        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        WHERE user_id=:uid 
+        AND product_id=:pid
+        AND (color_id IS :cid OR color_id=:cid)
     """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     return jsonify({"in_wishlist": bool(exists)})
-
-
 
 
 @app.route('/wishlist/toggle/<int:product_id>', methods=["GET", "POST"])
@@ -1582,34 +1666,35 @@ def toggle_wishlist(product_id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
 
-    user = User.query.filter_by(email=session['email']).first()
+    user = get_user()
     color_id = request_color_id()
 
     existing = db.session.execute(text("""
         SELECT 1 FROM wishlist 
-        WHERE user_id=:uid AND product_id=:pid
-        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        WHERE user_id=:uid 
+        AND product_id=:pid
+        AND (color_id IS :cid OR color_id=:cid)
     """), {"uid": user.id, "pid": product_id, "cid": color_id}).fetchone()
 
     if existing:
-        # ❌ REMOVE
         db.session.execute(text("""
             DELETE FROM wishlist 
-            WHERE user_id=:uid AND product_id=:pid
-            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+            WHERE user_id=:uid 
+            AND product_id=:pid
+            AND (color_id IS :cid OR color_id=:cid)
         """), {"uid": user.id, "pid": product_id, "cid": color_id})
         in_wishlist = False
     else:
-        # ✅ ADD
         db.session.execute(text("""
             INSERT INTO wishlist (user_id, product_id, color_id)
             VALUES (:uid, :pid, :cid)
         """), {"uid": user.id, "pid": product_id, "cid": color_id})
+
         in_wishlist = True
 
     db.session.commit()
 
-    # ✅ updated count
+    # 🔥 LIVE COUNT SAFE (UNCHANGED BEHAVIOR)
     count = db.session.execute(text("""
         SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
     """), {"uid": user.id}).scalar()
@@ -1618,7 +1703,6 @@ def toggle_wishlist(product_id):
         "in_wishlist": in_wishlist,
         "count": count
     })
-
 @app.route("/cart/toggle/<int:product_id>", methods=["POST"])
 def toggle_cart(product_id):
 
@@ -1629,16 +1713,17 @@ def toggle_cart(product_id):
     size_id = data.get("size_id")
     color_id = request_color_id(data)
 
-    user = User.query.filter_by(email=session['email']).first()
+    user = get_user()
 
-    # ❌ ONLY ADD requires size
     if size_id is None:
         return jsonify({"error": "size_required"}), 400
 
     existing = db.session.execute(text("""
-        SELECT * FROM cart 
-        WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
-        AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+        SELECT 1 FROM cart 
+        WHERE user_id=:uid 
+        AND product_id=:pid 
+        AND size_id=:sid
+        AND (color_id IS :cid OR color_id=:cid)
     """), {
         "uid": user.id,
         "pid": product_id,
@@ -1649,8 +1734,10 @@ def toggle_cart(product_id):
     if existing:
         db.session.execute(text("""
             DELETE FROM cart 
-            WHERE user_id=:uid AND product_id=:pid AND size_id=:sid
-            AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
+            WHERE user_id=:uid 
+            AND product_id=:pid 
+            AND size_id=:sid
+            AND (color_id IS :cid OR color_id=:cid)
         """), {
             "uid": user.id,
             "pid": product_id,
@@ -1677,11 +1764,7 @@ def toggle_cart(product_id):
         FROM cart WHERE user_id=:uid
     """), {"uid": user.id}).scalar()
 
-    return jsonify({
-        "in_cart": in_cart,
-        "count": count
-    })
-
+    return jsonify({"in_cart": in_cart, "count": count})
 
 @app.route("/cart/check/<int:product_id>")
 def check_cart(product_id):
@@ -1690,7 +1773,7 @@ def check_cart(product_id):
         return jsonify({"in_cart": False})
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request_color_id()
+    color_id = request.args.get("color_id")
 
     exists = db.session.execute(text("""
         SELECT 1 FROM cart 
@@ -1707,6 +1790,9 @@ def get_counts():
         return jsonify({"cart": 0, "wishlist": 0})
 
     user = User.query.filter_by(email=session['email']).first()
+    if not user:
+      session.clear()              # ← clear stale session
+      return jsonify({"cart": 0, "wishlist": 0})
 
     cart_count = db.session.execute(text("""
         SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id=:uid
@@ -1727,9 +1813,8 @@ def update_quantity(product_id, action):
         return jsonify({"status": "error"})
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request_color_id()
-    size_id = normalize_optional_int(request.args.get("size_id"))
-
+    color_id = request.args.get("color_id")
+    size_id = request.args.get("size_id")
     cart_item = db.session.execute(text("""
         SELECT * FROM cart
         WHERE user_id=:uid AND product_id=:pid
@@ -1792,7 +1877,7 @@ def get_selected_size(product_id):
         return jsonify({"size_id": None})
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request_color_id()
+    color_id = request.args.get("color_id")
 
     row = db.session.execute(text("""
         SELECT size_id 

@@ -1,7 +1,6 @@
 from app import app
-from models import db, Color, Product, ProductColor, User
+from models import db, Color, Product, ProductColor, ProductImage, User
 from werkzeug.security import generate_password_hash
-
 
 # COLORS
 def seed_colors():
@@ -28,7 +27,16 @@ def seed_products():
         print("ℹ️ Products already exist")
         return
 
-    products = [
+    # ✅ Placeholder images - Cloudinary ya koi bhi public image URL
+    placeholder_images = {
+        "Black": "https://via.placeholder.com/400x400/000000/FFFFFF?text=Black+Belt",
+        "Brown": "https://via.placeholder.com/400x400/8B4513/FFFFFF?text=Brown+Belt",
+        "White": "https://via.placeholder.com/400x400/CCCCCC/000000?text=White+Belt",
+        "Blue":  "https://via.placeholder.com/400x400/0000FF/FFFFFF?text=Blue+Belt",
+        "Red":   "https://via.placeholder.com/400x400/FF0000/FFFFFF?text=Red+Belt",
+    }
+
+    products_data = [
         {
             "name": "GL Crossliner",
             "price": 699,
@@ -66,19 +74,36 @@ def seed_products():
 
     colors = Color.query.all()
 
-    for p in products:
-        product = Product(**p)
+    for p_data in products_data:
+        product = Product(**p_data)
         db.session.add(product)
-        db.session.flush()
+        db.session.flush()  # ID mil jaye
+
+        first_image = True
 
         for c in colors:
+            # ✅ Color relation add karo
             db.session.add(ProductColor(
                 product_id=product.id,
                 color_id=c.id
             ))
 
+            # ✅ Har color ke liye image add karo
+            image_url = placeholder_images.get(c.name, 
+                "https://via.placeholder.com/400x400/888888/FFFFFF?text=Belt"
+            )
+
+            db.session.add(ProductImage(
+                product_id=product.id,
+                image_url=image_url,
+                color_id=c.id,
+                is_primary=first_image  # pehli image primary
+            ))
+
+            first_image = False
+
     db.session.commit()
-    print("✅ Products seeded")
+    print("✅ Products seeded with images")
 
 
 # ADMIN
@@ -101,11 +126,9 @@ def seed_admin():
 
 # RUN ALL
 if __name__ == "__main__":
-    with app.app_context():   # 🔥 IMPORTANT FIX
+    with app.app_context():
         db.create_all()
-
         seed_colors()
         seed_products()
         seed_admin()
-
         print("🚀 ALL DATA SEEDED SUCCESSFULLY")

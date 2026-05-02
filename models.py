@@ -5,11 +5,16 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
-wishlist = db.Table('wishlist',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id')),
-    db.Column('product_id', db.Integer, db.ForeignKey('products.id')),
-    db.Column('color_id', db.Integer, db.ForeignKey('colors.id'), nullable=True)
-)
+class Wishlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    product = db.relationship("Product")
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -33,7 +38,7 @@ class User(db.Model):
     # Relationships
     addresses = db.relationship('Address', backref='user', lazy=True)
     orders = db.relationship('Order', backref='user', lazy=True)
-    wishlist_products = db.relationship('Product', secondary=wishlist, backref='wishlisted_by')
+    wishlist_items = db.relationship("Wishlist", backref="user", lazy=True)
     payment_methods = db.relationship('PaymentMethod', backref='user', lazy=True)
     wallet_transactions = db.relationship('WalletTransaction', backref='user', lazy=True)
     tickets = db.relationship('Ticket', backref='user', lazy=True) 
@@ -44,7 +49,7 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255))
     price = db.Column(db.Integer)  # final price
-
+  
     original_price = db.Column(db.Integer)
     discount_percent = db.Column(db.Integer, default=0)
     rating = db.Column(db.Float)
