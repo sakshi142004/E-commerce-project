@@ -1495,7 +1495,7 @@ def get_wishlist():
                 ORDER BY
                     CASE
                         WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
-                        WHEN pi.is_primary = 1 THEN 1
+                        WHEN pi.is_primary = TRUE THEN 1
                         ELSE 2
                     END
                 LIMIT 1) AS image_url
@@ -1551,7 +1551,7 @@ def wishlist_page():
                 WHERE pi.product_id = p.id
                 ORDER BY 
                     CASE 
-                        WHEN pi.is_primary = 1 THEN 1 
+                        WHEN pi.is_primary = TRUE THEN 1 
                         ELSE 2 
                     END
                 LIMIT 1) AS image_url
@@ -2455,7 +2455,7 @@ def api_wishlist():
                 ORDER BY
                     CASE
                         WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
-                        WHEN pi.is_primary = 1 THEN 1
+                        WHEN pi.is_primary = TRUE THEN 1
                         ELSE 2
                     END
                 LIMIT 1) AS image_url
