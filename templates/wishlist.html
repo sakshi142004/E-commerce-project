@@ -365,7 +365,7 @@ function moveAllToCart() {
 
 @media (max-width: 780px) {
     .wishlist-container {
-        padding-top: 65px;
+        padding-top: 10px;
         padding-right: 20px;
         padding-bottom: 40px;
         padding-left: 20px;
@@ -373,11 +373,17 @@ function moveAllToCart() {
 
     .wishlist-top {
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-start;
     }
 
     .primary-btn {
-        width: 100%;
+        width: auto !important;
+    }
+      .move-all {
+        width: auto !important;     /* stretch band */
+        padding: 6px 12px 10px !important;
+        font-size: 12px;
+        align-self: flex-start;     /* left side */
     }
 }
 

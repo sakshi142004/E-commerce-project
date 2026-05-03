@@ -13,8 +13,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Gotham:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
+    html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+*, *::before, *::after {
+    box-sizing: border-box;
+}
 body {
     margin: 0;
+     max-width: 100%;
     font-family: 'Gotham', sans-serif;
     
 }
@@ -386,6 +395,8 @@ body {
         top: 65px;
         left: 0;
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         padding: 14px 14px 18px;
         background: rgba(8, 62, 58, 0.98);
         z-index: 9998;
@@ -513,6 +524,28 @@ body {
     }
 
    @media (max-width: 768px) {
+
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden !important;
+    }
+
+    body {
+        position: relative;
+    }
+
+    section,
+    main,
+    header,
+    footer,
+    .navbar,
+    .site-footer,
+    .footer-container,
+    .contact-container {
+        max-width: 100%;
+    }
 
     /* 🔥 NAVBAR BASE FIX */
     .navbar {
@@ -1717,8 +1750,8 @@ body::before {
     <!-- CONTACT -->
     <div class="footer-col contact-info">
       <h4>Contact</h4>
-      <p>+91 9876xxxx</p>
-      <p>support@beltstore.com</p>
+      <p>+91 7000747936</p>
+      <p>beltpurse.com@gmail.com</p>
       <p>India</p>
     </div>
 
@@ -1744,10 +1777,11 @@ body::before {
 
         // Prevent body scroll when menu is open
         if (navCenter.classList.contains('show')) {
-            body.style.overflow = 'hidden';
+            body.style.overflowY = 'hidden';
         } else {
-            body.style.overflow = 'auto';
+            body.style.overflowY = 'auto';
         }
+        body.style.overflowX = 'hidden';
     }
 
     function toggleMobileSearch() {
@@ -1758,14 +1792,16 @@ body::before {
         navCenter.classList.remove('show');
         hamburger.classList.remove('active');
         mobileSearchCard.classList.toggle('active');
-        document.body.style.overflow = mobileSearchCard.classList.contains('active') ? 'hidden' : 'auto';
+        document.body.style.overflowY = mobileSearchCard.classList.contains('active') ? 'hidden' : 'auto';
+        document.body.style.overflowX = 'hidden';
         document.getElementById('mobileSearchInput')?.focus();
     }
 
     function closeMobileSearch() {
         const mobileSearchCard = document.getElementById('mobileSearchCard');
         mobileSearchCard.classList.remove('active');
-        document.body.style.overflow = 'auto';
+        document.body.style.overflowY = 'auto';
+        document.body.style.overflowX = 'hidden';
     }
 
     // Close menu when a link is clicked
@@ -1787,7 +1823,8 @@ body::before {
             link.addEventListener('click', () => {
                 document.getElementById('hamburger').classList.remove('active');
                 document.getElementById('navCenter').classList.remove('show');
-                document.body.style.overflow = 'auto';
+                document.body.style.overflowY = 'auto';
+                document.body.style.overflowX = 'hidden';
             });
         });
 

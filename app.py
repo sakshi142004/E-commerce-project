@@ -5,7 +5,7 @@ import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
 from sqlalchemy import exists, text
 from sqlalchemy.orm import joinedload
-from models import Address, Blog, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
+from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
 from flask_login import LoginManager, login_user
 from functools import wraps
@@ -280,8 +280,8 @@ def add_product():
         material = request.form.get("material")
         description = request.form.get("description")
 
-        original_price = int(request.form.get("original_price", 0))
-        discount_percent = int(request.form.get("discount_percent", 0))
+        original_price = float(request.form.get("original_price", 0))
+        discount_percent = float(request.form.get("discount_percent", 0))
         rating = request.form.get("rating")
         size_unit = request.form.get("size_unit", "inch")
 
@@ -431,14 +431,14 @@ def edit_product(id):
         # =========================
         # PRICE
         # =========================
-        original_price = int(request.form.get("original_price", 0))
-        discount_percent = int(request.form.get("discount_percent", 0))
+        original_price = float(request.form.get("original_price", 0))
+        discount_percent = float(request.form.get("discount_percent", 0))
         rating = request.form.get("rating")
 
         final_price = original_price - (original_price * discount_percent / 100)
 
-        product.original_price = original_price
-        product.discount_percent = discount_percent
+        product.original_price = int(original_price)
+        product.discount_percent = int(discount_percent)
         product.price = int(final_price)
         product.rating = float(rating) if rating else None
 
@@ -557,8 +557,12 @@ def edit_product(id):
         # =========================
         # SIZES
         # =========================
-        ProductSize.query.filter_by(product_id=id).delete()
+        sizes = ProductSize.query.filter_by(product_id=id).all()
 
+        Cart.query.filter_by(product_id=id).delete()
+
+
+        ProductSize.query.filter_by(product_id=id).delete()
         sizes = request.form.get("sizes")
 
         if sizes:
