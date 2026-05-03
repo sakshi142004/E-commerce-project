@@ -1018,12 +1018,9 @@ p {
     transform: scale(1.15);
     border-color: #111;
 }
-
 .lux-card {
-    background: rgba(10, 92, 86, 0.08);
-border: 1px solid rgba(10, 92, 86, 0.25);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.4);
+    background: #ffffff;  /* 🔥 rgba green hatao, white karo */
+    border: 1px solid rgba(0, 0, 0, 0.06);  /* subtle border */
     border-radius: 24px;
     padding: 35px 28px;
     box-shadow: 0 15px 40px rgba(0,0,0,0.08);
@@ -1461,9 +1458,9 @@ p, li, span {
 }
 
 /* Mobile */
+/* Mobile */
 @media (max-width: 768px) {
     .about {
-       
         padding: 40px 15px;
     }
 
@@ -1473,15 +1470,15 @@ p, li, span {
     }
 
     .about-card h2 {
-        font-size: 28px;
+        font-size: 25px;
     }
 
     .about-card h3 {
-        font-size: 18px;
+        font-size: 17px;
     }
 
     .about-card p {
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.7;
     }
 }
@@ -1899,32 +1896,57 @@ p, li, span {
 .material-grid h3 {
     margin-bottom: 10px;
 }
-
 @media (max-width: 768px) {
 
-  .material-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-  }
+    /* MATERIAL GRID GAP FIX */
+    .material-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;  /* pehle 14px tha */
+    }
 
-  .lux-card {
-    padding: 20px 14px;
-  }
+    /* LUX CARD INNER GAP FIX */
+    .lux-card {
+        padding: 14px 12px;  /* pehle 20px 14px tha */
+    }
 
-  .material-grid h3 {
-    font-size: 16px;
-  }
+    .lux-card h3 {
+        font-size: 14px;
+        margin-bottom: 6px;  /* 🔥 yahi gap tha zyada */
+    }
 
-  .material-grid p {
-    font-size: 12px;
-  }
+    .lux-card p {
+        font-size: 12px;
+        line-height: 1.4;  /* pehle 1.8 tha — bahut space deta tha */
+        margin: 0;
+    }
+
+    /* WHY GRID BHI SAME FIX */
+    .why-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .why-grid div {
+        padding: 14px 12px;
+    }
+
+    .why-grid h3 {
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+
+    .why-grid p {
+        font-size: 12px;
+        line-height: 1.4;
+        margin: 0;
+    }
 }
 /* ================= WHY CHOOSE US ================= */
 
 
 
 
-
+/*
 
 .why-grid div {
     width: 100%;
@@ -1936,12 +1958,12 @@ p, li, span {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     max-width: 100%;
 }
-
+*/
 .why-grid div:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 30px rgba(0,0,0,0.2);
 }
-
+/*
 .why-grid h3 {
     font-size: 22px;
     margin-bottom: 12px;
@@ -1953,7 +1975,7 @@ p, li, span {
     font-size: 16px;
     line-height: 1.6;
     color: #555;
-}
+}*/
 /* ===== WHY SECTION CLEAN FIX ===== */
 
 .why {
@@ -1974,25 +1996,5 @@ p, li, span {
 @media (max-width: 1024px) {
     .why-grid {
         grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* ===== MOBILE ===== */
-@media (max-width: 768px) {
-    .why-grid {
-        grid-template-columns: repeat(2, 1fr); /* 2x2 layout */
-        gap: 14px;
-    }
-
-    .why-grid div {
-        padding: 18px 14px;
-    }
-
-    .why-grid h3 {
-        font-size: 16px;
-    }
-
-    .why-grid p {
-        font-size: 13px;
     }
 }
