@@ -1,546 +1,351 @@
+// ============================================================
+// script.js — BeltPurse Complete Fixed Version
+// ============================================================
+
+// ================= POPUP =================
 document.addEventListener("DOMContentLoaded", function () {
 
-    const popup = document.getElementById("popup");
-    const blurBg = document.getElementById("blurBg");
-    const loginBtn = document.getElementById("loginBtn");
-
+    const popup     = document.getElementById("popup");
+    const blurBg    = document.getElementById("blurBg");
+    const loginBtn  = document.getElementById("loginBtn");
     const switchBtn = document.getElementById("switchMode");
     const nameField = document.getElementById("name");
-    const title = document.getElementById("formTitle");
-    const mainBtn = document.getElementById("mainBtn");
-    const msg = document.getElementById("formMsg");
-    const togglePassword = document.getElementById("togglePassword");
+    const titleEl   = document.getElementById("formTitle");
+    const mainBtn   = document.getElementById("mainBtn");
+    const msg       = document.getElementById("formMsg");
+    const togglePwd = document.getElementById("togglePassword");
 
     let isLogin = true;
 
-    // OPEN
     window.openPopup = function () {
+        if (!popup) return;
         popup.classList.add("show");
-        blurBg.style.display = "block";
+        if (blurBg) blurBg.style.display = "block";
         document.body.style.overflow = "hidden";
     };
 
-    // CLOSE
     window.closePopup = function () {
+        if (!popup) return;
         popup.classList.remove("show");
-        blurBg.style.display = "none";
+        if (blurBg) blurBg.style.display = "none";
         document.body.style.overflow = "";
     };
 
-    // AUTO POPUP
-    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (loginBtn) loginBtn.addEventListener("click", e => { e.preventDefault(); openPopup(); });
 
-    if (!isLoggedIn) {
-        setTimeout(openPopup, 3000);
-    }
+    const closeBtn = document.getElementById("closeBtn");
+    if (closeBtn) closeBtn.onclick = closePopup;
 
-    // LOGIN BTN
-    if (loginBtn) {
-        loginBtn.addEventListener("click", function (e) {
-            e.preventDefault();
-            openPopup();
-        });
-    }
-
-    // CLOSE BTN
-    document.getElementById("closeBtn").onclick = closePopup;
-
-    // TOGGLE LOGIN/REGISTER
-    switchBtn.onclick = () => {
-        isLogin = !isLogin;
-        msg.innerText = "";
-
-        if (isLogin) {
-            title.innerText = "Login";
-            nameField.style.display = "none";
-            mainBtn.innerText = "Login";
-            switchBtn.innerText = "Create Account";
-        } else {
-            title.innerText = "Register";
-            nameField.style.display = "block";
-            mainBtn.innerText = "Register";
-            switchBtn.innerText = "Login";
-        }
-    };
-
-    // PASSWORD EYE
-    togglePassword.onclick = () => {
-        const pass = document.getElementById("password");
-        pass.type = pass.type === "password" ? "text" : "password";
-    };
-
-    // MAIN BUTTON
-    mainBtn.onclick = () => {
-
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value.trim();
-        const name = document.getElementById("name").value.trim();
-
-        msg.style.color = "red";
-
-        if (!email || !password || (!isLogin && !name)) {
-            msg.innerText = "All fields required ❗";
-            return;
-        }
-
-        if (password.length < 6) {
-            msg.innerText = "Password must be 6+ characters ❗";
-            return;
-        }
-
-       if (isLogin) {
-
-    fetch('/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-        if (data.name) {
-            msg.style.color = "green";
-            msg.innerText = "Login Success ✅";
-
-            window.dispatchEvent(new Event("user-login"));
-            closePopup();
-
-            const navRight = document.getElementById("navRight");
-
-            navRight.innerHTML = `
-                <div class="icon-box premium-icon" onclick="window.location='/wishlist'">
-                    <i class="fa-solid fa-heart"></i>
-                    <span class="badge" id="wishlistCount">0</span>
-                </div>
-
-                <div class="icon-box premium-icon" onclick="window.location='/cart'">
-                    <i class="fa-solid fa-cart-shopping"></i>
-                    <span class="badge" id="cartCount">0</span>
-                </div>
-
-                <a href="/account" class="user-profile-link">
-                    <div class="avatar premium-avatar">
-                        ${data.name.charAt(0)}
-                    </div>
-                </a>
-            `;
-
-            if (typeof updateNavbarCounts === "function") {
-                updateNavbarCounts();
-            }
-
-            setTimeout(() => {
-                msg.innerText = "";
-            }, 1000);
-
-        } else {
-            msg.innerText = data.message;
-        }
-
-    });
-
-} else {
-
-    fetch('/register', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ name, email, password })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-        if (data.message.includes("success")) {
-            msg.style.color = "green";
-            msg.innerText = "Registered Successfully ✅";
-
-            setTimeout(() => {
-                switchBtn.click();
-            }, 1000);
-        } else {
-            msg.innerText = data.message;
-        }
-
-    });
-
-}
-};
-});
-window.addEventListener("user-login", () => {
-    updateNavbarCounts();
-});
-
-// ================= DROPDOWN =================
-function toggleDropdown() {
-    const menu = document.getElementById("dropdownMenu");
-    if (menu) {
-        menu.classList.toggle("show");
-    }
-}
-
-// CLOSE DROPDOWN OUTSIDE CLICK
-window.addEventListener("click", function(e) {
-    if (!e.target.closest('.user-dropdown')) {
-        const menu = document.getElementById("dropdownMenu");
-        if (menu) menu.classList.remove("show");
-    }
-});
-
-// ================= NAVIGATION =================
-// =======================
-// 🛒 CART + ❤️ WISHLIST SYSTEM
-// =======================
-
-
-// LOAD ON PAGE
-
-// ADD TO CART
-function addToCart(productId) {
-    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
-
-    if (!isLoggedIn) {
-        openPopup();
-        return;
-    }
-
-    fetch(`/add_to_cart/${productId}`)
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("cartCount").innerText = data.count;
-    });
-}
-
-// ADD TO WISHLIST
-/*
-function addToWishlist(productId, btn = null, colorId = null) {
-    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
-
-    if (!isLoggedIn) {
-        openPopup();
-        return;
-    }
-
-    fetch(`/add_to_wishlist/${productId}`)
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("wishlistCount").innerText = data.count;
-    });
-}*/
-function addToWishlist(productId, btn = null, colorId = null) {
-    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
-
-    if (!isLoggedIn) {
-        openPopup();
-        return;
-    }
-
-    fetch(`/wishlist/toggle/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
-    .then(res => res.json())
-    .then(data => {
-
-        if (data.error) return;
-
-        // ❤️ BUTTON UPDATE (if exists)
-        if (btn) {
-            if (data.in_wishlist) {
-                btn.classList.add("active");
-                btn.innerHTML = "❤️";
+    if (switchBtn) {
+        switchBtn.onclick = () => {
+            isLogin = !isLogin;
+            if (msg) msg.innerText = "";
+            if (isLogin) {
+                if (titleEl)   titleEl.innerText           = "Login";
+                if (nameField) nameField.style.display     = "none";
+                if (mainBtn)   mainBtn.innerText           = "Login";
+                switchBtn.innerText = "Create Account";
             } else {
-                btn.classList.remove("active");
-                btn.innerHTML = "♡";
+                if (titleEl)   titleEl.innerText           = "Register";
+                if (nameField) nameField.style.display     = "block";
+                if (mainBtn)   mainBtn.innerText           = "Register";
+                switchBtn.innerText = "Login";
             }
-        }
+        };
+    }
 
-        // 🔥 NAVBAR COUNT UPDATE
-        const wishlistCount = document.getElementById("wishlistCount");
-        if (wishlistCount) {
-            wishlistCount.innerText = data.count;
-        }
-    })
-    .catch(err => console.error("Wishlist error:", err));
+    if (togglePwd) {
+        togglePwd.onclick = () => {
+            const pass = document.getElementById("password");
+            if (pass) pass.type = pass.type === "password" ? "text" : "password";
+        };
+    }
+
+    if (mainBtn) {
+        mainBtn.onclick = () => {
+            const email    = document.getElementById("email")?.value.trim();
+            const password = document.getElementById("password")?.value.trim();
+            const name     = document.getElementById("name")?.value.trim() || "";
+
+            if (!msg) return;
+            msg.style.color = "red";
+
+            if (!email || !password || (!isLogin && !name)) { msg.innerText = "All fields required ❗"; return; }
+            if (password.length < 6) { msg.innerText = "Password must be 6+ characters ❗"; return; }
+
+            if (isLogin) {
+                fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.name) {
+                        msg.style.color = "green";
+                        msg.innerText   = "Login Success ✅";
+                        closePopup();
+
+                        const navRight = document.getElementById("navRight");
+                        if (navRight) {
+                            navRight.innerHTML = `
+                                <div class="icon-box premium-icon" onclick="window.location='/wishlist'">
+                                    <i class="fa-solid fa-heart"></i>
+                                    <span class="badge" id="wishlistCount">0</span>
+                                </div>
+                                <div class="icon-box premium-icon" onclick="window.location='/cart'">
+                                    <i class="fa-solid fa-cart-shopping"></i>
+                                    <span class="badge" id="cartCount">0</span>
+                                </div>
+                                <a href="/account" class="user-profile-link">
+                                    <div class="avatar premium-avatar">${data.name.charAt(0)}</div>
+                                </a>
+                            `;
+                        }
+
+                        // Guest sync ONLY here, after login
+                        const gCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+                        const gWish = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+
+                        if (gCart.length) {
+                            fetch('/api/sync-guest-cart', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ items: gCart })
+                            }).then(() => { localStorage.removeItem("guestCart"); updateNavbarCounts(); });
+                        }
+
+                        if (gWish.length) {
+                            fetch('/api/sync-guest-wishlist', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ items: gWish })
+                            }).then(() => { localStorage.removeItem("guestWishlist"); updateNavbarCounts(); });
+                        }
+
+                        updateNavbarCounts();
+                        window.dispatchEvent(new Event("user-login"));
+                        setTimeout(() => { if (msg) msg.innerText = ""; }, 1500);
+                    } else {
+                        msg.innerText = data.message || "Login failed";
+                    }
+                });
+            } else {
+                fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.message && data.message.toLowerCase().includes("success")) {
+                        msg.style.color = "green";
+                        msg.innerText   = "Registered Successfully ✅";
+                        setTimeout(() => { if (switchBtn) switchBtn.click(); }, 1000);
+                    } else {
+                        msg.innerText = data.message || "Registration failed";
+                    }
+                });
+            }
+        };
+    }
+});
+
+// ================= LOGIN CHECK =================
+function isUserLoggedIn() {
+    return document.querySelector(".avatar, .avatar-img") !== null;
 }
 
-// REMOVE ITEM (optional)
-
-
-
-
-/*function loadProducts() {
-    fetch("/products")
-    .then(res => res.json())
-    .then(data => {
-         
-        console.log("Products:", data);
-        const container = document.getElementById("products");
-
-        if (!container) {
-            console.error("Container not found");
-            return;
-        }
-
-        container.innerHTML = "";
-
-        data.slice(0, 6).forEach(product => {
-
-            const image = product.images && product.images.length > 0 
-                ? product.images[0] 
-                : "/static/images/default.png"; // fallback image
-
-            const div = document.createElement("div");
-            div.className = "product-card";
-
-            div.innerHTML = `
-                <img src="${image}" style="width:100%; height:200px; object-fit:cover;">
-                <h4>${product.name}</h4>
-                <p>₹${product.price}</p>
-            `;
-
-            div.onclick = () => {
-                window.location.href = "/product/" + product.id;
-            };
-
-            container.appendChild(div);
-        });
-    })
-    .catch(err => console.error("Product load error:", err));
+// ================= NAVBAR COUNTS =================
+function updateNavbarCounts() {
+    if (isUserLoggedIn()) {
+        fetch("/get_counts")
+            .then(r => r.json())
+            .then(d => {
+                const c = document.getElementById("cartCount");
+                const w = document.getElementById("wishlistCount");
+                if (c) c.textContent = d.cart    || 0;
+                if (w) w.textContent = d.wishlist || 0;
+            }).catch(() => {});
+    } else {
+        updateGuestCounts();
+    }
 }
-function loadProducts() {
-    fetch("/products")
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById("products");
+window.addEventListener("user-login", updateNavbarCounts);
 
-            if (!container) {
-                console.error("Container not found");
-                return;
-            }
+// ================= GUEST HELPERS =================
+function updateGuestCounts() {
+    if (isUserLoggedIn()) return;
+    const gCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const gWish = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+    const c = document.getElementById("cartCount");
+    const w = document.getElementById("wishlistCount");
+    if (c) c.textContent = gCart.reduce((s, i) => s + (i.qty || 1), 0);
+    if (w) w.textContent = gWish.length;
+}
 
-            container.innerHTML = "";
+function showGuestToast(message) {
+    let toast = document.getElementById("guestToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "guestToast";
+        toast.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:9999;opacity:0;transition:opacity 0.3s;white-space:nowrap;pointer-events:none;";
+        document.body.appendChild(toast);
+    }
+    toast.innerText = message;
+    toast.style.opacity = "1";
+    setTimeout(() => { toast.style.opacity = "0"; }, 2500);
+}
 
-            data.slice(0, 4).forEach(product => {
-                const image =
-                    product.images && product.images.length > 0
-                        ? product.images[0]
-                        : "/static/images/default.png";
+function isInGuestWishlist(productId, colorId = null) {
+    const list = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+    return list.some(i => String(i.productId) === String(productId) &&
+                          String(i.colorId  || null) === String(colorId || null));
+}
 
-                const rating = product.rating
-                    ? `⭐ ${product.rating}`
-                    : "";
+function isInGuestCart(productId, colorId = null) {
+    const list = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    return list.some(i => String(i.productId) === String(productId) &&
+                          String(i.colorId  || null) === String(colorId || null));
+}
 
-                const discountHTML = product.discount_percent > 0
-                    ? `<span class="discount-badge">-${product.discount_percent}%</span>`
-                    : "";
-
-                const oldPriceHTML = product.original_price
-                    ? `<span class="old-price">₹${product.original_price}</span>`
-                    : "";
-
-                const div = document.createElement("div");
-                div.className = "product-card";
-
-                div.innerHTML = `
-                    <div class="product-image-wrapper">
-                        <span class="discount-badge">-${discountHTML}%</span>
-
-                        <button class="wishlist-btn" data-id="${product.id}">
-                            ♡
-                        </button>
-
-                        <img src="${image}" alt="${product.name}">
-                    </div>
-
-                    <div class="product-info">
-                        
-
-                        <h4>${product.name}</h4>
-
-                        ${rating ? `<div class="rating">${rating}</div>` : ""}
-
-                        <div class="price-box">
-                            <span class="new-price">₹${product.price}</span>
-                            <span class="old-price">₹${oldPriceHTML}</span>
-                        </div>
-                    </div>
-                `;
-
-                // Product page redirect
-                div.addEventListener("click", () => {
-                    window.location.href = "/product/" + product.id;
-                });
-
-                // Wishlist click
-                const wishlistBtn = div.querySelector(".wishlist-btn");
-
-                wishlistBtn.addEventListener("click", (e) => {
-                    e.stopPropagation(); // card redirect stop
-
-                    addToWishlist(product.id, wishlistBtn);
-                });
-
-                container.appendChild(div);
-            });
+// ================= CART =================
+function addToCart(productId, colorId = null, sizeId = null) {
+    if (isUserLoggedIn()) {
+        fetch(`/cart/toggle/${productId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ color_id: colorId, size_id: sizeId })
         })
-        .catch(err => console.error("Product load error:", err));
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById("cartCount");
+            if (el && data.count != null) el.innerText = data.count;
+            showGuestToast("Added to cart! 🛒");
+        }).catch(() => {});
+    } else {
+        addToGuestCart(productId, colorId, sizeId);
+    }
 }
-*/
-// ✅ OUTSIDE (global)
+
+// Alias used by products.html
+function addToGuestCart(productId, colorId = null, sizeId = null) {
+    let gCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const existing = gCart.find(i =>
+        String(i.productId) === String(productId) &&
+        String(i.colorId || null) === String(colorId || null));
+    if (existing) { existing.qty = (existing.qty || 1) + 1; }
+    else { gCart.push({ productId, colorId, sizeId, qty: 1 }); }
+    localStorage.setItem("guestCart", JSON.stringify(gCart));
+    updateGuestCounts();
+    showGuestToast("Added to cart! Login to checkout 🛒");
+}
+
+// ================= WISHLIST =================
+function addToWishlist(productId, btn = null, colorId = null) {
+    if (isUserLoggedIn()) {
+        fetch(`/wishlist/toggle/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            if (btn) { btn.classList.toggle("active", data.in_wishlist); btn.innerHTML = data.in_wishlist ? "❤️" : "♡"; }
+            const w = document.getElementById("wishlistCount");
+            if (w) w.innerText = data.count;
+        }).catch(err => console.error("Wishlist error:", err));
+    } else {
+        let gWish = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+        const idx = gWish.findIndex(i =>
+            String(i.productId) === String(productId) &&
+            String(i.colorId || null) === String(colorId || null));
+        let inWishlist;
+        if (idx > -1) { gWish.splice(idx, 1); inWishlist = false; }
+        else          { gWish.push({ productId, colorId }); inWishlist = true; }
+        localStorage.setItem("guestWishlist", JSON.stringify(gWish));
+        if (btn) { btn.classList.toggle("active", inWishlist); btn.innerHTML = inWishlist ? "❤️" : "♡"; }
+        updateGuestCounts();
+        showGuestToast(inWishlist ? "Saved to wishlist! Login to sync ❤️" : "Removed from wishlist");
+    }
+}
+
 function checkWishlist(productId, colorId = null) {
+    if (!isUserLoggedIn()) return Promise.resolve(isInGuestWishlist(productId, colorId));
     return fetch(`/wishlist/check/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
-        .then(res => res.json())
-        .then(data => data.in_wishlist)
-        .catch(() => false);
+        .then(r => r.json()).then(d => d.in_wishlist).catch(() => false);
 }
 
-function getProductBaseId(product) {
-    return product.product_id || product.id;
+// ================= PRODUCT HELPERS =================
+function getProductBaseId(p)    { return p.product_id || p.id; }
+function getProductColorId(p)   { return p.color_variant?.id || p.colors?.[0]?.id || null; }
+function getProductDetailUrl(p) {
+    const pid = getProductBaseId(p), cid = getProductColorId(p);
+    return cid ? `/product/${pid}?color=${cid}` : `/product/${pid}`;
 }
 
-function getProductColorId(product) {
-    return product.color_variant?.id || product.colors?.[0]?.id || null;
-}
-
-function getProductDetailUrl(product) {
-    const productId = getProductBaseId(product);
-    const colorId = getProductColorId(product);
-
-    return colorId
-        ? `/product/${productId}?color=${colorId}`
-        : `/product/${productId}`;
-}
-
-
-// ✅ MAIN FUNCTION
+// ================= HOMEPAGE PRODUCTS =================
 function loadProducts() {
     fetch("/products")
-        .then(res => res.json())
+        .then(r => r.json())
         .then(data => {
-            console.log(data) 
-            const container = document.getElementById("products");
+            // index.html has BOTH <section id="products"> and <div id="products" class="product-container">
+            // We want the .product-container div
+            const container = document.querySelector(".product-container") || document.getElementById("products");
             if (!container) return;
-
             container.innerHTML = "";
 
             data.slice(0, 4).forEach(product => {
-
-                const productId = getProductBaseId(product);
+                const productId    = getProductBaseId(product);
                 const variantColor = product.color_variant || product.colors?.[0] || null;
-                const colorId = variantColor?.id || null;
-                const image = product.images?.[0] || "/static/images/default.png";
+                const colorId      = variantColor?.id || null;
+                const image        = product.images?.[0] || "/static/images/default.png";
 
-                const ratingHTML = product.rating
-                    ? `<div class="rating">⭐ ${product.rating}</div>`
-                    : "";
-
-                const discountHTML = product.discount_percent > 0
-                    ? `<span class="discount-badge">-${product.discount_percent}%</span>`
-                    : "";
-
-                const oldPriceHTML = product.original_price
-                    ? `<span class="old-price">₹${product.original_price}</span>`
-                    : "";
-
-                // ✅ COLORS
-                const colorsHTML = variantColor
-                    ? `<div class="color-options">
-                        <span 
-                            class="color-circle"
-                            style="background:${variantColor.code}"
-                            title="${variantColor.name}"
-                            data-color="${variantColor.id}"
-                            data-product="${productId}"
-                        ></span>
-                       </div>`
+                const ratingHTML   = product.rating ? `<div class="rating">⭐ ${product.rating}</div>` : "";
+                const discountHTML = product.discount_percent > 0 ? `<span class="discount-badge">-${product.discount_percent}%</span>` : "";
+                const oldPriceHTML = product.original_price ? `<span class="old-price">₹${product.original_price}</span>` : "";
+                const colorsHTML   = variantColor
+                    ? `<div class="color-options"><span class="color-circle" style="background:${variantColor.code}" title="${variantColor.name}" data-color="${variantColor.id}" data-product="${productId}"></span></div>`
                     : "";
 
                 const div = document.createElement("div");
                 div.className = "product-card";
-
                 div.innerHTML = `
                     <div class="product-image-wrapper">
                         ${discountHTML}
-
-                        <button class="wishlist-btn" data-id="${productId}">
-                            ♡
-                        </button>
-
+                        <button class="wishlist-btn" data-id="${productId}">♡</button>
                         <img class="product-img" src="${image}" alt="${product.name}">
                     </div>
-
                     <div class="product-info">
-
                         ${colorsHTML}
-
                         <h4>${product.name}</h4>
-
                         ${ratingHTML}
-
                         <div class="price-box">
                             <span class="new-price">₹${product.price}</span>
                             ${oldPriceHTML}
                         </div>
-
                     </div>
                 `;
 
                 const wishlistBtn = div.querySelector(".wishlist-btn");
-                const imgEl = div.querySelector(".product-img");
+                const imgEl       = div.querySelector(".product-img");
 
-                /* =============================
-                   AMAZON STYLE HOVER CHANGE
-                ==============================*/
                 div.querySelectorAll(".color-circle").forEach(circle => {
-
-                    circle.addEventListener("mouseenter", (e) => {
-                        e.stopPropagation();
-
-                        const colorId = circle.dataset.color;
-
-                        const colorImages = product.color_images?.[colorId];
-
-                        if (colorImages && colorImages.length > 0) {
-                            imgEl.src = colorImages[0];
-                        }
+                    circle.addEventListener("mouseenter", () => {
+                        const imgs = product.color_images?.[circle.dataset.color];
+                        if (imgs?.length) imgEl.src = imgs[0];
                     });
-
-                    circle.addEventListener("mouseleave", () => {
-                        imgEl.src = image;
-                    });
-
-                    /* =============================
-                       CLICK → OPEN PRODUCT COLOR
-                    ==============================*/
-                    circle.addEventListener("click", (e) => {
+                    circle.addEventListener("mouseleave", () => { imgEl.src = image; });
+                    circle.addEventListener("click", e => {
                         e.stopPropagation();
-
-                        const productId = circle.dataset.product;
-                        const colorId = circle.dataset.color;
-
-                        // 👉 IMPORTANT FIX (WORKING ROUTE)
-                        window.location.href = `/product/${productId}?color=${colorId}`;
+                        window.location.href = `/product/${circle.dataset.product}?color=${circle.dataset.color}`;
                     });
                 });
 
-                /* ================= PRODUCT CLICK ================= */
-                div.addEventListener("click", () => {
-                    window.location.href = getProductDetailUrl(product);
-                });
+                div.addEventListener("click", () => { window.location.href = getProductDetailUrl(product); });
 
-                /* ================= WISHLIST ================= */
                 checkWishlist(productId, colorId).then(inWishlist => {
-                    if (inWishlist) {
-                        wishlistBtn.classList.add("active");
-                        wishlistBtn.innerHTML = "❤️";
-                    }
+                    if (inWishlist) { wishlistBtn.classList.add("active"); wishlistBtn.innerHTML = "❤️"; }
                 });
 
-                wishlistBtn.addEventListener("click", (e) => {
+                wishlistBtn.addEventListener("click", e => {
                     e.stopPropagation();
-
                     addToWishlist(productId, wishlistBtn, colorId);
-
-                    wishlistBtn.classList.toggle("active");
-                    wishlistBtn.innerHTML = wishlistBtn.classList.contains("active")
-                        ? "❤️"
-                        : "♡";
                 });
 
                 container.appendChild(div);
@@ -549,116 +354,103 @@ function loadProducts() {
         .catch(err => console.error("Product load error:", err));
 }
 
-/* INIT */
-document.addEventListener("DOMContentLoaded", () => {
-    updateNavbarCounts();
-    loadProducts();
-});
-/* ✅ CALL FUNCTION AFTER PAGE LOAD */
+// ================= LOGIN-GATED ACTIONS =================
+window.handleBuyNow = function (productId, colorId, sizeId) {
+    if (!isUserLoggedIn()) { openPopup(); return; }
+    addToCart(productId, colorId, sizeId);
+    window.location.href = "/cart";
+};
 
+window.handleCheckout = function () {
+    if (!isUserLoggedIn()) { openPopup(); return; }
+    window.location.href = "/checkout";
+};
 
-// ================= 🔍 LIVE SEARCH =================
-const searchFields = [
-    { input: document.getElementById("searchInput"), dropdown: document.getElementById("searchDropdown") },
-    { input: document.getElementById("mobileSearchInput"), dropdown: document.getElementById("mobileSearchDropdown") }
-].filter(field => field.input && field.dropdown);
+window.handleAccountClick = function (e) {
+    if (e) e.preventDefault();
+    if (!isUserLoggedIn()) { openPopup(); } else { window.location.href = "/account"; }
+};
 
-searchFields.forEach(({ input, dropdown }) => {
-    input.addEventListener("input", function () {
-        const query = this.value;
-
-        if (query.length < 1) {
-            dropdown.style.display = "none";
-            return;
-        }
-
-        // ✅ CALL BACKEND SEARCH API
-        fetch("/api/search?q=" + encodeURIComponent(query))
-        .then(res => res.json())
-        .then(data => {
-            dropdown.innerHTML = "";
-
-            if (data.length === 0) {
-                dropdown.innerHTML = "<p style='padding:10px;'>No results found</p>";
-                dropdown.style.display = "block";
-                return;
-            }
-
-            data.forEach(product => {
-                const div = document.createElement("div");
-                div.className = "search-item";
-
-                div.innerHTML = `
-                    <img src="${product.image}">
-                    <div>
-                        <b>${product.name}</b><br>
-                        ₹${product.price}
-                    </div>
-                `;
-
-                div.onclick = () => {
-                    window.location.href = "/product/" + product.id;
-                };
-
-                dropdown.appendChild(div);
-            });
-
-            dropdown.style.display = "block";
-        });
-    });
-});
-
-// CLOSE DROPDOWN
-window.addEventListener("click", (e) => {
-    if (!e.target.closest(".search-bar") && !e.target.closest(".mobile-search-card") && !e.target.closest(".mobile-search-toggle")) {
-        searchFields.forEach(({ dropdown }) => {
-            dropdown.style.display = "none";
-        });
+// ================= DROPDOWN =================
+function toggleDropdown() {
+    const m = document.getElementById("dropdownMenu");
+    if (m) m.classList.toggle("show");
+}
+window.addEventListener("click", e => {
+    if (!e.target.closest(".user-dropdown")) {
+        const m = document.getElementById("dropdownMenu");
+        if (m) m.classList.remove("show");
     }
 });
 
-function sendMessage(e) {
-    e.preventDefault();
-    alert("Message sent successfully! ✅");
-}
+// ================= LIVE SEARCH =================
+document.addEventListener("DOMContentLoaded", () => {
+    const searchFields = [
+        { input: document.getElementById("searchInput"),       dropdown: document.getElementById("searchDropdown") },
+        { input: document.getElementById("mobileSearchInput"), dropdown: document.getElementById("mobileSearchDropdown") }
+    ].filter(f => f.input && f.dropdown);
+
+    searchFields.forEach(({ input, dropdown }) => {
+        input.addEventListener("input", function () {
+            const q = this.value.trim();
+            if (!q) { dropdown.style.display = "none"; return; }
+            fetch("/api/search?q=" + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                dropdown.innerHTML = "";
+                if (!data.length) { dropdown.innerHTML = "<p style='padding:10px;'>No results found</p>"; dropdown.style.display = "block"; return; }
+                data.forEach(p => {
+                    const d = document.createElement("div");
+                    d.className = "search-item";
+                    d.innerHTML = `<img src="${p.image}"><div><b>${p.name}</b><br>₹${p.price}</div>`;
+                    d.onclick = () => { window.location.href = "/product/" + p.id; };
+                    dropdown.appendChild(d);
+                });
+                dropdown.style.display = "block";
+            });
+        });
+    });
+
+    window.addEventListener("click", e => {
+        if (!e.target.closest(".search-bar") && !e.target.closest(".mobile-search-card") && !e.target.closest(".mobile-search-toggle")) {
+            searchFields.forEach(({ dropdown }) => { dropdown.style.display = "none"; });
+        }
+    });
+});
+
 // ================= FAQ =================
 document.addEventListener("DOMContentLoaded", () => {
-    const faqItems = document.querySelectorAll(".faq-item");
-
-    faqItems.forEach(item => {
-        item.addEventListener("click", () => {
-            item.classList.toggle("active");
-        });
+    document.querySelectorAll(".faq-item").forEach(item => {
+        item.addEventListener("click", () => item.classList.toggle("active"));
     });
 });
 
-// 🧲 MAGNETIC ICON EFFECT
+// ================= CONTACT =================
+function sendMessage(e) { e.preventDefault(); alert("Message sent successfully! ✅"); }
+
+// ================= MAGNETIC ICON =================
 document.querySelectorAll(".premium-icon").forEach(icon => {
     icon.addEventListener("mousemove", e => {
-        const rect = icon.getBoundingClientRect();
-        const x = e.clientX - rect.left - rect.width / 2;
-        const y = e.clientY - rect.top - rect.height / 2;
-
-        icon.style.transform = `translate(${x*0.2}px, ${y*0.2}px) scale(1.15)`;
+        const r = icon.getBoundingClientRect();
+        icon.style.transform = `translate(${(e.clientX - r.left - r.width/2) * 0.2}px, ${(e.clientY - r.top - r.height/2) * 0.2}px) scale(1.15)`;
     });
-
-    icon.addEventListener("mouseleave", () => {
-        icon.style.transform = "translate(0,0) scale(1)";
-    });
+    icon.addEventListener("mouseleave", () => { icon.style.transform = "translate(0,0) scale(1)"; });
 });
 
-window.addEventListener('load', () => {
-    const loader = document.getElementById('loader');
-
-    if (!sessionStorage.getItem('loaderShown')) {
-        sessionStorage.setItem('loaderShown', 'true');
-
-        setTimeout(() => {
-            loader.classList.add('fade');
-            setTimeout(() => { loader.style.display = 'none'; }, 1000);
-        }, 2500); 
-    } else {
-        loader.style.display = 'none';
-    }
+// ================= LOADER =================
+window.addEventListener("load", () => {
+    const loader = document.getElementById("loader");
+    if (!loader) return;
+    if (!sessionStorage.getItem("loaderShown")) {
+        sessionStorage.setItem("loaderShown", "true");
+        setTimeout(() => { loader.classList.add("fade"); setTimeout(() => { loader.style.display = "none"; }, 1000); }, 2500);
+    } else { loader.style.display = "none"; }
 });
-    
+
+// ================= INIT =================
+document.addEventListener("DOMContentLoaded", () => {
+    updateNavbarCounts();
+    updateGuestCounts();
+    setTimeout(loadProducts, 100);
+});
+// ❌ NO auto-sync on page load — only in login success block above

@@ -7,17 +7,17 @@
             <h1>Wishlist</h1>
             <p class="wishlist-note">Save your favorite products for later and move them to bag in one click.</p>
         </div>
-        <button class="primary-btn move-all" onclick="moveAllToCart()">Move All To Card</button>
+        <button class="primary-btn move-all" onclick="moveAllToCart()">Move All To Cart</button>
     </div>
 
-    {% if items|length == 0 %}
-        <div class="empty">
-            <h2>Your wishlist is empty</h2>
-            <p>Add products you love and keep them handy here.</p>
-        </div>
-    {% else %}
+    <!-- Empty state -->
+    <div class="empty" id="wishlistEmpty" style="{% if items|length > 0 %}display:none{% endif %}">
+        <h2>Your wishlist is empty</h2>
+        <p>Add products you love and keep them handy here.</p>
+    </div>
 
-    <div class="grid">
+    <!-- Grid: always in DOM -->
+    <div class="grid" id="wishlistGrid" style="{% if items|length == 0 %}display:none{% endif %}">
         {% for p in items %}
         <div class="card">
             <div class="card-image-wrap">
@@ -43,16 +43,95 @@
         </div>
         {% endfor %}
     </div>
-
-    {% endif %}
 </div>
 
 <!-- ✅ JAVASCRIPT -->
 
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (!isLoggedIn) {
+        loadGuestWishlist();
+    }
+});
 
+function loadGuestWishlist() {
+    const guestWishlist = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+    const grid    = document.getElementById("wishlistGrid");
+    const empty   = document.getElementById("wishlistEmpty");
+
+    if (!guestWishlist.length) {
+        if (grid)  grid.style.display  = "none";
+        if (empty) empty.style.display = "block";
+        return;
+    }
+
+    fetch("/products")
+    .then(res => res.json())
+    .then(allProducts => {
+        if (empty) empty.style.display = "none";
+        if (grid) {
+            grid.style.display = "grid";
+            grid.innerHTML = "";
+        }
+
+        guestWishlist.forEach(item => {
+            const product = allProducts.find(p =>
+                (p.product_id || p.id) == item.productId
+            );
+            if (!product) return;
+
+            const div = document.createElement("div");
+            div.className = "card";
+            div.innerHTML = `
+                <div class="card-image-wrap">
+                    <img src="${product.images?.[0] || '/static/images/default.png'}">
+                    <button class="icon-btn" onclick="guestRemoveWishlist(${item.productId}, ${item.colorId || null})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <h3>${product.name}</h3>
+                    <p class="price">₹${product.price}</p>
+                    <button class="primary-btn" onclick="guestMoveToCart(${item.productId}, ${item.colorId || null})">
+                        Add To Cart
+                    </button>
+                </div>
+            `;
+            if (grid) grid.appendChild(div);
+        });
+    });
+}
+
+function guestRemoveWishlist(productId, colorId) {
+    let guestWishlist = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+    guestWishlist = guestWishlist.filter(i => !(i.productId == productId && i.colorId == colorId));
+    localStorage.setItem("guestWishlist", JSON.stringify(guestWishlist));
+    loadGuestWishlist();
+    updateGuestCounts();
+}
+
+function guestMoveToCart(productId, colorId) {
+    let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const existing = guestCart.find(i => i.productId == productId && i.colorId == colorId);
+    if (!existing) {
+        guestCart.push({ productId, colorId, qty: 1 });
+        localStorage.setItem("guestCart", JSON.stringify(guestCart));
+    }
+    guestRemoveWishlist(productId, colorId);
+    updateGuestCounts();
+}
 // ================= ADD TO CART WITH SIZE =================
 function openSizeModal(productId, colorId = "") {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+
+    // ✅ GUEST: add directly to localStorage, no login required
+    if (!isLoggedIn) {
+        addToGuestCart(productId, colorId || null, null);
+        showGuestToast("Added to cart! Login to checkout 🛒");
+        updateGuestCounts();
+        return;
+    }
 
     fetch(`/product/sizes/${productId}`)
         .then(res => res.json())
@@ -76,7 +155,7 @@ function openSizeModal(productId, colorId = "") {
                 })
             });
         })
-        .then(res => res.json())
+        .then(res => res && res.json())
         .then(data => {
 
             if (!data) return;
@@ -86,9 +165,9 @@ function openSizeModal(productId, colorId = "") {
                 return;
             }
 
-            alert("Added to cart ✅");
+            showGuestToast("Added to cart ✅");
+            updateNavbarCounts();
 
-            // update navbar count
             const cartEl = document.getElementById("cartCount");
             if (cartEl) {
                 cartEl.innerText = data.count;
@@ -129,6 +208,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ================= MOVE ALL TO CART =================
 function moveAllToCart() {
+      const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (!isLoggedIn) {
+        openPopup();
+        return;
+    }
 
     let buttons = Array.from(document.querySelectorAll('.addCartBtn'));
 
@@ -159,13 +243,17 @@ function moveAllToCart() {
                             size_id: sizeId,
                             color_id: color || null
                         })
-                    }).then(() => fetch(`/remove_wishlist/${id}?color_id=${color}`));
+                    }).then(() => fetch(`/remove_wishlist/${id}?color_id=${color}`))
+                      .then(() => {
+                          const card = btn.closest(".card");
+                          if (card) card.remove();
+                      });
                 });
         })
     )
     .then(() => {
         alert('Moved all wishlist items to cart ✅');
-        location.reload();
+        updateNavbarCounts();
     })
     .catch(() => {
         alert('Something went wrong while moving items.');

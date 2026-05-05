@@ -1313,7 +1313,8 @@ from sqlalchemy import text
 @app.route('/cart')
 def cart_page():
     if 'email' not in session:
-        return redirect('/')
+        return render_template("cart.html", products=[], total=0, total_items=0)
+
 
     user = User.query.filter_by(email=session['email']).first()
     if not user:
@@ -1442,36 +1443,42 @@ def decrease_cart(id):
     db.session.commit()
     return jsonify({"success": True, "message": "Updated"})
 
-'''@app.route('/add_to_cart/<int:id>')
+@app.route('/add_to_cart/<int:id>', methods=['GET', 'POST'])
 def add_to_cart(id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
 
-    user = User.query.filter_by(email=session['email']).first()
+    user     = User.query.filter_by(email=session['email']).first()
+    data     = request.get_json(silent=True) or {}
+    color_id = normalize_optional_int(data.get('color_id') or request.args.get('color_id'))
+    size_id  = normalize_optional_int(data.get('size_id')  or request.args.get('size_id'))
 
-    existing = db.session.execute(text("""
-        SELECT * FROM cart WHERE user_id=:uid AND product_id=:pid
-    """), {"uid": user.id, "pid": id}).fetchone()
+    existing = db.session.execute(text(
+        "SELECT quantity FROM cart WHERE user_id=:uid AND product_id=:pid "
+        "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)"
+    ), {"uid": user.id, "pid": id, "cid": color_id}).fetchone()
 
     if existing:
-        db.session.execute(text("""
-            UPDATE cart SET quantity = quantity + 1
-            WHERE user_id=:uid AND product_id=:pid
-        """), {"uid": user.id, "pid": id})
+        db.session.execute(text(
+            "UPDATE cart SET quantity = quantity + 1 "
+            "WHERE user_id=:uid AND product_id=:pid "
+            "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)"
+        ), {"uid": user.id, "pid": id, "cid": color_id})
     else:
-        db.session.execute(text("""
-            INSERT INTO cart (user_id, product_id)
-            VALUES (:uid, :pid)
-        """), {"uid": user.id, "pid": id})
+        db.session.execute(text(
+            "INSERT INTO cart (user_id, product_id, color_id, size_id, quantity) "
+            "VALUES (:uid, :pid, :cid, :sid, 1)"
+        ), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
 
-    count = db.session.execute(text("""
-        SELECT SUM(quantity) FROM cart WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
+    count = db.session.execute(text(
+        "SELECT COALESCE(SUM(quantity), 0) FROM cart WHERE user_id=:uid"
+    ), {"uid": user.id}).scalar()
 
     return jsonify({"success": True, "count": count})
-'''
+
+
 # ================= WISHLIST =================
 @app.route('/add_to_wishlist/<int:id>')
 def add_to_wishlist(id):
@@ -1555,8 +1562,7 @@ def get_user():
 @app.route('/wishlist')
 def wishlist_page():
     if 'email' not in session:
-        return redirect('/')
-
+         return render_template("wishlist.html", items=[])
     user = User.query.filter_by(email=session['email']).first()
     if not user:
        session.clear()
@@ -1753,6 +1759,13 @@ def get_counts():
         "cart": cart_count,
         "wishlist": wishlist_count
     })
+
+
+# script.js compatibility alias
+@app.route('/api/counts')
+def api_counts():
+    return get_counts()
+
 
 @app.route('/update_quantity/<int:product_id>/<string:action>')
 def update_quantity(product_id, action):
@@ -2012,11 +2025,54 @@ def checkout_review():
 
     return jsonify(review_data)
 
+@app.route('/api/sync-guest-cart', methods=['POST'])
+def sync_guest_cart():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+    user = User.query.filter_by(email=session['email']).first()
+    items = request.get_json().get('items', [])
+    for item in items:
+        # existing check karo, nahi hai toh add karo
+        existing = Cart.query.filter_by(
+            user_id=user.id, 
+            product_id=item['productId']
+        ).first()
+        if not existing:
+            cart_item = Cart(
+                user_id=user.id,
+                product_id=item['productId'],
+                quantity=item.get('qty', 1),
+                color_id=item.get('colorId'),
+                size_id=item.get('sizeId')
+            )
+            db.session.add(cart_item)
+    db.session.commit()
+    return jsonify({"message": "Cart synced"})
 
-@app.route('/checkout', methods=['POST'])
+@app.route('/api/sync-guest-wishlist', methods=['POST'])
+def sync_guest_wishlist():
+    if 'email' not in session:
+        return jsonify({"message": "Not logged in"}), 401
+    user = User.query.filter_by(email=session['email']).first()
+    items = request.get_json().get('items', [])
+    for item in items:
+        db.session.execute(text("""
+            INSERT INTO wishlist (user_id, product_id, color_id)
+            SELECT :uid, :pid, :cid
+            WHERE NOT EXISTS (
+                SELECT 1 FROM wishlist WHERE user_id=:uid AND product_id=:pid AND (color_id=:cid OR (color_id IS NULL AND :cid IS NULL))
+            )
+        """), {"uid": user.id, "pid": item['productId'], "cid": item.get('colorId')})
+    db.session.commit()
+    return jsonify({"message": "Wishlist synced"})
+
+
+@app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     if 'email' not in session:
-        return jsonify({"message": "Login required"}), 401
+        if request.method == 'GET':
+               return redirect('/')
+        return jsonify({"message": "login_required", "redirect": "/checkout"}), 401
 
     user = User.query.filter_by(email=session['email']).first()
 
@@ -2043,7 +2099,7 @@ def checkout():
 
     total = 0
 
-    data = request.get_json()
+    data = request.get_json() or {}
 
 # 👉 user addresses
     addresses = Address.query.filter_by(user_id=user.id).all()
@@ -2155,7 +2211,7 @@ def upload_avatar():
 @app.route('/account')
 def account():
     if 'email' not in session:
-        return redirect('/')
+        return redirect('/?show_login=1')
 
     user = User.query.filter_by(email=session['email']).first()
     return render_template("account.html", user=user)

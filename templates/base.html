@@ -1213,41 +1213,50 @@ body {
     .products-page .product-card {
         border-radius: 10px;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: auto;
     }
 
     /* IMAGE FULL + SQUARE */
     .products-page .product-image-wrapper {
         width: 100%;
-        aspect-ratio: 1/1; /* ✅ perfect square */
+        aspect-ratio: 1/1;
         overflow: hidden;
+        flex-shrink: 0;
     }
 
     .products-page .product-image-wrapper img {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* ✅ full fill */
+        object-fit: cover;
     }
 
-    /* INFO COMPACT */
+    /* INFO — flex:1 kills dead space below button */
     .products-page .product-info {
-        padding: 8px;
+        padding: 8px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1;
+        justify-content: flex-start;
+        gap: 4px;
     }
 
-    /* TITLE GAP FIX */
+    /* TITLE */
     .products-page .product-info h4 {
         font-size: 13px;
-        margin: 4px 0;
+        margin: 0;
         line-height: 1.2;
     }
 
-    /* DESCRIPTION REMOVE (mobile clean UI) */
+    /* DESCRIPTION REMOVE */
     .products-page .product-desc {
         display: none;
     }
 
     /* PRICE */
     .products-page .price-box {
-        margin-top: 4px;
+        margin: 0;
     }
 
     .products-page .new-price {
@@ -1270,6 +1279,13 @@ body {
         font-size: 11px;
         padding: 6px;
         flex: 1;
+    }
+
+    /* ADD TO CART — snug below content, no gap */
+    .products-page .add-cart-btn {
+        margin-top: auto;
+        padding: 8px;
+        font-size: 12px;
     }
 
     /* BADGE FIX */
@@ -1592,7 +1608,7 @@ body::before {
 
             <span id="closeBtn">&times;</span>
 
-            <img src="static\images\bp_logo-white.png" class="auth-logo" alt="Logo">
+            <img src="/static/images/bp_logo-white.png" class="auth-logo" alt="Logo">
 
             <h2 id="formTitle">Login</h2>
 
@@ -1626,7 +1642,7 @@ body::before {
     <div class="nav-left">
         <div class="logo">
             <a href="/">
-                <img src="static\images\bp_logo-white.png" alt="Logo">
+                <img src="/static/images/bp_logo-white.png" alt="Logo">
             </a>
         </div>
     </div>
@@ -1637,7 +1653,8 @@ body::before {
         <a href="/blogs">Blogs</a>
         <a href="/#about">About Us</a>
         <a href="/#contact">Contact</a>
-         <a href="/account" class="mobile-account-link">My Account</a>
+        <!-- ✅ FIX - login check karo pehle -->
+<a href="#" class="mobile-account-link" onclick="handleAccountClick(event)">My Account</a>
     </div>
 
     <!-- MOBILE HAMBURGER MENU -->
@@ -1765,6 +1782,23 @@ body::before {
 
 <!-- Mobile Menu Toggle Script -->
 <script>
+
+    document.addEventListener("DOMContentLoaded", () => {
+    // ✅ URL me show_login=1 ho toh popup kholo
+    if (new URLSearchParams(window.location.search).get("show_login") === "1") {
+        openPopup();
+    }
+});
+
+    function handleAccountClick(e) {
+    e.preventDefault();
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (!isLoggedIn) {
+        openPopup();
+    } else {
+        window.location.href = "/account";
+    }
+}
     function toggleMobileMenu() {
         const hamburger = document.getElementById('hamburger');
         const navCenter = document.getElementById('navCenter');
@@ -1844,15 +1878,26 @@ window.addEventListener("scroll", function () {
     }
 });
 function updateNavbarCounts() {
-    fetch("/get_counts")
-    .then(res => res.json())
-    .then(data => {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+
+    if (isLoggedIn) {
+        fetch("/get_counts")
+        .then(res => res.json())
+        .then(data => {
+            const cart = document.getElementById("cartCount");
+            const wish = document.getElementById("wishlistCount");
+            if (cart) cart.textContent = data.cart;
+            if (wish) wish.textContent = data.wishlist;
+        });
+    } else {
+        // guest → localStorage se count lo
+        const guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+        const guestWishlist = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
         const cart = document.getElementById("cartCount");
         const wish = document.getElementById("wishlistCount");
-
-        if (cart) cart.textContent = data.cart;
-        if (wish) wish.textContent = data.wishlist;
-    });
+        if (cart) cart.textContent = guestCart.reduce((sum, i) => sum + (i.qty || 1), 0);
+        if (wish) wish.textContent = guestWishlist.length;
+    }
 }
 window.addEventListener("user-login", () => {
     updateNavbarCounts();
@@ -1862,4 +1907,3 @@ window.addEventListener("user-login", () => {
 <script src="/static/js/script.js"></script>
 </body>
 </html>
-

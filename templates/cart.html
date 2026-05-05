@@ -5,18 +5,18 @@
 
     <h1 class="title">🛒 Your Shopping Cart</h1>
 
-    {% if products|length == 0 %}
-        <div class="empty">
-            <h2>Your cart is empty 😔</h2>
-            <p>Start adding some premium belts!</p>
-            <a href="{{ url_for('products_page') }}" class="shop-btn">Shop Now</a>
-        </div>
-    {% else %}
+    <!-- Empty state: shown for logged-in empty cart OR initially for guests -->
+    <div class="empty" id="cartEmpty" style="{% if products|length > 0 %}display:none{% endif %}">
+        <h2>Your cart is empty 😔</h2>
+        <p>Start adding some premium belts!</p>
+        <a href="{{ url_for('products_page') }}" class="shop-btn">Shop Now</a>
+    </div>
 
-    <div class="cart-grid">
+    <!-- Cart grid: always in DOM so JS can populate it for guests -->
+    <div class="cart-grid" id="cartGrid" style="{% if products|length == 0 %}display:none{% endif %}">
 
         <!-- LEFT -->
-        <div class="cart-items">
+        <div class="cart-items" id="cartItems">
             {% for p in products %}
             <div class="cart-card" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">
 
@@ -50,8 +50,6 @@
 </div>
                 </div>
             </div>
-
-            
             {% endfor %}
         </div>
 
@@ -86,7 +84,6 @@
         </div>
 
     </div>
-    {% endif %}
 </div>
 
 <!-- ✅ CHECKOUT REVIEW MODAL (BEFORE CHECKOUT) -->
@@ -147,6 +144,109 @@
 
 <!-- JS -->
 <script>
+
+document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (!isLoggedIn) {
+        loadGuestCart();
+    }
+});
+
+function loadGuestCart() {
+    const guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const container = document.getElementById("cartItems");
+    const gridDiv   = document.getElementById("cartGrid");
+    const emptyDiv  = document.getElementById("cartEmpty");
+
+    if (!guestCart.length) {
+        if (emptyDiv) emptyDiv.style.display = "block";
+        if (gridDiv)  gridDiv.style.display  = "none";
+        return;
+    }
+
+    fetch("/products")
+    .then(res => res.json())
+    .then(allProducts => {
+
+        if (emptyDiv) emptyDiv.style.display = "none";
+        if (gridDiv)  gridDiv.style.display  = "grid";
+        if (container) container.innerHTML = "";
+
+        let total = 0;
+
+        guestCart.forEach(item => {
+            const product = allProducts.find(p =>
+                (p.product_id || p.id) == item.productId
+            );
+            if (!product) return;
+
+            const price = product.price;
+            const qty = item.qty || 1;
+            total += price * qty;
+
+            const div = document.createElement("div");
+            div.className = "cart-card";
+            div.innerHTML = `
+                <img src="${product.images?.[0] || '/static/images/default.png'}" class="product-img">
+                <div class="details">
+                    <h3>${product.name}</h3>
+                    <p class="price">₹${price}</p>
+                </div>
+                <div class="right-box">
+                    <p class="item-total">Total: ₹${price * qty}</p>
+                    <div class="qty-box">
+                        <button class="qty-btn minus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, -1, this)">−</button>
+                        <span class="qty-number">${qty}</span>
+                        <button class="qty-btn plus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, 1, this)">+</button>
+                    </div>
+                    <div class="actions">
+                        <button class="removeBtn" onclick="guestRemoveCart(${item.productId}, ${item.colorId || null})">Remove</button>
+                    </div>
+                </div>
+            `;
+            if (container) container.appendChild(div);
+        });
+
+        updateGuestCartSummary(total);
+    });
+}
+
+function guestQtyChange(productId, colorId, delta, btn) {
+    let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const item = guestCart.find(i => i.productId == productId && i.colorId == colorId);
+    if (!item) return;
+
+    item.qty = (item.qty || 1) + delta;
+    if (item.qty <= 0) {
+        guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId));
+    }
+
+    localStorage.setItem("guestCart", JSON.stringify(guestCart));
+    loadGuestCart(); // re-render
+    updateGuestCounts();
+}
+
+function guestRemoveCart(productId, colorId) {
+    let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId));
+    localStorage.setItem("guestCart", JSON.stringify(guestCart));
+    loadGuestCart();
+    updateGuestCounts();
+}
+
+function updateGuestCartSummary(total) {
+    const discount = total * 0.1;
+    const final = total - discount + 50;
+    const bagTotal = document.getElementById("bagTotal");
+    const discountEl = document.getElementById("discount");
+    const finalTotal = document.getElementById("finalTotal");
+    const subtotal = document.getElementById("subtotal");
+    if (bagTotal) bagTotal.innerText = "₹" + total;
+    if (discountEl) discountEl.innerText = "- ₹" + discount.toFixed(0);
+    if (finalTotal) finalTotal.innerText = "₹" + final.toFixed(0);
+    if (subtotal) subtotal.innerText = total;
+}
+
 function updateCartUI(){
 
     let subtotal = 0;
@@ -177,10 +277,7 @@ function updateCartUI(){
 }
 
 
-// REMOVE
-document.addEventListener("DOMContentLoaded", function(){
-    updateCartUI();
-});
+
 document.querySelectorAll(".removeBtn").forEach(btn => {
     btn.addEventListener("click", function () {
 
@@ -206,18 +303,7 @@ document.querySelectorAll(".removeBtn").forEach(btn => {
         });
     });
 });
-function updateNavbarCounts(){
-    fetch('/get_counts')
-    .then(res => res.json())
-    .then(data => {
 
-        let cartEl = document.getElementById("cartCount") || document.querySelector(".cart-count");
-        if(cartEl) cartEl.innerText = data.cart;
-
-        let wishEl = document.getElementById("wishlistCount") || document.querySelector(".wishlist-count");
-        if(wishEl) wishEl.innerText = data.wishlist;
-    });
-}
 
 window.addEventListener("pageshow", function () {
     updateNavbarCounts(); 
@@ -246,7 +332,11 @@ document.querySelectorAll(".wishBtn").forEach(btn=>{
 let selectedAddress = null;
 
 function openCheckout(){
-    // First show review modal
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (!isLoggedIn) {
+        openPopup();
+        return;
+    }
     loadCheckoutReview();
 }
 
@@ -294,18 +384,22 @@ function loadCheckoutReview(){
         alert("Error loading checkout review");
     });
 }
-
 function proceedToCheckout(){
-    // Check if phone is set
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+    if (!isLoggedIn) {
+        document.getElementById("reviewModal").style.display = "none";
+        openPopup();
+        return;
+    }
+
     fetch('/api/checkout-review')
     .then(res=>res.json())
     .then(data=>{
         if(!data.user.phone){
-            alert("⚠️ Phone number is required to complete your order.\\n\\nPlease add your phone number in Profile Settings.");
+            alert("⚠️ Phone number required! Please add in Profile Settings.");
             location.href = "/account";
             return;
         }
-        // Close review modal and open checkout modal
         document.getElementById("reviewModal").style.display = "none";
         document.getElementById("checkoutModal").style.display = "flex";
         loadAddresses();
@@ -348,29 +442,20 @@ function selectAddress(index){
 function showAddressForm(){
     document.getElementById("addressForm").style.display = "block";
 }
-fetch('/get_addresses')
+
 
 function saveAddress(){
-    fetch('/add_address',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-            full_name: full_name.value,
-            phone: phone.value,
-            address_line: address_line.value,
-            city: city.value,
-            state: state.value,
-            pincode: pincode.value
-        })
-        
-    })
-      // ✅ PHONE VALIDATION
+    const full_name = document.getElementById("full_name");
+    const phone = document.getElementById("phone");
+    const address_line = document.getElementById("address_line");
+    const city = document.getElementById("city");
+    const state = document.getElementById("state");
+    const pincode = document.getElementById("pincode");
+
     if(!/^\d{10}$/.test(phone.value)){
         alert("❌ Invalid phone number (10 digits required)");
         return;
     }
-
-    // ✅ PINCODE VALIDATION
     if(!/^\d{6}$/.test(pincode.value)){
         alert("❌ Invalid pincode (6 digits required)");
         return;
@@ -392,9 +477,8 @@ function saveAddress(){
     .then(d=>{
         alert(d.message);
         loadAddresses();
+        document.getElementById("addressForm").style.display = "none";
     });
-
-   
 }
 
 function placeOrder(){

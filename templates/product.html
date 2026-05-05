@@ -755,10 +755,10 @@ function toggleCart(productId, btn) {
 
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
-    if (!isLoggedIn) {
-        openPopup();
-        return;
-    }
+  if (!isLoggedIn) {
+    addToGuestCart(productId, selectedColorId, null);
+    return;
+}
 
     btn.disabled = true;
 
@@ -817,22 +817,7 @@ function setGalleryImage(src, isVideo) {
     }
 }
 
-/* ================= WISHLIST ================= */
-function addToWishlist(productId, btn) {
-    fetch(`/wishlist/toggle/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`, {
-        method: "POST"
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.in_wishlist) {
-            btn.innerHTML = "❤️";
-            btn.classList.add("active");
-        } else {
-            btn.innerHTML = "♡";
-            btn.classList.remove("active");
-        }
-    });
-}
+
 
 /* ================= MAIN DOM READY ================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -864,19 +849,32 @@ document.querySelectorAll(".wishlist-btn").forEach(btn => {
 
     const id = btn.dataset.id;
 
-    // initial state
-    checkWishlist(id).then(inWishlist => {
+   const isLoggedIn = document.querySelector(".avatar, .avatar-img");
+
+if (isLoggedIn) {
+    checkWishlist(id, selectedColorId).then(inWishlist => {
         if (inWishlist) {
             btn.classList.add("active");
             btn.innerHTML = "❤️";
         }
     });
+} else {
+    if (isInGuestWishlist(id, selectedColorId)) {
+        btn.classList.add("active");
+        btn.innerHTML = "❤️";
+    }
+}
 
     // click
-    btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        addToWishlist(id, btn);
-    });
+   btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+  if (!isLoggedIn) {
+    addToWishlist(id, btn, selectedColorId);
+    return;
+}
+    addToWishlist(id, btn, selectedColorId);
+});
 });
 
     /* ===== RESTORE SIZE ===== */
@@ -963,19 +961,20 @@ function changeColor(colorId, el) {
 
 function refreshVariantButtons() {
     document.querySelectorAll(".add-cart-btn").forEach(btn => {
-        checkCart(DETAIL_PRODUCT_ID).then(inCart => {
+        checkCart(DETAIL_PRODUCT_ID, selectedColorId).then(inCart => {
             btn.classList.toggle("active", inCart);
             btn.innerText = inCart ? "Remove from Cart" : "Add to Cart";
         });
     });
 
     document.querySelectorAll(".wishlist-btn").forEach(btn => {
-        checkWishlist(DETAIL_PRODUCT_ID).then(inWishlist => {
+        checkWishlist(DETAIL_PRODUCT_ID, selectedColorId).then(inWishlist => {
             btn.classList.toggle("active", inWishlist);
             btn.innerHTML = inWishlist ? "❤️" : "♡";
         });
     });
 }
+
 
 
 function submitReview(productId, e) {
@@ -1050,35 +1049,7 @@ function submitReview(productId, e) {
     });
 }
 
-function checkWishlist(productId) {
-    return fetch(`/wishlist/check/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`)
-        .then(res => res.json())
-        .then(data => data.in_wishlist)
-        .catch(() => false);
-}
 
-function addToWishlist(productId, btn) {
-    fetch(`/wishlist/toggle/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`, {
-        method: "POST"
-    })
-    .then(res => res.json())
-    .then(data => {
-
-        if (data.in_wishlist) {
-            btn.classList.add("active");
-            btn.innerHTML = "❤️";
-        } else {
-            btn.classList.remove("active");
-            btn.innerHTML = "♡";
-        }
-
-        // 🔥 LIVE COUNT UPDATE
-        if (data.count !== undefined) {
-            const wishlistCount = document.getElementById("wishlistCount");
-            if (wishlistCount) wishlistCount.innerText = data.count;
-        }
-    });
-}
 </script>
 
 <section class="product-detail-page">

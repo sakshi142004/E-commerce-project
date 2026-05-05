@@ -159,7 +159,7 @@
        <!-- HELP CENTER -->
 <div id="help" class="section" style="display:none;">
     <h2>Help Center</h2>
-
+     <div id="ticketList" style="margin-top: 20px;"></div>
     <div class="help-cards">
 
         <div class="help-card" onclick="openHelpForm('issue')">
@@ -358,50 +358,32 @@ function loadOrders(){
         document.getElementById("orderList").innerHTML = html;
     });
 }
-
 function saveAddress(){
-    let data = {
-        id: document.getElementById("addressId").value,
-        full_name: document.getElementById("full_name").value,
-        phone: document.getElementById("phone_addr").value,
-        city: document.getElementById("city").value,
-        state: document.getElementById("state").value,
-        pincode: document.getElementById("pincode").value,
-        address_line: document.getElementById("address_line").value
-    };
-      // ✅ PHONE VALIDATION
-    if(!/^\d{10}$/.test(phone.value)){
-        alert("❌ Invalid phone number (10 digits required)");
-        return;
+    let id = document.getElementById("addressId").value;
+    let full_name = document.getElementById("full_name").value;
+    let phone = document.getElementById("phone_addr").value;
+    let city = document.getElementById("city").value;
+    let state = document.getElementById("state").value;
+    let pincode = document.getElementById("pincode").value;
+    let address_line = document.getElementById("address_line").value;
+
+    if(!/^\d{10}$/.test(phone)){
+        alert("❌ Invalid phone (10 digits required)"); return;
+    }
+    if(!/^\d{6}$/.test(pincode)){
+        alert("❌ Invalid pincode (6 digits required)"); return;
     }
 
-    // ✅ PINCODE VALIDATION
-    if(!/^\d{6}$/.test(pincode.value)){
-        alert("❌ Invalid pincode (6 digits required)");
-        return;
-    }
+    let url = id ? `/api/addresses/${id}` : '/api/addresses';
+    let method = id ? 'PUT' : 'POST';
 
-    fetch('/add_address',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-            full_name: full_name.value,
-            phone: phone.value,
-            address_line: address_line.value,
-            city: city.value,
-            state: state.value,
-            pincode: pincode.value
-        })
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ full_name, phone, city, state, pincode, address_line })
     })
-   
-    fetch('/api/addresses',{
-        method: data.id ? 'PUT' : 'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(data)
-    })
-    .then(res=>res.json())
-    .then(d=>{alert(d.message); loadAddresses(); cancelAddressForm();});
-
+    .then(res => res.json())
+    .then(d => { alert(d.message); loadAddresses(); cancelAddressForm(); });
 }
 
 function loadAddresses(){
