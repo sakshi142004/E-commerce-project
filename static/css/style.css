@@ -1627,10 +1627,13 @@ p, li, span {
   .faq-answer {
     font-size: 13px;
     padding: 0 16px;
+     max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
   }
 
   .faq-item.active .faq-answer {
-    padding: 0 16px 14px;
+    padding: 8px ;
   }
 
     /* ===== CONTACT COMPACT ===== */

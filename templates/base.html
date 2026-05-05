@@ -195,7 +195,7 @@ body {
     .nav-right {
         flex-shrink: 0;
         justify-content: flex-end;
-        gap: 18px;
+        gap: 16px;
         min-width: 0;
     }
 
@@ -330,6 +330,8 @@ body {
     }
 
     .user-profile-link {
+        overflow: visible;
+        flex-shrink: 0;
         display: inline-flex;
         align-items: center;
         gap: 10px;
@@ -859,8 +861,26 @@ body {
     color: #b9b3aa;
     margin: 0;
 }
+/* INSTAGRAM GRADIENT */
+.social-icons a.insta {
+    background: radial-gradient(circle at 30% 30%, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5);
+      text-decoration: none;
+}
+
+/* WHATSAPP GREEN */
+.social-icons a.whatsapp {
+    background: #25D366;
+      text-decoration: none;
+}
+
+/* ICON HOVER PREMIUM */
+.social-icons a:hover {
+    transform: translateY(-4px) scale(1.1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
 .social-icons {
   margin-top: 12px;
+  
   display: flex;
   gap: 10px;
 }
@@ -875,6 +895,7 @@ body {
   justify-content: center;
   color: white;
   font-size: 16px;
+    text-decoration: none;
 }
 
 
@@ -1737,9 +1758,17 @@ body::before {
       <p>
         Premium belts crafted with quality, comfort and timeless style.
       </p>
-      <div class="social-icons">
-        <a href="#"><i class="fa-brands fa-instagram"></i></a>
-      </div>
+     <div class="social-icons">
+    <!-- Instagram -->
+    <a href="https://www.instagram.com/beltpurse.comm?igsh=MTI5cGlmOTVoZGN4cA==" target="_blank" class="insta">
+        <i class="fa-brands fa-instagram"></i>
+    </a>
+
+    <!-- WhatsApp -->
+    <a href="https://wa.me/917000747936" target="_blank" class="whatsapp">
+        <i class="fa-brands fa-whatsapp"></i>
+    </a>
+</div>
     </div>
 
     <!-- COMPANY -->
@@ -1757,7 +1786,7 @@ body::before {
     <div class="footer-col">
       <h4>Support</h4>
       <ul>
-        <li><a href="#faq">FAQs</a></li>
+       <li><a href="/#faq">FAQs</a></li>
         <li><a href="/shipping-policy">Shipping</a></li>
         <li><a href="/return-policy">Returns</a></li>
         <li><a href="/privacy-policy">Privacy</a></li>
@@ -1767,9 +1796,10 @@ body::before {
     <!-- CONTACT -->
     <div class="footer-col contact-info">
       <h4>Contact</h4>
-      <p>+91 7000747936</p>
-      <p>beltpurse.com@gmail.com</p>
-      <p>India</p>
+     <p><i class="fa-solid fa-phone"></i> +91 7000747936</p>
+<p><i class="fa-brands fa-whatsapp"></i> WhatsApp: +91 7000747936</p>
+<p><i class="fa-solid fa-envelope"></i> beltpurse.com@gmail.com</p>
+<p><i class="fa-solid fa-location-dot"></i> India</p>
     </div>
 
   </div>
