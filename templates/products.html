@@ -571,11 +571,28 @@ function applyProductFilters() {
 
     const sortSelect = document.getElementById("productSort");
     const saleBtn = document.getElementById("filterSale");
+    const desktopSearch = document.getElementById("searchInput");
+    const mobileSearch = document.getElementById("mobileSearchInput");
 
     const sortValue = sortSelect ? sortSelect.value : "featured";
     const showSaleOnly = saleBtn ? saleBtn.classList.contains("active") : false;
+    const searchQuery = (mobileSearch?.value || desktopSearch?.value || "").trim().toLowerCase();
 
     let products = [...allProductsData];
+
+    if (searchQuery) {
+        products = products.filter(product =>
+            [
+                product.name,
+                product.color_variant?.name,
+                ...(product.colors || []).map(color => color.name)
+            ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(searchQuery)
+        );
+    }
 
     if (activeColorFilter) {
         products = products.filter(product =>
@@ -860,6 +877,8 @@ function setupProductFilters() {
     const saleBtn = document.getElementById("filterSale");
 
     sortSelect?.addEventListener("change", applyProductFilters);
+    document.getElementById("searchInput")?.addEventListener("input", applyProductFilters);
+    document.getElementById("mobileSearchInput")?.addEventListener("input", applyProductFilters);
 
     saleBtn?.addEventListener("click", () => {
         saleBtn.classList.toggle("active");

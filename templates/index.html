@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (!isOpen) {
                 faqItem.classList.add("active");
-                answer.style.maxHeight = answer.scrollHeight + "px";
+                answer.style.maxHeight = answer.scrollHeight + 24 + "px";
                 icon.innerText = "−";
             }
         });
@@ -124,13 +124,15 @@ document.addEventListener("DOMContentLoaded", function () {
         <p>Every product is crafted with attention to detail.</p>
     </div>
 
-    <div class="lux-card">
-        <h3>Wholesale & Retail</h3>
-        <p>Serving both individuals and businesses.</p>
-    </div>
+   <div class="lux-card">
+    <h3>Corporate Gifting </h3>
+    <p>
+        Perfect for employee rewards, client gifting, and business partnerships
+    </p>
+</div>
 
     <div class="lux-card">
-        <h3>Value for Money</h3>
+        <h3>Value for money</h3>
         <p>Luxury feel at practical pricing.</p>
     </div>
 </div>
@@ -238,21 +240,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <div class="blog-grid">
         <div class="blog-card">
-            <img src="/static/images/07.png" alt="">
+            <img src="/static/images/20260413_153959.jpg" alt="">
             <div class="blog-overlay">
                 <h3>Style Your Belt Right</h3>
             </div>
         </div>
 
         <div class="blog-card">
-            <img src="/static/images/05.png" alt="">
+            <img src="/static/images/20260413_180520.jpg" alt="">
             <div class="blog-overlay">
                 <h3>Latest Trends 2026</h3>
             </div>
         </div>
 
         <div class="blog-card">
-            <img src="/static/images/07.png" alt="">
+            <img src="/static/images/20260413_175128.jpg" alt="">
             <div class="blog-overlay">
                 <h3>Luxury Buying Guide</h3>
             </div>
@@ -366,7 +368,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <span>+</span>
     </button>
     <div class="faq-answer">
-        Our belts are made using high-quality non-leather PU material along with premium hardware. They are designed to offer the look and feel of genuine leather while being more durable, lightweight, and easy to maintain.
+        Our belts are made using high-quality genuine leather PU material along with premium hardware. They are designed to offer the look and feel of genuine leather while being more durable, lightweight, and easy to maintain.
     </div>
 </div>
 
@@ -403,7 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <div class="faq-item">
     <button class="faq-question">
-        How can I claim the 2-year warranty?
+        How can I register for the 2-year warranty?
         <span>+</span>
     </button>
     <div class="faq-answer">
@@ -431,9 +433,9 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
 
         <form class="contact-form">
-            <input type="text" placeholder="Your Name" required>
-            <input type="email" placeholder="Your Email" required>
-            <textarea placeholder="Your Message" required></textarea>
+            <input type="text" id="name" name="name" placeholder="Your Name" required>
+            <input type="email" id="email" name="email" placeholder="Your Email" required>
+            <textarea id="message" name="message" placeholder="Your Message" required></textarea>
             <button type="submit">Send Message</button>
         </form>
 
@@ -441,6 +443,39 @@ document.addEventListener("DOMContentLoaded", function () {
 </section>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    const contactForm = document.querySelector(".contact-form");
+    if (contactForm) {
+        contactForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(contactForm);
+            const data = {
+                name: formData.get("name"),
+                email: formData.get("email"),
+                message: formData.get("message")
+            };
+
+            fetch("/send-contact-email", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(d => {
+                if (!d.success) {
+                    alert(d.message || "Something went wrong");
+                    return;
+                }
+                alert(d.message || "Email sent successfully");
+                contactForm.reset();
+            })
+            .catch(err => {
+                console.error("Contact email error:", err);
+                alert("Something went wrong");
+            });
+        });
+    }
+
     const slides = document.querySelectorAll(".hero-slide");
     const dots = document.querySelectorAll(".dot");
     const slider = document.getElementById("heroSlider");

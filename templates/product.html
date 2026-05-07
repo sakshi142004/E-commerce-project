@@ -756,7 +756,7 @@ function toggleCart(productId, btn) {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
   if (!isLoggedIn) {
-    addToGuestCart(productId, selectedColorId, null);
+    addToGuestCart(productId, selectedColorId, selectedSize);
     return;
 }
 

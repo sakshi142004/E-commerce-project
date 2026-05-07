@@ -9,6 +9,7 @@ from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrac
 from config import Config
 from flask_login import LoginManager, login_user
 from functools import wraps
+import base64
 import os
 from datetime import datetime
 import uuid
@@ -17,6 +18,33 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from flask_migrate import Migrate
 
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(path=".env"):
+        if not os.path.exists(path):
+            return False
+
+        with open(path, "r", encoding="utf-8") as env_file:
+            for line in env_file:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                os.environ.setdefault(key, value)
+
+        return True
+
+try:
+    import resend
+except ImportError:
+    resend = None
+
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -95,12 +123,60 @@ def normalize_optional_int(value):
 def request_color_id(data=None):
     data = data or {}
     return normalize_optional_int(
-        data.get("color_id") or request.args.get("color_id") or request.args.get("color")
+        data.get("color_id")
+        or data.get("product_color_id")
+        or request.args.get("color_id")
+        or request.args.get("product_color_id")
+        or request.args.get("color")
     )
 
 
 def nullable_match_sql(column_name, param_name):
     return f"(({column_name} IS NULL AND :{param_name} IS NULL) OR {column_name}=:{param_name})"
+
+
+SUPPORT_EMAIL = "beltpurse.com@gmail.com"
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Belt Purse <noreply@belt-purse.com>")
+
+
+def json_error(message="Something went wrong", status_code=500):
+    return jsonify({"success": False, "message": message}), status_code
+
+
+def send_resend_email(subject, body, attachments=None):
+    if resend is None:
+        raise RuntimeError("resend package is not installed. Run: pip install resend")
+
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY environment variable is not set")
+
+    resend.api_key = api_key
+    params = {
+        "from": RESEND_FROM_EMAIL,
+        "to": [SUPPORT_EMAIL],
+        "subject": subject,
+        "text": body,
+    }
+
+    if attachments:
+        params["attachments"] = attachments
+
+    return resend.Emails.send(params)
+
+
+def build_resend_attachment(file_storage):
+    if not file_storage or not file_storage.filename:
+        return None
+
+    filename = secure_filename(file_storage.filename) or "invoice"
+    content = base64.b64encode(file_storage.read()).decode("utf-8")
+    file_storage.stream.seek(0)
+
+    return {
+        "filename": filename,
+        "content": content,
+    }
     
 
 def admin_required(f):
@@ -650,8 +726,21 @@ def delete_video(id):
 @admin_required
 def delete_image(id):
     image = ProductImage.query.get_or_404(id)
+    product_id = image.product_id
+    color_id = image.color_id
+    was_primary = image.is_primary
 
     db.session.delete(image)
+    db.session.flush()
+
+    if was_primary:
+        replacement = ProductImage.query.filter_by(
+            product_id=product_id,
+            color_id=color_id
+        ).order_by(ProductImage.id).first()
+        if replacement:
+            replacement.is_primary = True
+
     db.session.commit()
 
     return redirect(request.referrer)
@@ -1097,7 +1186,11 @@ def products():
     for p in all_products:
 
         # 📦 related data
-        images = ProductImage.query.filter_by(product_id=p.id).all()
+        images = ProductImage.query.filter_by(product_id=p.id).order_by(
+            ProductImage.color_id,
+            ProductImage.is_primary.desc(),
+            ProductImage.id
+        ).all()
 
         # 🎨 color-wise images mapping
         color_images = defaultdict(list)
@@ -1229,6 +1322,100 @@ def warranty():
     db.session.commit()
 
     return jsonify({"message": "Warranty claim submitted successfully"})
+
+
+@app.route('/send-contact-email', methods=['POST'])
+def send_contact_email():
+    try:
+        data = request.get_json(silent=True) or {}
+        name = (data.get("name") or "").strip()
+        email = (data.get("email") or "").strip()
+        message = (data.get("message") or "").strip()
+
+        if not name or not email or not message:
+            return json_error("All fields are required", 400)
+
+        body = (
+            "New contact message received from Belt Purse website.\n\n"
+            f"Customer Name: {name}\n"
+            f"Customer Email: {email}\n\n"
+            f"Message:\n{message}"
+        )
+
+        send_resend_email("New Contact Message - Belt Purse", body)
+        return jsonify({"success": True, "message": "Email sent successfully"})
+    except Exception as e:
+        print(f"Error sending contact email: {e}")
+        return json_error()
+
+
+@app.route('/send-help-email', methods=['POST'])
+def send_help_email():
+    try:
+        data = request.get_json(silent=True) or {}
+        subject = (data.get("subject") or "").strip()
+        message = (data.get("message") or "").strip()
+        user_email = (data.get("user_email") or "").strip()
+        user_name = (data.get("user_name") or "").strip()
+
+        if not subject or not message:
+            return json_error("Subject and message are required", 400)
+
+        body = (
+            "New support issue submitted from Belt Purse account page.\n\n"
+            f"Name: {user_name or 'Not provided'}\n"
+            f"Email: {user_email or 'Not provided'}\n"
+            f"Subject: {subject}\n\n"
+            f"Message:\n{message}"
+        )
+
+        send_resend_email(f"New Support Issue - {subject}", body)
+        return jsonify({"success": True, "message": "Email sent successfully"})
+    except Exception as e:
+        print(f"Error sending help email: {e}")
+        return json_error()
+
+
+@app.route('/send-warranty-email', methods=['POST'])
+def send_warranty_email():
+    try:
+        name = (request.form.get("w_name") or "").strip()
+        phone = (request.form.get("w_phone") or "").strip()
+        email = (request.form.get("w_email") or "").strip()
+        purchase = (request.form.get("w_purchase") or "").strip()
+        address = (request.form.get("w_address") or "").strip()
+
+        if not name or not phone or not purchase:
+            return json_error("Name, phone, and purchase source are required", 400)
+
+        body = (
+            "New warranty registration received from Belt Purse account page.\n\n"
+            f"Full Name: {name}\n"
+            f"Phone: {phone}\n"
+            f"Email: {email or 'Not provided'}\n"
+            f"Purchase Source: {purchase}\n"
+            f"Address: {address or 'Not provided'}"
+        )
+
+        bill = request.files.get("w_bill")
+        attachment = build_resend_attachment(bill)
+
+        try:
+            send_resend_email(
+                "New Warranty Registration - Belt Purse",
+                body,
+                attachments=[attachment] if attachment else None
+            )
+        except Exception as attachment_error:
+            if not attachment:
+                raise
+            print(f"Error sending warranty attachment, retrying without attachment: {attachment_error}")
+            send_resend_email("New Warranty Registration - Belt Purse", body)
+
+        return jsonify({"success": True, "message": "Email sent successfully"})
+    except Exception as e:
+        print(f"Error sending warranty email: {e}")
+        return json_error()
 # ================= PRODUCT DETAIL =================
 @app.route('/product/<int:id>')
 def product_detail(id):
@@ -1237,7 +1424,25 @@ def product_detail(id):
     if not product:
         return "Product not found", 404
 
-    images = ProductImage.query.filter_by(product_id=id).all()
+    selected_color_id = normalize_optional_int(request.args.get("color"))
+
+    images_query = ProductImage.query.filter_by(product_id=id).order_by(
+        ProductImage.is_primary.desc(),
+        ProductImage.id
+    )
+    images = images_query.all()
+    if selected_color_id:
+        images = sorted(
+            images,
+            key=lambda img: (
+                0 if img.color_id == selected_color_id and img.is_primary else
+                1 if img.color_id == selected_color_id else
+                2 if img.color_id is None and img.is_primary else
+                3 if img.is_primary else
+                4,
+                img.id
+            )
+        )
 
     images_data = [
       {
@@ -1332,12 +1537,24 @@ def cart_page():
             c.size_id,
             COALESCE(co.name, '') AS color_name,
             COALESCE(co.code, '') AS color_code,
-            (
-                SELECT image_url 
-                FROM product_images 
-                WHERE product_id = p.id 
-                ORDER BY is_primary DESC
-                LIMIT 1
+            COALESCE(
+                (SELECT pi.image_url FROM product_images pi
+                 WHERE pi.product_id = p.id AND c.color_id IS NOT NULL
+                   AND pi.color_id = c.color_id AND pi.is_primary = TRUE
+                 ORDER BY pi.id LIMIT 1),
+                (SELECT pi.image_url FROM product_images pi
+                 WHERE pi.product_id = p.id AND c.color_id IS NOT NULL
+                   AND pi.color_id = c.color_id
+                 ORDER BY pi.id LIMIT 1),
+                (SELECT pi.image_url FROM product_images pi
+                 WHERE pi.product_id = p.id AND pi.color_id IS NULL AND pi.is_primary = TRUE
+                 ORDER BY pi.id LIMIT 1),
+                (SELECT pi.image_url FROM product_images pi
+                 WHERE pi.product_id = p.id AND pi.is_primary = TRUE
+                 ORDER BY pi.id LIMIT 1),
+                (SELECT pi.image_url FROM product_images pi
+                 WHERE pi.product_id = p.id
+                 ORDER BY pi.id LIMIT 1)
             ) AS image_url,
             c.quantity
         FROM cart c
@@ -1386,8 +1603,8 @@ def remove_cart(id):
         return jsonify({"success": False}), 401
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request.args.get("color_id") 
-    size_id = request.args.get("size_id")
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
 
     db.session.execute(text("""
         DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
@@ -1414,8 +1631,8 @@ def decrease_cart(id):
         return "Unauthorized", 401
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request.args.get("color_id")
-    size_id = request.args.get("size_id")
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
 
     item = db.session.execute(text("""
         SELECT quantity FROM cart
@@ -1450,20 +1667,24 @@ def add_to_cart(id):
 
     user     = User.query.filter_by(email=session['email']).first()
     data     = request.get_json(silent=True) or {}
-    color_id = normalize_optional_int(data.get('color_id') or request.args.get('color_id'))
+    color_id = request_color_id(data)
     size_id  = normalize_optional_int(data.get('size_id')  or request.args.get('size_id'))
+
+    print(f"add_to_cart user={user.id} product={id} color={color_id} size={size_id}")
 
     existing = db.session.execute(text(
         "SELECT quantity FROM cart WHERE user_id=:uid AND product_id=:pid "
-        "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)"
-    ), {"uid": user.id, "pid": id, "cid": color_id}).fetchone()
+        "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid) "
+        "AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)"
+    ), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id}).fetchone()
 
     if existing:
         db.session.execute(text(
             "UPDATE cart SET quantity = quantity + 1 "
             "WHERE user_id=:uid AND product_id=:pid "
-            "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)"
-        ), {"uid": user.id, "pid": id, "cid": color_id})
+            "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid) "
+            "AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)"
+        ), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
     else:
         db.session.execute(text(
             "INSERT INTO cart (user_id, product_id, color_id, size_id, quantity) "
@@ -1487,6 +1708,7 @@ def add_to_wishlist(id):
 
     user = User.query.filter_by(email=session['email']).first()
     color_id = request_color_id()
+    print(f"add_to_wishlist user={user.id} product={id} color={color_id}")
 
     # prevent duplicate
     existing = db.session.execute(text("""
@@ -1517,16 +1739,25 @@ def get_wishlist():
 
     items = db.session.execute(text("""
         SELECT p.*, w.color_id, co.name AS color_name, co.code AS color_code,
-               (SELECT pi.image_url
-                FROM product_images pi
-                WHERE pi.product_id = p.id
-                ORDER BY
-                    CASE
-                        WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
-                        WHEN pi.is_primary = TRUE THEN 1
-                        ELSE 2
-                    END
-                LIMIT 1) AS image_url
+               COALESCE(
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND w.color_id IS NOT NULL
+                      AND pi.color_id = w.color_id AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND w.color_id IS NOT NULL
+                      AND pi.color_id = w.color_id
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND pi.color_id IS NULL AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id
+                    ORDER BY pi.id LIMIT 1)
+               ) AS image_url
         FROM wishlist w
         JOIN products p ON w.product_id = p.id
         LEFT JOIN colors co ON w.color_id = co.id
@@ -1541,8 +1772,8 @@ def remove_wishlist(id):
         return "Unauthorized", 401
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request.args.get("color_id")
-    size_id = request.args.get("size_id")
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
 
     db.session.execute(
         text("""
@@ -1573,15 +1804,25 @@ def wishlist_page():
                w.color_id,
                co.name AS color_name,
                co.code AS color_code,
-               (SELECT pi.image_url 
-                FROM product_images pi 
-                WHERE pi.product_id = p.id
-                ORDER BY 
-                    CASE 
-                        WHEN pi.is_primary = TRUE THEN 1 
-                        ELSE 2 
-                    END
-                LIMIT 1) AS image_url
+               COALESCE(
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND w.color_id IS NOT NULL
+                      AND pi.color_id = w.color_id AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND w.color_id IS NOT NULL
+                      AND pi.color_id = w.color_id
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND pi.color_id IS NULL AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id
+                    ORDER BY pi.id LIMIT 1)
+               ) AS image_url
         FROM wishlist w
         JOIN products p ON w.product_id = p.id
         LEFT JOIN colors co ON co.id = w.color_id
@@ -1723,7 +1964,7 @@ def check_cart(product_id):
         return jsonify({"in_cart": False})
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request.args.get("color_id")
+    color_id = request_color_id()
 
     exists = db.session.execute(text("""
         SELECT size_id FROM cart 
@@ -1773,8 +2014,8 @@ def update_quantity(product_id, action):
         return jsonify({"status": "error"})
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request.args.get("color_id")
-    size_id = request.args.get("size_id")
+    color_id = request_color_id()
+    size_id = normalize_optional_int(request.args.get("size_id"))
     cart_item = db.session.execute(text("""
         SELECT * FROM cart
         WHERE user_id=:uid AND product_id=:pid
@@ -1837,7 +2078,7 @@ def get_selected_size(product_id):
         return jsonify({"size_id": None})
 
     user = User.query.filter_by(email=session['email']).first()
-    color_id = request.args.get("color_id")
+    color_id = request_color_id()
 
     row = db.session.execute(text("""
         SELECT size_id 
@@ -2032,18 +2273,25 @@ def sync_guest_cart():
     user = User.query.filter_by(email=session['email']).first()
     items = request.get_json().get('items', [])
     for item in items:
-        # existing check karo, nahi hai toh add karo
+        color_id = normalize_optional_int(item.get('colorId') or item.get('color_id') or item.get('product_color_id'))
+        size_id = normalize_optional_int(item.get('sizeId') or item.get('size_id'))
+        qty = int(item.get('qty', 1) or 1)
+
         existing = Cart.query.filter_by(
-            user_id=user.id, 
-            product_id=item['productId']
+            user_id=user.id,
+            product_id=item['productId'],
+            color_id=color_id,
+            size_id=size_id
         ).first()
-        if not existing:
+        if existing:
+            existing.quantity = (existing.quantity or 0) + qty
+        else:
             cart_item = Cart(
                 user_id=user.id,
                 product_id=item['productId'],
-                quantity=item.get('qty', 1),
-                color_id=item.get('colorId'),
-                size_id=item.get('sizeId')
+                quantity=qty,
+                color_id=color_id,
+                size_id=size_id
             )
             db.session.add(cart_item)
     db.session.commit()
@@ -2529,16 +2777,25 @@ def api_wishlist():
     rows = db.session.execute(text("""
         SELECT p.id, p.name, p.price, w.color_id,
                co.name AS color_name,
-               (SELECT pi.image_url
-                FROM product_images pi
-                WHERE pi.product_id = p.id
-                ORDER BY
-                    CASE
-                        WHEN w.color_id IS NOT NULL AND pi.color_id = w.color_id THEN 0
-                        WHEN pi.is_primary = TRUE THEN 1
-                        ELSE 2
-                    END
-                LIMIT 1) AS image_url
+               COALESCE(
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND w.color_id IS NOT NULL
+                      AND pi.color_id = w.color_id AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND w.color_id IS NOT NULL
+                      AND pi.color_id = w.color_id
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND pi.color_id IS NULL AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id AND pi.is_primary = TRUE
+                    ORDER BY pi.id LIMIT 1),
+                   (SELECT pi.image_url FROM product_images pi
+                    WHERE pi.product_id = p.id
+                    ORDER BY pi.id LIMIT 1)
+               ) AS image_url
         FROM wishlist w
         JOIN products p ON w.product_id = p.id
         LEFT JOIN colors co ON w.color_id = co.id

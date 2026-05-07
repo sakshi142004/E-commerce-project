@@ -176,8 +176,9 @@ function loadGuestCart() {
 
         guestCart.forEach(item => {
             const product = allProducts.find(p =>
-                (p.product_id || p.id) == item.productId
-            );
+                (p.product_id || p.id) == item.productId &&
+                String(p.color_variant?.id || p.colors?.[0]?.id || null) === String(item.colorId || null)
+            ) || allProducts.find(p => (p.product_id || p.id) == item.productId);
             if (!product) return;
 
             const price = product.price;
@@ -190,6 +191,7 @@ function loadGuestCart() {
                 <img src="${product.images?.[0] || '/static/images/default.png'}" class="product-img">
                 <div class="details">
                     <h3>${product.name}</h3>
+                    ${product.color_variant ? `<p class="cart-variant"><span style="background:${product.color_variant.code}"></span>${product.color_variant.name}</p>` : ""}
                     <p class="price">₹${price}</p>
                 </div>
                 <div class="right-box">

@@ -11,13 +11,13 @@
     </div>
 
     <!-- Empty state -->
-    <div class="empty" id="wishlistEmpty" style="{% if items|length > 0 %}display:none{% endif %}">
+    <div class="empty{% if items|length > 0 %} is-hidden{% endif %}" id="wishlistEmpty">
         <h2>Your wishlist is empty</h2>
         <p>Add products you love and keep them handy here.</p>
     </div>
 
     <!-- Grid: always in DOM -->
-    <div class="grid" id="wishlistGrid" style="{% if items|length == 0 %}display:none{% endif %}">
+    <div class="grid{% if items|length == 0 %} is-hidden{% endif %}" id="wishlistGrid">
         {% for p in items %}
         <div class="card">
             <div class="card-image-wrap">
@@ -33,7 +33,7 @@
                 <h3>{{ p.name }}</h3>
                 {% if p.color_name %}
                     <p class="wishlist-variant">
-                        <span style="background: {{ p.color_code }}"></span>
+                        <span class="wishlist-color-swatch" data-color="{{ p.color_code }}"></span>
                         {{ p.color_name }}
                     </p>
                 {% endif %}
@@ -49,11 +49,37 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+    applyWishlistSwatches();
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
     if (!isLoggedIn) {
         loadGuestWishlist();
     }
 });
+
+function normalizeColorId(colorId) {
+    return String(colorId || "");
+}
+
+function getWishlistProductColor(product) {
+    return product?.color_variant || product?.colors?.[0] || null;
+}
+
+function findWishlistProduct(allProducts, item) {
+    const itemColor = normalizeColorId(item.colorId);
+
+    return allProducts.find(product =>
+        String(product.product_id || product.id) == String(item.productId) &&
+        normalizeColorId(getWishlistProductColor(product)?.id) === itemColor
+    ) || allProducts.find(product =>
+        String(product.product_id || product.id) == String(item.productId)
+    );
+}
+
+function applyWishlistSwatches(root = document) {
+    root.querySelectorAll(".wishlist-color-swatch[data-color]").forEach(swatch => {
+        swatch.style.background = swatch.dataset.color || "transparent";
+    });
+}
 
 function loadGuestWishlist() {
     const guestWishlist = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
@@ -61,25 +87,40 @@ function loadGuestWishlist() {
     const empty   = document.getElementById("wishlistEmpty");
 
     if (!guestWishlist.length) {
-        if (grid)  grid.style.display  = "none";
-        if (empty) empty.style.display = "block";
+        if (grid) {
+            grid.classList.add("is-hidden");
+            grid.style.display = "";
+        }
+        if (empty) {
+            empty.classList.remove("is-hidden");
+            empty.style.display = "block";
+        }
         return;
     }
 
     fetch("/products")
     .then(res => res.json())
     .then(allProducts => {
-        if (empty) empty.style.display = "none";
+        if (empty) {
+            empty.classList.add("is-hidden");
+            empty.style.display = "none";
+        }
         if (grid) {
+            grid.classList.remove("is-hidden");
             grid.style.display = "grid";
             grid.innerHTML = "";
         }
 
         guestWishlist.forEach(item => {
-            const product = allProducts.find(p =>
-                (p.product_id || p.id) == item.productId
-            );
+            const product = findWishlistProduct(allProducts, item);
             if (!product) return;
+            const productColor = getWishlistProductColor(product);
+            const colorHtml = productColor
+                ? `<p class="wishlist-variant">
+                       <span class="wishlist-color-swatch" data-color="${productColor.code || ""}"></span>
+                       ${productColor.name || ""}
+                   </p>`
+                : "";
 
             const div = document.createElement("div");
             div.className = "card";
@@ -92,13 +133,17 @@ function loadGuestWishlist() {
                 </div>
                 <div class="card-body">
                     <h3>${product.name}</h3>
+                    ${colorHtml}
                     <p class="price">₹${product.price}</p>
                     <button class="primary-btn" onclick="guestMoveToCart(${item.productId}, ${item.colorId || null})">
                         Add To Cart
                     </button>
                 </div>
             `;
-            if (grid) grid.appendChild(div);
+            if (grid) {
+                grid.appendChild(div);
+                applyWishlistSwatches(div);
+            }
         });
     });
 }
@@ -276,6 +321,10 @@ function moveAllToCart() {
 .wishlist-container button {
     padding: 10px 14px;
     border-radius: 10px;
+}
+
+.is-hidden {
+    display: none !important;
 }
 
 .wishlist-variant {

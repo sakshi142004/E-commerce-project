@@ -30,10 +30,10 @@ body {
 }
 
 /* Font imports */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant:wght@400;700&family=Gotham:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gotham:wght@400;600;700&display=swap');
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Cormorant', serif;
+    font-family: "Gotham", "Montserrat", Arial, sans-serif;
     font-weight: bold;
 }
 
@@ -77,7 +77,7 @@ p {
     margin: 0;
     
     text-transform: capitalize; /* first letter uppercase */
-    font-family: 'Cormorant', serif !important;
+    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
 
 }
 .btn-gradient {
@@ -1557,7 +1557,7 @@ p, li, span {
     border-radius: 14px;
 
     font-size: 16px;
-    font-family: 'Cormorant Garamond', serif;  /* 👈 FIX */
+    font-family: "Gotham", "Montserrat", Arial, sans-serif;
 
     outline: none;
     transition: all 0.3s ease;
@@ -1648,7 +1648,7 @@ p, li, span {
         padding: 22px 18px;
         border-radius: 16px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-    font-family: 'Cormorant Garamond', serif;}
+    font-family: "Gotham", "Montserrat", Arial, sans-serif;}
 
     .contact-info-card h3 {
         font-size: 20px;
@@ -1999,5 +1999,393 @@ p, li, span {
 @media (max-width: 1024px) {
     .why-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Frontend polish: fonts, spacing, product cards, FAQ ===== */
+body,
+p,
+span,
+a,
+button,
+input,
+textarea,
+select,
+label,
+small,
+div {
+    font-family: "Gotham", "Montserrat", Arial, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.section-title,
+.hero-title,
+.section-heading h2,
+.section-header h2,
+.hero-content h1 {
+    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.section-space {
+    padding-top: 34px !important;
+    padding-bottom: 34px !important;
+}
+
+.products {
+    padding-top: 38px !important;
+    padding-bottom: 34px !important;
+}
+
+.section-heading,
+.section-header {
+    margin-bottom: 18px !important;
+}
+
+.section-heading span {
+    margin-bottom: 4px !important;
+}
+
+.section-heading h2,
+.section-header h2 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.why-grid,
+.cat-list,
+.material-grid,
+.blog-grid,
+.service-grid,
+.faq-container,
+.contact-container {
+    margin-top: 0 !important;
+}
+
+.lux-card,
+.cat-row,
+.blog-card,
+.service-card {
+    padding-top: 18px;
+    padding-bottom: 18px;
+}
+
+.products .product-container {
+    gap: 20px !important;
+}
+
+.products .product-info {
+    padding: 14px 16px 16px !important;
+    gap: 5px !important;
+}
+
+.products .product-info h4 {
+    min-height: 0 !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
+}
+
+.products .rating {
+    margin: 0 !important;
+    line-height: 1.25 !important;
+}
+
+.products .price-box {
+    margin: 0 !important;
+    gap: 7px !important;
+    line-height: 1.25 !important;
+}
+
+.products .color-options {
+    margin-top: 2px !important;
+}
+
+.products .select-btn,
+.products .add-cart-btn {
+    margin-top: 6px !important;
+}
+
+.faq-container {
+    max-width: 860px !important;
+}
+
+.faq-item {
+    margin-bottom: 12px !important;
+}
+
+.faq-question {
+    padding: 16px 22px !important;
+    line-height: 1.35 !important;
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 22px !important;
+    margin: 0 !important;
+    line-height: 1.6 !important;
+    transition: max-height 0.3s ease, padding 0.3s ease !important;
+}
+
+.faq-item.active .faq-answer {
+    max-height: 360px;
+    padding: 8px 22px 16px !important;
+}
+
+.faq-answer p {
+    margin: 0 !important;
+    line-height: 1.6 !important;
+}
+
+.contact.section-space {
+    padding-bottom: 42px !important;
+}
+
+.contact-container {
+    gap: 24px !important;
+}
+
+.contact-info-card,
+.contact-form {
+    padding: 30px 28px !important;
+}
+
+.contact-info-card h3 {
+    margin-top: 0 !important;
+    margin-bottom: 14px !important;
+}
+
+.contact-info-card p {
+    margin-bottom: 10px !important;
+    line-height: 1.55 !important;
+}
+
+.contact-form {
+    gap: 14px !important;
+}
+
+.contact-form input,
+.contact-form textarea,
+.contact-form input::placeholder,
+.contact-form textarea::placeholder {
+    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
+}
+
+.contact-form input,
+.contact-form textarea {
+    padding: 14px 16px !important;
+}
+
+.contact-form button {
+    padding: 14px !important;
+}
+
+.site-footer {
+    padding-top: 42px !important;
+}
+
+@media (max-width: 768px) {
+    .section-space {
+        padding-top: 26px !important;
+        padding-bottom: 28px !important;
+    }
+
+    .products {
+        padding-top: 22px !important;
+        padding-bottom: 24px !important;
+    }
+
+    .section-heading,
+    .section-header {
+        margin-bottom: 12px !important;
+    }
+
+    .products .product-info {
+        padding: 8px 9px 10px !important;
+        gap: 3px !important;
+    }
+
+    .products .rating,
+    .products .price-box {
+        line-height: 1.2 !important;
+    }
+
+    .products .select-btn,
+    .products .add-cart-btn {
+        margin-top: 4px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+
+    .faq-question {
+        padding: 13px 15px !important;
+    }
+
+    .faq-answer {
+        padding: 0 15px !important;
+    }
+
+    .faq-item.active .faq-answer {
+        padding: 7px 15px 13px !important;
+    }
+
+    .contact-info-card,
+    .contact-form {
+        padding: 20px 16px !important;
+    }
+}
+
+/* Force all heading/title text to Gotham */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.section-title,
+.hero-title,
+.card-title,
+.product-title,
+.faq-title,
+.contact-title,
+.footer-title,
+.section-heading h2,
+.section-header h2,
+.hero-content h1,
+.product-info h4,
+.prd-info h4,
+.card-body h3,
+.lux-card h3,
+.cat-info h3,
+.blog-overlay h3,
+.service-card h3,
+.contact-info-card h3,
+.footer-col h3,
+.footer-col h4 {
+    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
+}
+
+/* ===== Mobile-only navbar and hero polish ===== */
+@media (max-width: 768px) {
+    .navbar.mobile-search-open .mobile-search-card input,
+    .navbar.mobile-search-open .mobile-search-card input::placeholder,
+    .mobile-search-card input,
+    .mobile-search-card input::placeholder {
+        color: #ffffff !important;
+        opacity: 1 !important;
+    }
+
+    .hero {
+        margin-bottom: 3px !important;
+    }
+
+    .hero-btn {
+        width: fit-content !important;
+        min-width: 0 !important;
+        max-width: max-content !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 4px 5px !important;
+        line-height: 1.15 !important;
+        white-space: nowrap !important;
+    }
+
+    .nav-center {
+        width: min(220px, calc(100vw - 24px)) !important;
+        right: 8px !important;
+        padding: 8px 0 !important;
+    }
+
+    .nav-center a {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    .hamburger {
+        width: 34px !important;
+        height: 34px !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .hamburger span {
+        transform-origin: center !important;
+    }
+
+    .hamburger.active span:nth-child(1) {
+        transform: translateY(6px) rotate(45deg) !important;
+    }
+
+    .hamburger.active span:nth-child(2) {
+        opacity: 0 !important;
+        transform: scaleX(0) !important;
+    }
+
+    .hamburger.active span:nth-child(3) {
+        transform: translateY(-6px) rotate(-45deg) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-center {
+        width: min(200px, calc(100vw - 20px)) !important;
+    }
+}
+
+/* Mobile-only blog image size fix */
+@media (max-width: 768px) {
+    .blog .blog-grid {
+        display: flex !important;
+        grid-template-columns: none !important;
+        overflow-x: auto !important;
+        gap: 10px !important;
+        scroll-snap-type: x mandatory !important;
+        padding-bottom: 12px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .blog .blog-grid::-webkit-scrollbar {
+        display: none;
+    }
+
+    .blog .blog-card {
+        min-width: calc(50% - 6px) !important;
+        flex: 0 0 calc(50% - 6px) !important;
+        scroll-snap-align: start !important;
+        border-radius: 12px !important;
+    }
+
+    .blog .blog-card img,
+    .blog-card img {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1 !important;
+        object-fit: contain !important;
+        background: #f8f5f1;
+        border-radius: 12px !important;
+        transform: none !important;
+    }
+
+    .blog-card:hover img {
+        transform: none !important;
+    }
+
+    .blog-overlay {
+        padding: 10px !important;
+    }
+
+    .blog-overlay h3 {
+        font-size: 12px !important;
+        line-height: 1.2 !important;
     }
 }

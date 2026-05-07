@@ -14,7 +14,7 @@
         <p class="sidebar-item" data-section="addresses" onclick="showSection('addresses')">Addresses</p>
         <p class="sidebar-item" data-section="payment" onclick="showSection('payment')">Payment Methods</p>
         <p class="sidebar-item" data-section="help" onclick="showSection('help')">Help Center</p>
-       <p class="sidebar-item" onclick="location='/terms'">Terms & Conditions</p>
+     
         <p class="sidebar-item delete-item" data-section="delete" onclick="showSection('delete')">Delete Account</p>
         
         <p class="sidebar-item" onclick="location='/logout'">Logout</p>
@@ -68,7 +68,7 @@
                 </div>
 
                 <div class="form-grid" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-                    <h3 style="grid-column: 1/-1; margin-bottom: 15px;">🔐 Change Password (Optional)</h3>
+                    <h3 style="grid-column: 1/-1; margin-bottom: 15px;"> Change Password (Optional)</h3>
                     <div class="form-group">
                         <label>Current Password</label>
                         <input id="current_password" type="password" placeholder="Enter current password">
@@ -168,8 +168,8 @@
         </div>
 
         <div class="help-card" onclick="openHelpForm('warranty')">
-            <h3>🛡️ Claim Warranty</h3>
-            <p>Request warranty for your product</p>
+            <h3>🛡️ Register Warranty</h3>
+            <p>Register your product for warranty coverage</p>
         </div>
 
     </div>
@@ -193,7 +193,7 @@
 
     <!-- WARRANTY FORM -->
     <div id="warrantyForm" class="form-card" style="display:none;">
-        <h3>Claim Warranty</h3>
+        <h3>Register Warranty</h3>
 
         <div class="grid-2">
             <div class="floating-group">
@@ -233,7 +233,7 @@
             <span>📎 Upload Bill / Invoice</span>
         </label>
 
-        <button class="primary-btn full-btn" onclick="submitWarranty()">Submit Claim</button>
+        <button class="primary-btn full-btn" onclick="submitWarranty()">Submit Registration</button>
     </div>
 </div>
 
@@ -559,22 +559,58 @@ function showAddTicketForm(){
     document.getElementById("message").value = "";
 }
 
-function saveTicket(){
+async function saveTicket(){
     let data = {
         subject: document.getElementById("subject").value,
-        message: document.getElementById("message").value
+        message: document.getElementById("message").value,
+        user_name: document.getElementById("name") ? document.getElementById("name").value : "",
+        user_email: document.getElementById("email") ? document.getElementById("email").value : ""
     };
-    fetch('/api/tickets',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(data)
-    })
-    .then(res=>res.json())
-    .then(d=>{alert(d.message); loadTickets(); cancelTicketForm();});
+
+    try {
+        let ticketRes = await fetch('/api/tickets',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                subject: data.subject,
+                message: data.message
+            })
+        });
+        let ticketData = await ticketRes.json();
+
+        if(!ticketRes.ok){
+            alert(ticketData.message || "Something went wrong");
+            return;
+        }
+
+        let emailRes = await fetch('/send-help-email',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(data)
+        });
+        let emailData = await emailRes.json();
+
+        if(!emailRes.ok || !emailData.success){
+            alert(emailData.message || "Something went wrong");
+            return;
+        }
+
+        alert("Issue submitted successfully");
+        document.getElementById("subject").value = "";
+        document.getElementById("message").value = "";
+        loadTickets();
+        cancelTicketForm();
+    } catch(err) {
+        console.error("Support issue error:", err);
+        alert("Something went wrong");
+    }
 }
 
 function cancelTicketForm(){
-    document.getElementById("ticketForm").style.display = "none";
+    let form = document.getElementById("issueForm") || document.getElementById("ticketForm");
+    if(form){
+        form.style.display = "none";
+    }
 }
 
 function loadTerms(){
@@ -694,30 +730,63 @@ function openHelpForm(type){
         });
     }
 }
-function submitWarranty(){
+async function submitWarranty(){
 
-    let formData = new FormData();
+    let saveFormData = new FormData();
+    let emailFormData = new FormData();
 
-    formData.append("name", document.getElementById("w_name").value);
-    formData.append("phone", document.getElementById("w_phone").value);
-    formData.append("email", document.getElementById("w_email").value);
-    formData.append("address", document.getElementById("w_address").value);
-    formData.append("purchase", document.getElementById("w_purchase").value);
+    saveFormData.append("name", document.getElementById("w_name").value);
+    saveFormData.append("phone", document.getElementById("w_phone").value);
+    saveFormData.append("email", document.getElementById("w_email").value);
+    saveFormData.append("address", document.getElementById("w_address").value);
+    saveFormData.append("purchase", document.getElementById("w_purchase").value);
+
+    emailFormData.append("w_name", document.getElementById("w_name").value);
+    emailFormData.append("w_phone", document.getElementById("w_phone").value);
+    emailFormData.append("w_email", document.getElementById("w_email").value);
+    emailFormData.append("w_purchase", document.getElementById("w_purchase").value);
+    emailFormData.append("w_address", document.getElementById("w_address").value);
 
     let file = document.getElementById("w_bill").files[0];
     if(file){
-        formData.append("bill", file);
+        saveFormData.append("bill", file);
+        emailFormData.append("w_bill", file);
     }
 
-    fetch('/api/warranty', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(d => {
-        alert(d.message || "Warranty submitted");
-        document.getElementById("warrantyForm").reset();
-    });
+    try {
+        let warrantyRes = await fetch('/api/warranty', {
+            method: 'POST',
+            body: saveFormData
+        });
+        let warrantyData = await warrantyRes.json();
+
+        if(!warrantyRes.ok){
+            alert(warrantyData.message || "Something went wrong");
+            return;
+        }
+
+        let emailRes = await fetch('/send-warranty-email', {
+            method: 'POST',
+            body: emailFormData
+        });
+        let emailData = await emailRes.json();
+
+        if(!emailRes.ok || !emailData.success){
+            alert(emailData.message || "Something went wrong");
+            return;
+        }
+
+        alert("Warranty submitted successfully");
+        document.getElementById("w_name").value = "";
+        document.getElementById("w_phone").value = "";
+        document.getElementById("w_email").value = "";
+        document.getElementById("w_purchase").value = "";
+        document.getElementById("w_address").value = "";
+        document.getElementById("w_bill").value = "";
+    } catch(err) {
+        console.error("Warranty submission error:", err);
+        alert("Something went wrong");
+    }
 }
 </script>
 
@@ -894,13 +963,15 @@ body {
 }
 /* CARDS */
 .apple-card {
-    background: rgba(255,255,255,0.92);
+   background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(245,247,248,0.9));
     border-radius: 22px;
     padding: 30px;
     margin-bottom: 24px;
     backdrop-filter: blur(24px);
-    border: 1px solid rgba(0,0,0,0.07);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.06);
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 
+        0 10px 30px rgba(0,0,0,0.05),
+        inset 0 1px 0 rgba(255,255,255,0.6);
 }
 
 .profile-card {
@@ -925,7 +996,10 @@ body {
     border-radius: 50%;
     overflow: hidden;
     border: 4px solid rgba(0, 188, 212, 0.16);
-    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+   box-shadow: 
+        0 10px 25px rgba(0,0,0,0.08),
+        0 0 0 6px rgba(10,92,86,0.06);
+    transition: all 0.3s ease;
 }
 
 .avatar-wrapper img {

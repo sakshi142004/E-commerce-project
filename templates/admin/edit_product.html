@@ -157,6 +157,15 @@
                       {% for img in product.images %}
                      <div class="img-card">
                         <img src="{{ img.image_url }}" alt="Product image">
+                        <small class="image-color-label">
+                            {% if img.color_id %}
+                                {% for pc in product.product_colors %}
+                                    {% if pc.color_id == img.color_id %}{{ pc.color.name }}{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                Default
+                            {% endif %}
+                        </small>
 
                         <a href="/admin/image/delete/{{ img.id }}" class="delete-btn" aria-label="Delete image">
                             x
@@ -230,6 +239,9 @@
                 {% if img.color_id == color.id %}
                 <div class="preview-thumb">
                     <img src="{{ img.image_url }}">
+                    <a href="/admin/image/primary/{{ img.id }}" class="primary-link">
+                        {% if img.is_primary %}Primary{% else %}Set Primary{% endif %}
+                    </a>
                 </div>
                 {% endif %}
             {% endfor %}
@@ -359,6 +371,20 @@
     height: 90px;
     object-fit: cover;
     border-radius: 10px;
+}
+
+.image-color-label,
+.primary-link {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #333;
+}
+
+.primary-link {
+    color: #0A5C56;
+    font-weight: 700;
+    text-decoration: none;
 }
 .product-page {
     padding: 30px;
