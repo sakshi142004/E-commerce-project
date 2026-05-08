@@ -5,6 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+<style>
+    .index-page-section-white {
+        background: #ffffff !important;
+    }
+
+    .index-page-section-soft {
+        background: #faf7f2 !important;
+    }
+
+    .index-page-section-white,
+    .index-page-section-soft {
+        color: var(--text-default);
+    }
+
+</style>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
@@ -35,7 +50,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 <!-- 🎬 HERO -->
-<section class="hero">
+<section class="hero index-page-section-white">
     <div class="hero-slider" id="heroSlider">
 
         <!-- Slide 1 -->
@@ -97,17 +112,20 @@ document.addEventListener("DOMContentLoaded", function () {
 </section>
 
 <!-- 🛍 PRODUCTS -->
-<section class="products">
-    <div class="section-header">
+<section class="products featured-collection index-page-section-soft">
+    <div class="section-heading featured-header">
         <h2>Featured Collection</h2>
-        <a href="/products-page">Explore More</a>
     </div>
 
     <div id="products" class="product-container"></div>
+
+    <div class="featured-actions">
+        <a href="/products-page" class="featured-explore-btn">Explore More</a>
+    </div>
 </section>
 
 <!-- ⭐ WHY CHOOSE US -->
-<section class="why section-space">
+<section class="why section-space index-page-section-white">
     <div class="section-heading">
         <span>WHY BELTPURSE</span>
         <h2>Why Choose Us</h2>
@@ -153,7 +171,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 </section>
 -->
-<section class="categories section-space">
+<section class="categories section-space index-page-section-soft">
   <div class="section-heading">
     <span>SHOP BY STYLE</span>
     <h2>Shop by Category</h2>
@@ -202,7 +220,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 </section>
 <!-- 🧵 MATERIALS -->
-<section class="materials section-space">
+<section class="materials section-space index-page-section-white">
     <div class="section-heading">
         <span>CRAFTED WITH CARE</span>
         <h2>Materials We Use</h2>
@@ -232,7 +250,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </section>
 
 <!-- 📰 BLOG -->
-<section class="blog section-space">
+<section class="blog section-space index-page-section-soft">
     <div class="section-heading">
         <span>OUR COLLECTION</span>
         <h2>From Our Collection</h2>
@@ -298,7 +316,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- ================= SERVICES ================= -->
 <!-- ================= SERVICES ================= -->
 <!-- ================= SERVICES ================= -->
-<section class="services section-space" id="services">
+<section class="services section-space index-page-section-soft" id="services">
     <div class="section-heading">
         <span>FEATURED SERVICES</span>
         <h2>Our Services</h2>
@@ -354,7 +372,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </section>
 
 <!-- ================= FAQ ================= -->
-<section class="faq section-space" id="faq">
+<section class="faq section-space index-page-section-white" id="faq">
     <div class="section-heading">
         <span>QUICK ANSWERS</span>
         <h2>Frequently Asked Questions</h2>
@@ -416,7 +434,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </section>
 
 <!-- ================= CONTACT ================= -->
-<section class="contact section-space" id="contact">
+<section class="contact section-space index-page-section-soft" id="contact">
     <div class="section-heading">
         <span>GET IN TOUCH</span>
         <h2>Contact Us</h2>

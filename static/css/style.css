@@ -1,4 +1,7 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
+@import url('https://fonts.cdnfonts.com/css/gotham');
+
 :root {
     --brand: #0A5C56;
     --brand-dark: #083E3A;
@@ -29,11 +32,8 @@ body {
     box-sizing: border-box;
 }
 
-/* Font imports */
-@import url('https://fonts.googleapis.com/css2?family=Gotham:wght@400;600;700&display=swap');
-
 h1, h2, h3, h4, h5, h6 {
-    font-family: "Gotham", "Montserrat", Arial, sans-serif;
+    font-family: "Cormorant Garamond", Georgia, serif;
     font-weight: bold;
 }
 
@@ -77,7 +77,7 @@ p {
     margin: 0;
     
     text-transform: capitalize; /* first letter uppercase */
-    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
+    font-family: "Cormorant Garamond", Georgia, serif !important;
 
 }
 .btn-gradient {
@@ -197,14 +197,14 @@ p {
 
 .hero-tagline {
     display: inline-block;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 500;
     margin-bottom: 18px;
     color: rgba(255,255,255,0.92);
 }
 
 .hero-content h1 {
-    font-size: clamp(42px, 6vw, 86px);
+    font-size: clamp(40px, 5.7vw, 82px);
     line-height: 1.05;
     margin: 0;
     font-weight: 700;
@@ -213,7 +213,7 @@ p {
 }
 
 .hero-content p {
-    font-size: 26px;
+    font-size: 25px;
     margin-top: 22px;
     color: rgba(255,255,255,0.88);
     font-weight: 400;
@@ -231,7 +231,7 @@ p {
     background: #ffffff;
     color: #111;
     text-decoration: none;
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 560;
     box-shadow: 0 10px 30px rgba(0,0,0,0.25);
 }
@@ -287,19 +287,19 @@ p {
     }
 
     .hero-content h1 {
-         font-size: 26px;   /* 👈 pehle bada tha */
+         font-size: 25px;   /* 👈 pehle bada tha */
         line-height: 1.2;
         margin: 8px 0;
     }
 
     .hero-content p {
-         font-size: 16px;
+         font-size: 15px;
         margin-bottom: 14px;
     }
 
     .hero-btn {
         padding: 8px 16px;
-        font-size: 16px;
+        font-size: 15px;
         border-radius: 999px;
         display: inline-block;
     }
@@ -339,23 +339,23 @@ p {
     }
 
     .hero-tagline {
-        font-size: 12px;
+        font-size: 11.5px;
     }
 
     .hero-content h1 {
-         font-size: 22px;   /* 👈 pehle bada tha */
+         font-size: 21px;   /* 👈 pehle bada tha */
         line-height: 1.2;
         margin: 8px 0;
     }
 
     .hero-content p {
-         font-size: 13px;
+         font-size: 12.5px;
         margin-bottom: 14px;
     }
 
     .hero-btn {
        padding: 8px 16px;
-        font-size: 13px;
+        font-size: 12.5px;
         border-radius: 999px;
         display: inline-block;
         font-weight: 600;
@@ -883,6 +883,106 @@ p {
 .color-circle:hover {
     transform: scale(1.15);
     border-color: #111;
+}
+
+/* Featured Collection: homepage-only polish */
+.featured-collection {
+    padding: 56px 5% 52px;
+    background: linear-gradient(180deg, #ffffff 0%, #f4f8f6 100%);
+}
+
+.featured-collection .featured-header {
+    margin-bottom: 30px !important;
+}
+
+.featured-collection .product-container {
+    max-width: 1240px;
+    margin: 0 auto;
+}
+
+@media (min-width: 769px) {
+    .featured-collection .product-container {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 22px !important;
+    }
+
+    .featured-collection .product-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        border-radius: 18px;
+        box-shadow: 0 18px 44px rgba(8, 62, 58, 0.1);
+    }
+
+    .featured-collection .product-info {
+        flex: 1;
+        padding: 16px 16px 18px !important;
+        gap: 9px !important;
+    }
+
+    .featured-collection .product-info h4 {
+        min-height: 44px !important;
+        font-size: 17px;
+    }
+
+    .featured-collection .price-box {
+        margin-top: auto !important;
+    }
+}
+
+.featured-collection .product-image-wrapper {
+    border-radius: 18px 18px 0 0;
+}
+
+.featured-collection .color-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    min-height: 22px;
+    margin-top: 2px !important;
+}
+
+.featured-collection .color-circle {
+    width: 17px;
+    height: 17px;
+    border: 2px solid #ffffff;
+    outline: 1px solid rgba(8, 62, 58, 0.18);
+}
+
+.featured-collection .color-circle.active,
+.featured-collection .color-circle:hover {
+    outline-color: var(--brand);
+    border-color: #ffffff;
+}
+
+.featured-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 34px;
+}
+
+.featured-explore-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160px;
+    min-height: 46px;
+    padding: 13px 24px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 14px 32px rgba(8, 62, 58, 0.22);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.featured-explore-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 42px rgba(8, 62, 58, 0.28);
+    background: linear-gradient(135deg, #0f746d, #083E3A);
 }
 
 /* Responsive */
@@ -2124,7 +2224,10 @@ p {
 
 .faq-question {
     padding: 16px 22px !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
     line-height: 1.35 !important;
+    letter-spacing: 0;
 }
 
 .faq-answer {
@@ -2244,7 +2347,7 @@ p {
     }
 }
 
-/* Force all heading/title text to Gotham */
+/* Global typography: headings use Cormorant, subheadings/body use Gotham */
 h1,
 h2,
 h3,
@@ -2271,6 +2374,38 @@ h6,
 .contact-info-card h3,
 .footer-col h3,
 .footer-col h4 {
+    font-family: "Cormorant Garamond", Georgia, serif !important;
+}
+
+.subheading,
+.sub-heading,
+.subtitle,
+.section-subtitle,
+.section-heading span,
+.section-header span,
+.hero-tagline,
+.hero-content p,
+.product-meta,
+.product-breadcrumb,
+.card-subtitle,
+.eyebrow,
+label,
+button,
+input,
+textarea,
+select,
+nav,
+.navbar,
+.nav-left,
+.nav-center,
+.nav-right,
+.sidebar,
+.sidebar-item,
+.account-link,
+.price,
+.price-box,
+.rating,
+.badge {
     font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
 }
 
@@ -2387,5 +2522,88 @@ h6,
     .blog-overlay h3 {
         font-size: 12px !important;
         line-height: 1.2 !important;
+    }
+}
+
+/* ===== Mobile-only requested refinements ===== */
+@media (max-width: 768px) {
+    .navbar {
+        transform: translateY(0);
+        transition: transform 0.34s ease, background 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease !important;
+        will-change: transform;
+    }
+
+    .navbar.mobile-nav-hidden {
+        transform: translateY(-110%) !important;
+    }
+
+    .navbar.mobile-nav-visible,
+    .navbar.mobile-search-open {
+        transform: translateY(0) !important;
+    }
+
+    .navbar .desktop-count-icon .badge {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(2px) scale(0.72);
+        transform-origin: center;
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    }
+
+    .navbar .desktop-count-icon:hover .badge:not(.is-zero),
+    .navbar .desktop-count-icon:focus .badge:not(.is-zero),
+    .navbar .desktop-count-icon:focus-within .badge:not(.is-zero),
+    .navbar .desktop-count-icon:active .badge:not(.is-zero) {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+    }
+
+    .navbar .desktop-count-icon .badge.is-zero {
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateY(2px) scale(0.72) !important;
+    }
+
+    .featured-actions {
+        margin-top: 18px !important;
+    }
+
+    .featured-explore-btn {
+        min-width: 118px !important;
+        min-height: 34px !important;
+        padding: 8px 16px !important;
+        font-size: 12px !important;
+        line-height: 1.15 !important;
+        box-shadow: 0 8px 20px rgba(8, 62, 58, 0.18) !important;
+    }
+
+    .faq-item {
+        margin-bottom: 9px !important;
+        border-radius: 12px !important;
+    }
+
+    .faq-question {
+        padding: 11px 14px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        line-height: 1.32 !important;
+    }
+
+    .faq-question span {
+        font-size: 16px !important;
+        line-height: 1 !important;
+        margin-left: 12px !important;
+    }
+
+    .faq-answer {
+        padding: 0 14px !important;
+        font-size: 12.5px !important;
+        line-height: 1.55 !important;
+    }
+
+    .faq-item.active .faq-answer {
+        padding: 6px 14px 12px !important;
     }
 }

@@ -9,8 +9,8 @@
 
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Gotham:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/gotham" rel="stylesheet">
 
 <style>
     html, body {
@@ -275,6 +275,7 @@ body {
     .search-bar input::placeholder {
         color: rgba(255,255,255,0.72);
     }
+
     /* ICONS */
     .icon-box {
         position: relative;
@@ -1400,7 +1401,7 @@ body::before {
     background: rgba(8, 32, 29, 0.82);
     backdrop-filter: blur(14px) saturate(120%);
     display: none;
-    z-index: 999;
+    z-index: 9998;
     animation: fadeIn 0.35s ease;
 }
 
@@ -1418,17 +1419,24 @@ body::before {
 /* POPUP */
 .popup {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.9);
+    top: 70px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: scale(0.96);
     display: none;
-    z-index: 1000;
-    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    z-index: 10000;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
 }
 
 .popup.show {
-    display: block;
-    transform: translate(-50%, -50%) scale(1);
+    display: flex;
+    transform: scale(1);
 }
 
 /* CONTAINER */
@@ -1436,6 +1444,8 @@ body::before {
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
+    min-height: 100%;
 }
 
 /* CARD */
@@ -1456,6 +1466,7 @@ body::before {
     position: absolute;
     top: 18px;
     right: 20px;
+    z-index: 2;
     font-size: 28px;
     cursor: pointer;
     color: #ddeeea;
@@ -1635,12 +1646,221 @@ body::before {
         right: 12px;
     }
 }
+
+@media (max-width: 768px) {
+    .popup {
+        top: 60px;
+        padding: 16px 12px;
+    }
+}
+
+@media (max-height: 680px) {
+    .popup {
+        align-items: flex-start;
+    }
+
+    .auth-card {
+        padding: 22px 24px;
+        border-radius: 20px;
+    }
+
+    .auth-logo {
+        width: 92px;
+        margin-bottom: 10px;
+    }
+
+    #formTitle {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .form-msg {
+        margin-bottom: 8px;
+    }
+
+    .auth-card input {
+        padding: 10px 12px;
+        margin-bottom: 9px;
+    }
+
+    .primary-btn {
+        padding: 11px;
+    }
+
+    .switch-text {
+        margin-top: 10px;
+    }
+}
 /* MOBILE */
 
 /* FOOTER PREMIUM */
 .footer {
    background: linear-gradient(135deg, #0A5C56, #083E3A);
     border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Desktop-only navbar refinements */
+.desktop-search-toggle,
+.desktop-search-close {
+    display: none;
+}
+
+@media (min-width: 992px) {
+    .navbar {
+        transform: translateY(0);
+        transition: transform 0.38s ease, background 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease;
+    }
+
+    .navbar.desktop-nav-hidden {
+        transform: translateY(-110%);
+    }
+
+    .navbar.desktop-nav-visible {
+        transform: translateY(0);
+    }
+
+    .navbar .nav-left,
+    .navbar .nav-center,
+    .navbar .nav-right {
+        align-items: center;
+    }
+
+    .navbar .logo {
+        height: 70px;
+        padding: 8px 0;
+    }
+
+    .navbar .logo a {
+        display: inline-flex;
+        align-items: center;
+        height: 100%;
+    }
+
+    .navbar .logo img {
+        max-height: 54px;
+        display: block;
+    }
+
+    .navbar .desktop-search {
+        width: 44px !important;
+        min-width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        overflow: visible;
+        transition: width 0.32s ease;
+    }
+
+    .navbar .desktop-search.is-open {
+        width: 280px !important;
+    }
+
+    .desktop-search-toggle,
+    .desktop-search-close {
+        width: 44px;
+        height: 44px;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 50%;
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex: 0 0 44px;
+        padding: 0;
+    }
+
+    .desktop-search-toggle:hover,
+    .desktop-search-close:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .navbar .desktop-search input,
+    .navbar .desktop-search input:focus {
+        position: absolute;
+        right: 0;
+        width: 44px !important;
+        min-width: 44px;
+        height: 44px;
+        padding: 0 44px;
+        opacity: 0;
+        pointer-events: none;
+        box-shadow: inset 0 3px 10px rgba(0,0,0,0.12);
+    }
+
+    .navbar .desktop-search.is-open input,
+    .navbar .desktop-search.is-open input:focus {
+        width: 280px !important;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .navbar .desktop-search .desktop-search-toggle {
+        position: relative;
+        z-index: 2;
+    }
+
+    .navbar .desktop-search.is-open .desktop-search-toggle {
+        position: absolute;
+        left: 0;
+    }
+
+    .desktop-search-close {
+        position: absolute;
+        right: 0;
+        z-index: 2;
+        opacity: 0;
+        pointer-events: none;
+        transform: scale(0.86);
+    }
+
+    .navbar .desktop-search.is-open .desktop-search-close {
+        opacity: 1;
+        pointer-events: auto;
+        transform: scale(1);
+    }
+
+    .navbar .desktop-search .search-dropdown {
+        top: 52px;
+        right: 0;
+        width: 280px;
+    }
+
+    .navbar .desktop-login-link {
+        width: 44px;
+        height: 44px;
+        min-height: 44px;
+        padding: 0 !important;
+        justify-content: center;
+        gap: 0;
+    }
+
+    .navbar .desktop-login-link i {
+        font-size: 16px;
+    }
+
+    .navbar .desktop-count-icon .badge {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(2px) scale(0.72);
+        transform-origin: center;
+        pointer-events: none;
+        transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+    }
+
+    .navbar .desktop-count-icon:hover .badge:not(.is-zero) {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+    }
+
+    .navbar .desktop-count-icon .badge.is-zero {
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateY(2px) scale(0.72) !important;
+    }
 }
     </style>
 
@@ -1757,24 +1977,30 @@ body::before {
         </div>
 
         <!-- 🔍 SEARCH -->
-        <div class="search-bar" style="position:relative;">
+        <div class="search-bar desktop-search" id="desktopSearchBar" style="position:relative;">
+            <button type="button" class="desktop-search-toggle" aria-label="Open search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
             <input 
                 type="text" 
                 id="searchInput" 
                 placeholder="Search Product"
                 autocomplete="off"
             >
+            <button type="button" class="desktop-search-close" aria-label="Close search">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
             <div id="searchDropdown" class="search-dropdown"></div>
         </div>
 
         <!-- ❤️ WISHLIST -->
-        <div class="icon-box premium-icon" onclick="window.location='/wishlist'">
+        <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Wishlist" onclick="window.location='/wishlist'">
             <i class="fa-solid fa-heart"></i>
             <span class="badge" id="wishlistCount">{{ wishlist_count }}</span>
         </div>
 
         <!-- 🛒 CART -->
-        <div class="icon-box premium-icon" onclick="window.location='/cart'">
+        <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Cart" onclick="window.location='/cart'">
             <i class="fa-solid fa-cart-shopping"></i>
             <span class="badge" id="cartCount">{{ cart_count }}</span>
         </div>
@@ -1791,7 +2017,9 @@ body::before {
         {% endif %}
     </a>
 {% else %}
-    <a href="#" id="loginBtn" class="user-profile-link">Login</a>
+    <a href="#" id="loginBtn" class="user-profile-link desktop-login-link">
+        <i class="fa-regular fa-user"></i>
+    </a>
 {% endif %}
     </div>
 </header>
@@ -1845,7 +2073,7 @@ body::before {
     <div class="footer-col contact-info">
       <h4>Contact</h4>
      <p><i class="fa-solid fa-phone"></i> +91 7000747936</p>
-<p><i class="fa-brands fa-whatsapp"></i> WhatsApp: +91 7000747936</p>
+
 <p><i class="fa-solid fa-envelope"></i> beltpurse.com@gmail.com</p>
 <p><i class="fa-solid fa-location-dot"></i> India</p>
     </div>
@@ -1959,9 +2187,10 @@ body::before {
     });
 
 
+let lastNavbarScrollY = window.scrollY;
+
 window.addEventListener("scroll", function () {
     const navbar = document.querySelector(".navbar");
-
     if (!navbar) return;
 
     if (window.scrollY > 50) {
@@ -1969,6 +2198,111 @@ window.addEventListener("scroll", function () {
     } else {
         navbar.classList.remove("scrolled");
     }
+
+    const currentScrollY = window.scrollY;
+    const scrollingDown = currentScrollY > lastNavbarScrollY;
+    const mobileNavOpen = navbar.classList.contains("mobile-search-open") || document.getElementById("navCenter")?.classList.contains("show");
+
+    if (window.matchMedia("(max-width: 768px)").matches) {
+        navbar.classList.remove("desktop-nav-hidden", "desktop-nav-visible");
+
+        if (currentScrollY <= 40 || mobileNavOpen) {
+            navbar.classList.remove("mobile-nav-hidden");
+            navbar.classList.add("mobile-nav-visible");
+        } else if (scrollingDown) {
+            navbar.classList.add("mobile-nav-hidden");
+            navbar.classList.remove("mobile-nav-visible");
+        } else {
+            navbar.classList.remove("mobile-nav-hidden");
+            navbar.classList.add("mobile-nav-visible");
+        }
+
+        lastNavbarScrollY = Math.max(currentScrollY, 0);
+        return;
+    }
+
+    if (!window.matchMedia("(min-width: 992px)").matches) {
+        navbar.classList.remove("desktop-nav-hidden", "desktop-nav-visible", "mobile-nav-hidden", "mobile-nav-visible");
+        lastNavbarScrollY = window.scrollY;
+        return;
+    }
+
+    navbar.classList.remove("mobile-nav-hidden", "mobile-nav-visible");
+
+    if (currentScrollY <= 80) {
+        navbar.classList.remove("desktop-nav-hidden");
+        navbar.classList.add("desktop-nav-visible");
+    } else if (scrollingDown) {
+        navbar.classList.add("desktop-nav-hidden");
+        navbar.classList.remove("desktop-nav-visible");
+    } else {
+        navbar.classList.remove("desktop-nav-hidden");
+        navbar.classList.add("desktop-nav-visible");
+    }
+
+    lastNavbarScrollY = Math.max(currentScrollY, 0);
+}, { passive: true });
+
+document.addEventListener("DOMContentLoaded", () => {
+    const desktopSearch = document.getElementById("desktopSearchBar");
+    const searchInput = document.getElementById("searchInput");
+    const searchDropdown = document.getElementById("searchDropdown");
+    const searchToggle = desktopSearch?.querySelector(".desktop-search-toggle");
+    const searchClose = desktopSearch?.querySelector(".desktop-search-close");
+    const isDesktop = () => window.matchMedia("(min-width: 992px)").matches;
+
+    if (!desktopSearch || !searchInput || !searchToggle || !searchClose) return;
+
+    const openDesktopSearch = () => {
+        if (!isDesktop()) return;
+        desktopSearch.classList.add("is-open");
+        if (searchInput.value.trim()) {
+            searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        window.setTimeout(() => searchInput.focus(), 80);
+    };
+
+    const closeDesktopSearch = (clearInput = false) => {
+        if (!isDesktop()) return;
+        if (clearInput) {
+            searchInput.value = "";
+            searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        desktopSearch.classList.remove("is-open");
+        if (searchDropdown) searchDropdown.style.display = "none";
+    };
+
+    searchToggle.addEventListener("click", (event) => {
+        if (!isDesktop()) return;
+        event.preventDefault();
+        if (!desktopSearch.classList.contains("is-open")) {
+            openDesktopSearch();
+        } else if (!searchInput.value.trim()) {
+            closeDesktopSearch();
+        } else {
+            searchInput.focus();
+        }
+    });
+
+    searchClose.addEventListener("click", (event) => {
+        if (!isDesktop()) return;
+        event.preventDefault();
+        closeDesktopSearch(true);
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!isDesktop()) return;
+        if (!event.target.closest("#desktopSearchBar")) {
+            closeDesktopSearch(false);
+        }
+    });
+
+    window.addEventListener("resize", () => {
+        if (!isDesktop()) {
+            desktopSearch.classList.remove("is-open");
+            document.getElementById("navbar")?.classList.remove("desktop-nav-hidden", "desktop-nav-visible");
+        }
+    });
 });
 function updateNavbarCounts() {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
@@ -1981,6 +2315,7 @@ function updateNavbarCounts() {
             const wish = document.getElementById("wishlistCount");
             if (cart) cart.textContent = data.cart;
             if (wish) wish.textContent = data.wishlist;
+            syncNavbarBadgeVisibility();
         });
     } else {
         // guest → localStorage se count lo
@@ -1991,7 +2326,17 @@ function updateNavbarCounts() {
         if (cart) cart.textContent = guestCart.reduce((sum, i) => sum + (i.qty || 1), 0);
         if (wish) wish.textContent = guestWishlist.length;
     }
+    syncNavbarBadgeVisibility();
 }
+
+function syncNavbarBadgeVisibility() {
+    document.querySelectorAll("#wishlistCount, #cartCount").forEach((badge) => {
+        const count = Number.parseInt((badge.textContent || "0").trim(), 10) || 0;
+        badge.classList.toggle("is-zero", count <= 0);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", syncNavbarBadgeVisibility);
 window.addEventListener("user-login", () => {
     updateNavbarCounts();
 });

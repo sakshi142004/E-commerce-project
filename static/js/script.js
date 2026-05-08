@@ -89,11 +89,11 @@ document.addEventListener("DOMContentLoaded", function () {
                         const navRight = document.getElementById("navRight");
                         if (navRight) {
                             navRight.innerHTML = `
-                                <div class="icon-box premium-icon" onclick="window.location='/wishlist'">
+                                <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Wishlist" onclick="window.location='/wishlist'">
                                     <i class="fa-solid fa-heart"></i>
                                     <span class="badge" id="wishlistCount">0</span>
                                 </div>
-                                <div class="icon-box premium-icon" onclick="window.location='/cart'">
+                                <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Cart" onclick="window.location='/cart'">
                                     <i class="fa-solid fa-cart-shopping"></i>
                                     <span class="badge" id="cartCount">0</span>
                                 </div>
@@ -164,12 +164,22 @@ function updateNavbarCounts() {
                 const w = document.getElementById("wishlistCount");
                 if (c) c.textContent = d.cart    || 0;
                 if (w) w.textContent = d.wishlist || 0;
+                syncNavbarBadgeVisibility();
             }).catch(() => {});
     } else {
         updateGuestCounts();
     }
 }
 window.addEventListener("user-login", updateNavbarCounts);
+
+function syncNavbarBadgeVisibility() {
+    document.querySelectorAll("#wishlistCount, #cartCount").forEach((badge) => {
+        const count = Number.parseInt((badge.textContent || "0").trim(), 10) || 0;
+        badge.classList.toggle("is-zero", count <= 0);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", syncNavbarBadgeVisibility);
 
 // ================= GUEST HELPERS =================
 function updateGuestCounts() {
@@ -180,6 +190,7 @@ function updateGuestCounts() {
     const w = document.getElementById("wishlistCount");
     if (c) c.textContent = gCart.reduce((s, i) => s + (i.qty || 1), 0);
     if (w) w.textContent = gWish.length;
+    syncNavbarBadgeVisibility();
 }
 
 function showGuestToast(message) {
@@ -219,6 +230,7 @@ function addToCart(productId, colorId = null, sizeId = null) {
         .then(data => {
             const el = document.getElementById("cartCount");
             if (el && data.count != null) el.innerText = data.count;
+            syncNavbarBadgeVisibility();
             showGuestToast("Added to cart! 🛒");
         }).catch(() => {});
     } else {
@@ -249,6 +261,7 @@ function addToWishlist(productId, btn = null, colorId = null) {
             if (btn) { btn.classList.toggle("active", data.in_wishlist); btn.innerHTML = data.in_wishlist ? "❤️" : "♡"; }
             const w = document.getElementById("wishlistCount");
             if (w) w.innerText = data.count;
+            syncNavbarBadgeVisibility();
         }).catch(err => console.error("Wishlist error:", err));
     } else {
         let gWish = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
@@ -290,17 +303,62 @@ function loadProducts() {
             if (!container) return;
             container.innerHTML = "";
 
-            data.slice(0, 4).forEach(product => {
+            const featuredProducts = Array.from(data.reduce((items, product) => {
+                const productId = getProductBaseId(product);
+                const current = items.get(productId) || {
+                    ...product,
+                    id: productId,
+                    product_id: productId,
+                    colors: [],
+                    color_images: {},
+                    images: product.images || []
+                };
+                const variantColor = product.color_variant || product.colors?.[0] || null;
+                const availableColors = product.colors?.length ? product.colors : (variantColor ? [variantColor] : []);
+
+                availableColors.forEach(color => {
+                    if (color?.id && color?.code && !current.colors.some(item => String(item.id) === String(color.id))) {
+                        current.colors.push(color);
+                    }
+                });
+
+                if (variantColor?.id && product.images?.length) {
+                    current.color_images[variantColor.id] = product.images;
+                }
+
+                if (product.color_images) {
+                    current.color_images = { ...current.color_images, ...product.color_images };
+                }
+
+                if ((!current.images || !current.images.length) && product.images?.length) {
+                    current.images = product.images;
+                }
+
+                items.set(productId, current);
+                return items;
+            }, new Map()).values());
+
+            featuredProducts.slice(0, 4).forEach(product => {
                 const productId    = getProductBaseId(product);
                 const variantColor = product.color_variant || product.colors?.[0] || null;
                 const colorId      = variantColor?.id || null;
                 const image        = product.images?.[0] || "/static/images/default.png";
+                const colorList    = (product.colors?.length ? product.colors : (variantColor ? [variantColor] : []))
+                    .filter(color => color?.id && color?.code);
 
                 const ratingHTML   = product.rating ? `<div class="rating">⭐ ${product.rating}</div>` : "";
                 const discountHTML = product.discount_percent > 0 ? `<span class="discount-badge">-${product.discount_percent}%</span>` : "";
                 const oldPriceHTML = product.original_price ? `<span class="old-price">₹${product.original_price}</span>` : "";
-                const colorsHTML   = variantColor
-                    ? `<div class="color-options"><span class="color-circle" style="background:${variantColor.code}" title="${variantColor.name}" data-color="${variantColor.id}" data-product="${productId}"></span></div>`
+                const colorsHTML   = colorList.length
+                    ? `<div class="color-options">${colorList.map((color, index) => `
+                        <span
+                            class="color-circle${index === 0 ? " active" : ""}"
+                            style="background:${color.code}"
+                            title="${color.name || "Color"}"
+                            data-color="${color.id}"
+                            data-product="${productId}">
+                        </span>
+                    `).join("")}</div>`
                     : "";
 
                 const div = document.createElement("div");
@@ -308,7 +366,6 @@ function loadProducts() {
                 div.innerHTML = `
                     <div class="product-image-wrapper">
                         ${discountHTML}
-                        <button class="wishlist-btn" data-id="${productId}">♡</button>
                         <img class="product-img" src="${image}" alt="${product.name}">
                     </div>
                     <div class="product-info">
@@ -322,11 +379,12 @@ function loadProducts() {
                     </div>
                 `;
 
-                const wishlistBtn = div.querySelector(".wishlist-btn");
                 const imgEl       = div.querySelector(".product-img");
 
                 div.querySelectorAll(".color-circle").forEach(circle => {
                     circle.addEventListener("mouseenter", () => {
+                        div.querySelectorAll(".color-circle").forEach(item => item.classList.remove("active"));
+                        circle.classList.add("active");
                         const imgs = product.color_images?.[circle.dataset.color];
                         if (imgs?.length) imgEl.src = imgs[0];
                     });
@@ -338,15 +396,6 @@ function loadProducts() {
                 });
 
                 div.addEventListener("click", () => { window.location.href = getProductDetailUrl(product); });
-
-                checkWishlist(productId, colorId).then(inWishlist => {
-                    if (inWishlist) { wishlistBtn.classList.add("active"); wishlistBtn.innerHTML = "❤️"; }
-                });
-
-                wishlistBtn.addEventListener("click", e => {
-                    e.stopPropagation();
-                    addToWishlist(productId, wishlistBtn, colorId);
-                });
 
                 container.appendChild(div);
             });

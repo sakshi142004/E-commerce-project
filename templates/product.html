@@ -724,6 +724,620 @@ body {
     }
 
 }
+
+/* ================= PREMIUM PRODUCT DETAIL REDESIGN ================= */
+.product-detail-page {
+    background: #ffffff;
+    padding: 28px 3.5% 48px;
+}
+
+.product-breadcrumb {
+    max-width: 1540px;
+    margin: 0 auto 18px;
+    color: #6b7280;
+}
+
+.product-breadcrumb a {
+    color: #244f4a;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.product-hero {
+    max-width: 1540px;
+    margin: 0 auto 34px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(390px, 0.95fr);
+    gap: 44px;
+    align-items: start;
+}
+
+.product-gallery {
+    gap: 14px;
+}
+
+.product-gallery-main {
+    width: 100%;
+    max-width: none;
+    min-height: 560px;
+    aspect-ratio: 1.12 / 1;
+    border-radius: 0;
+    background: #f6f3ee;
+    box-shadow: none;
+    padding: 0;
+}
+
+.product-gallery-main img,
+.product-gallery-main video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 0;
+    border-radius: 0;
+}
+
+.wishlist-heart {
+    top: 18px;
+    right: 18px;
+    background: rgba(255,255,255,0.86);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.product-gallery-thumbs {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.product-gallery-thumbs button {
+    border-radius: 8px;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+}
+
+.product-gallery-thumbs button.active,
+.product-gallery-thumbs button:hover {
+    outline: 2px solid #0A5C56;
+}
+
+.product-info-panel {
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    gap: 18px;
+}
+
+.product-title-row {
+    display: block;
+}
+
+.product-title-row h1 {
+    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
+    font-size: clamp(24px, 2vw, 34px);
+    line-height: 1.12;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.product-meta {
+    margin-top: 12px;
+    gap: 10px;
+}
+
+.tag-pill {
+    display: none;
+}
+
+.rating-pill {
+    color: #111;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.rating-stars {
+    letter-spacing: 1px;
+    color: #222;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.rating-value {
+    color: #111;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.product-price-row {
+    gap: 10px;
+    align-items: baseline;
+    margin-top: -4px;
+}
+
+.price-old {
+    order: 1;
+    font-size: 19px;
+    color: #4f4f4f;
+    text-decoration-thickness: 1.5px;
+}
+
+.price-new {
+    order: 2;
+    font-size: 24px;
+    color: #111;
+    font-weight: 800;
+}
+
+.discount-badge {
+    order: 3;
+    background: transparent;
+    color: #d41224;
+    padding: 0;
+    border-radius: 0;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.tax-note {
+    margin-top: -10px;
+    color: #8a8a8a;
+    font-size: 13px;
+    font-style: italic;
+    font-weight: 700;
+}
+
+.product-choice-block {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 18px;
+}
+
+.choice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    color: #111;
+    font-size: 17px;
+}
+
+.choice-header strong {
+    font-weight: 800;
+}
+
+.current-color-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.color-list,
+.size-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.color-dot {
+    width: 46px;
+    height: 46px;
+    border: 2px solid #fff;
+    outline: 1px solid #d1d5db;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.7);
+}
+
+.color-dot.active {
+    outline: 2px solid #111;
+    border-color: #fff;
+    transform: none;
+}
+
+.size-chip {
+    min-width: 52px;
+    min-height: 50px;
+    border-radius: 0;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    color: #111;
+    font-size: 15px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.size-chip:hover,
+.size-chip.active {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+    transform: none;
+}
+
+.size-chart-link {
+    border: none;
+    background: transparent;
+    color: #d41224;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.product-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 6px;
+}
+
+.product-actions .btn {
+    min-height: 64px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-size: 18px;
+    box-shadow: none;
+    transform: none;
+}
+
+.product-actions .btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn-buy-now {
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #fff;
+    border: 1px solid #0A5C56;
+}
+
+.product-actions .add-cart-btn {
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #fff;
+    border: 1px solid #0A5C56;
+}
+
+.product-actions .add-cart-btn.active {
+    background: #083E3A;
+}
+
+.product-feature-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    background: #e9e7e3;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: -2px;
+}
+
+.product-feature-item {
+    min-height: 96px;
+    background: #eeece8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    color: #111;
+    font-size: 15px;
+}
+
+.product-feature-item i {
+    color: #4b4b4b;
+    font-size: 25px;
+}
+
+.product-info-accordion {
+    max-width: 1540px;
+    margin: 24px auto 44px;
+    border-top: 1px solid #dde2e6;
+}
+
+.detail-row {
+    display: contents;
+}
+
+.detail-row summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 18px 14px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #4b5563;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.detail-row summary::-webkit-details-marker {
+    display: none;
+}
+
+.detail-row summary::after {
+    content: none;
+}
+
+.detail-row[open] summary {
+    color: #083E3A;
+    border-bottom-color: #0A5C56;
+}
+
+.detail-row-content {
+    grid-column: 1 / -1;
+    padding: 24px 6px 22px;
+    color: #4b5563;
+    line-height: 1.8;
+    max-width: 920px;
+}
+
+.reviews-section {
+    max-width: 1540px;
+    margin: 0 auto 44px;
+}
+
+.reviews-section h2,
+.related-products h2 {
+    font-size: 28px;
+    margin-bottom: 18px;
+}
+
+.size-chart-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.45);
+    z-index: 10000;
+}
+
+.size-chart-modal.active {
+    display: flex;
+}
+
+.size-chart-dialog {
+    width: min(760px, 100%);
+    max-height: 88vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.22);
+}
+
+.size-chart-dialog h2 {
+    margin: 0 0 18px;
+    font-family: "Gotham", "Montserrat", Arial, sans-serif !important;
+    font-size: 24px;
+    letter-spacing: 0.6px;
+}
+
+.size-chart-close {
+    float: right;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: #f3f4f6;
+    cursor: pointer;
+    font-size: 22px;
+}
+
+.size-chart-dialog p,
+.size-chart-dialog li {
+    color: #333;
+    line-height: 1.65;
+}
+
+.size-unit-row {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0 14px;
+    align-items: center;
+}
+
+.size-unit-pill {
+    min-width: 46px;
+    border: 1px solid #111;
+    padding: 8px 12px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.size-chart-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.size-chart-table th,
+.size-chart-table td {
+    border: 1px solid #e5e7eb;
+    padding: 12px 10px;
+    text-align: left;
+}
+
+.size-chart-table th {
+    background: #f8f5ef;
+    font-size: 13px;
+}
+
+@media (max-width: 990px) {
+    .product-hero {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .product-gallery-main {
+        min-height: auto;
+    }
+}
+
+@media (max-width: 680px) {
+    .product-detail-page {
+        padding: 18px 14px 34px;
+    }
+
+    .product-title-row h1 {
+        font-size: 20px !important;
+    }
+
+    .product-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .product-feature-row {
+        grid-template-columns: 1fr;
+    }
+
+    .choice-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .detail-row summary {
+        font-size: 17px;
+    }
+
+    .size-chart-dialog {
+        padding: 20px;
+    }
+}
+
+.product-title-row > .discount-badge,
+.product-info-panel > .product-short,
+.product-info-panel > .product-short + .product-properties,
+.product-info-panel > .product-properties:first-of-type {
+    display: none !important;
+}
+
+.product-info-panel > .product-properties:last-of-type {
+    order: 4;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+.product-info-panel > .product-properties:last-of-type .property-card {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 18px 0;
+}
+
+.product-info-panel > .product-properties:last-of-type .property-card strong {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 17px;
+    color: #111;
+}
+
+.product-actions {
+    order: 5;
+}
+
+.product-feature-row {
+    order: 6;
+}
+
+.product-actions .btn-flat {
+    order: 1;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #fff;
+    border: 1px solid #0A5C56;
+}
+
+.product-actions .add-cart-btn {
+    order: 2;
+}
+
+.product-tabs.reviews-section {
+    max-width: 1540px;
+    margin: 0 auto 44px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+}
+
+.product-tabs.reviews-section .tab-list,
+.product-tabs.reviews-section #description,
+.product-tabs.reviews-section #info {
+    display: none !important;
+}
+
+.product-tabs.reviews-section #reviews {
+    display: block !important;
+    padding: 0;
+}
+
+.product-tabs.reviews-section #reviews h2 {
+    margin: 0 0 14px;
+    font-size: 28px;
+}
+
+.product-meta,
+.reviews-section {
+    display: none !important;
+}
+
+.product-info-accordion {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+    overflow-x: visible;
+    border-bottom: 1px solid #dde2e6;
+}
+
+.detail-row summary {
+    grid-row: 1;
+    min-width: 0;
+    text-align: center;
+}
+
+.detail-row:not([open]) .detail-row-content {
+    display: none;
+}
+
+.detail-row[open] .detail-row-content {
+    display: block;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    border-top: 1px solid #eef1f3;
+}
+
+@media (max-width: 768px) {
+    .product-info-accordion {
+        grid-template-columns: repeat(4, minmax(180px, max-content));
+        overflow-x: auto;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .detail-row summary {
+        font-size: 15px;
+        padding: 15px 12px;
+    }
+
+    .detail-row[open] .detail-row-content {
+        width: calc(100vw - 28px);
+        position: sticky;
+        left: 0;
+    }
+}
 </style>
 <script id="images-data" type="application/json">
     {{ images | tojson }}
@@ -779,10 +1393,10 @@ function toggleCart(productId, btn) {
 
         if (data.in_cart) {
             btn.classList.add("active");
-            btn.innerText = "Remove from Cart";
+            btn.innerText = "REMOVE FROM CART";
         } else {
             btn.classList.remove("active");
-            btn.innerText = "Add to Cart";
+            btn.innerText = "ADD TO CART";
         }
 
         const cartCount = document.getElementById("cartCount");
@@ -832,9 +1446,9 @@ document.addEventListener("DOMContentLoaded", () => {
         checkCart(id).then(inCart => {
             if (inCart) {
                 btn.classList.add("active");
-                btn.innerText = "Remove from Cart";
+                btn.innerText = "REMOVE FROM CART";
             } else {
-                btn.innerText = "Add to Cart";
+                btn.innerText = "ADD TO CART";
             }
         });
 
@@ -940,8 +1554,16 @@ function changeColor(colorId, el) {
     });
     el.classList.add("active");
 
+    const colorName = document.getElementById("selectedColorName");
+    if (colorName) {
+        colorName.textContent = el.dataset.colorName || "";
+    }
+
     const filtered = ALL_IMAGES.filter(img => img.color_id == colorId);
-    if (filtered.length === 0) return;
+    if (filtered.length === 0) {
+        refreshVariantButtons();
+        return;
+    }
 
     setGalleryImage(filtered[0].image_url, false);
 
@@ -963,7 +1585,7 @@ function refreshVariantButtons() {
     document.querySelectorAll(".add-cart-btn").forEach(btn => {
         checkCart(DETAIL_PRODUCT_ID, selectedColorId).then(inCart => {
             btn.classList.toggle("active", inCart);
-            btn.innerText = inCart ? "Remove from Cart" : "Add to Cart";
+            btn.innerText = inCart ? "REMOVE FROM CART" : "ADD TO CART";
         });
     });
 
@@ -1049,6 +1671,45 @@ function submitReview(productId, e) {
     });
 }
 
+function openSizeChart() {
+    const modal = document.getElementById("sizeChartModal");
+    if (!modal) return;
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+}
+
+function closeSizeChart() {
+    const modal = document.getElementById("sizeChartModal");
+    if (!modal) return;
+    modal.classList.remove("active");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("sizeChartModal");
+    if (modal) {
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) closeSizeChart();
+        });
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeSizeChart();
+    });
+
+    document.querySelectorAll(".detail-row summary").forEach(summary => {
+        summary.addEventListener("click", (event) => {
+            event.preventDefault();
+            const current = summary.parentElement;
+            document.querySelectorAll(".detail-row[open]").forEach(row => {
+                if (row !== current) row.removeAttribute("open");
+            });
+            current.setAttribute("open", "");
+        });
+    });
+});
 
 </script>
 
@@ -1106,7 +1767,13 @@ function submitReview(productId, e) {
                         {% for tag in tags %}
                             <span class="tag-pill">{{ tag.tag }}</span>
                         {% endfor %}
-                        <span class="rating-pill">⭐ {{ product.rating or '4.6' }} <span>({{ product.rating|round(1) if product.rating else '4.6' }} rating)</span></span>
+                        <span class="rating-pill">
+                            <span class="rating-stars">★★★★★</span>
+                            <span class="rating-value">{{ "%.1f"|format(product.rating|float if product.rating else 5.0) }}</span>
+                            {% if reviews|length > 0 %}
+                                <span>({{ reviews|length }})</span>
+                            {% endif %}
+                        </span>
                     </div>
                 </div>
                 {% if product.discount_percent and product.discount_percent > 0 %}
@@ -1114,12 +1781,23 @@ function submitReview(productId, e) {
                 {% endif %}
             </div>
 
+            {% set sale_price = product.price|float %}
+            {% set regular_price = product.original_price|float if product.original_price else 0 %}
+            {% set computed_discount = product.discount_percent or 0 %}
+            {% if (not computed_discount) and regular_price > sale_price %}
+                {% set computed_discount = (((regular_price - sale_price) / regular_price) * 100)|round(0)|int %}
+            {% endif %}
+
             <div class="product-price-row">
                 <span class="price-new">₹{{ product.price }}</span>
                 {% if product.original_price and product.original_price > product.price %}
                     <span class="price-old">₹{{ product.original_price }}</span>
                 {% endif %}
+                {% if computed_discount and computed_discount > 0 %}
+                    <span class="discount-badge">{{ computed_discount|int }}% OFF</span>
+                {% endif %}
             </div>
+            <div class="tax-note">Incl. of all taxes</div>
 
             <p class="product-short">{{ product.description[:220] }}{% if product.description|length > 220 %}...{% endif %}</p>
 
@@ -1142,33 +1820,56 @@ function submitReview(productId, e) {
                 </div>
             </div>
 
-            <div class="product-actions">
+<div class="product-actions">
     <button class="btn btn-primary add-cart-btn" data-id="{{ product.id }}">
-        Add to Cart
+        ADD TO CART
     </button>
 
     
 
     <button class="btn btn-flat" onclick="window.location.href='/cart'">
-        Buy Now
+        BUY NOW
     </button>
 </div>
 
+            <div class="product-feature-row">
+                <div class="product-feature-item">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>7 Days Return</span>
+                </div>
+                <div class="product-feature-item">
+                    <i class="fa-solid fa-certificate"></i>
+                    <span>100% Original Leather</span>
+                </div>
+                <div class="product-feature-item">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>2 Year Warranty</span>
+                </div>
+            </div>
+
             <div class="product-properties">
                 <div class="property-card">
-                    <strong>Colors</strong>
+                    <strong>Color: <span id="selectedColorName">{{ product.product_colors[0].color.name if product.product_colors else 'Default' }}</span></strong>
                     <div class="color-list">
 {% for color in product.product_colors %}
 <span class="color-dot"
       style="background: {{ color.color.code }}"
-      data-color-id="{{ color.color.id }}">
+      data-color-id="{{ color.color.id }}"
+      data-color-name="{{ color.color.name }}"
+      title="{{ color.color.name }}">
 </span>
 {% endfor %}
 
                     </div>
                 </div>
                 <div class="property-card">
-                    <strong>Sizes</strong>
+                    <strong class="size-row-title">
+                        <span>Size</span>
+                        <button type="button" class="size-chart-link" onclick="openSizeChart()">
+                            <i class="fa-solid fa-ruler-combined"></i>
+                            Size Chart
+                        </button>
+                    </strong>
                     <div class="size-list">
                         {% for size in sizes %}
                             <span class="size-chip"
@@ -1183,7 +1884,43 @@ function submitReview(productId, e) {
         </div>
     </div>
 
-    <div class="product-tabs">
+    <div class="product-info-accordion">
+        <details class="detail-row" open>
+            <summary>Description</summary>
+            <div class="detail-row-content">
+                <p>{{ product.description }}</p>
+            </div>
+        </details>
+
+        <details class="detail-row">
+            <summary>Fit and Sizing</summary>
+            <div class="detail-row-content">
+                <p>Select your regular belt size from the available options. For the most accurate fit, measure around the waist height where you plan to wear the belt.</p>
+                <p>Size unit: {{ product.size_unit or 'inch' }}</p>
+            </div>
+        </details>
+
+        <details class="detail-row">
+            <summary>Composition and Care</summary>
+            <div class="detail-row-content">
+                <p>{{ product.material or 'Premium leather' }}</p>
+                <p>Wipe gently with a soft dry cloth. Keep away from excessive moisture and store flat or rolled loosely when not in use.</p>
+            </div>
+        </details>
+
+        <details class="detail-row">
+            <summary>Additional Details</summary>
+            <div class="detail-row-content">
+                <p>SKU: {{ 'Belt-' ~ product.id }}</p>
+                <p>Warranty: {{ product.guarantee or '2 Year Warranty' }}</p>
+                {% if tags %}
+                    <p>Category: {{ tags[0].tag }}</p>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+
+    <div class="product-tabs reviews-section">
         <div class="tab-list">
             <button class="tab-button active" data-tab="description">Description</button>
             <button class="tab-button" data-tab="info">Additional Info</button>
@@ -1240,6 +1977,7 @@ function submitReview(productId, e) {
      </div>   
 
      <div class="tab-panel" id="reviews">
+    <h2>Customer Reviews</h2>
 
     <p>Total Reviews: {{ reviews|length }}</p>
 
@@ -1277,6 +2015,56 @@ function submitReview(productId, e) {
     </div>
 
 </div>
+    </div>
+
+    <div class="size-chart-modal" id="sizeChartModal" aria-hidden="true">
+        <div class="size-chart-dialog" role="dialog" aria-modal="true" aria-labelledby="sizeChartTitle">
+            <button type="button" class="size-chart-close" onclick="closeSizeChart()" aria-label="Close size chart">&times;</button>
+            <h2 id="sizeChartTitle">HOW TO MEASURE</h2>
+
+            <ol>
+                <li>To determine your waist size, it's best to run a tape measure through your belt loops. A flexible tape measure is ideal, but any kind will suffice.</li>
+                <li>Ensure that you measure at the waist height where you plan to wear the belt.</li>
+                <li>This measurement indicates your proper belt size. If you end up with an odd number, opt for the next even size. (For example, if your measurement is 31, choose a size 32 belt.)</li>
+            </ol>
+
+            <div class="size-unit-row">
+                <span>Select Sizes In:</span>
+                <span class="size-unit-pill">CM</span>
+                <span class="size-unit-pill">IN</span>
+            </div>
+
+            <table class="size-chart-table">
+                <thead>
+                    <tr>
+                        <th>SIZE</th>
+                        <th>TO FIT WAIST (CM)</th>
+                        <th>BELT LENGTH (CM)</th>
+                        <th>WIDTH (CM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>80</td>
+                        <td>71.12</td>
+                        <td>101.60</td>
+                        <td>3.81</td>
+                    </tr>
+                    <tr>
+                        <td>90</td>
+                        <td>81.28</td>
+                        <td>111.76</td>
+                        <td>3.81</td>
+                    </tr>
+                    <tr>
+                        <td>100</td>
+                        <td>86.36</td>
+                        <td>121.92</td>
+                        <td>3.81</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <section class="related-products">
