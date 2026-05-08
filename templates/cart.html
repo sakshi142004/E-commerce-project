@@ -9,7 +9,7 @@
     <div class="empty" id="cartEmpty" style="{% if products|length > 0 %}display:none{% endif %}">
         <h2>Your cart is empty 😔</h2>
         <p>Start adding some premium belts!</p>
-        <a href="{{ url_for('products_page') }}" class="shop-btn">Shop Now</a>
+        <a href="{{ url_for('products_page') }}" class="shop-btn">Explore Collection</a>
     </div>
 
     <!-- Cart grid: always in DOM so JS can populate it for guests -->
@@ -80,7 +80,7 @@
 
          <p class="subtotal">Subtotal: ₹<span id="subtotal">{{ total }}</span></p>
 
-            <button class="checkout-btn" onclick="openCheckout()">Buy Now</button>
+            <button class="checkout-btn" onclick="openCheckout()">Upgrade Your Style</button>
         </div>
 
     </div>
