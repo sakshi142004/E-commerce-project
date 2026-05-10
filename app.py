@@ -200,6 +200,12 @@ def admin_required(f):
 
     return decorated_function
 
+
+@app.route('/googlef86ab741e88ae339.html')
+def google_site_verification():
+    return app.send_static_file('googlef86ab741e88ae339.html')
+
+
 @app.route("/__seed__", methods=["GET"])
 def run_seed_route():
 
