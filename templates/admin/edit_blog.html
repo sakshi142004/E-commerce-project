@@ -2,6 +2,7 @@
 {% block content %}
 
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
 
 <div class="blog-edit-page">
 
@@ -51,7 +52,7 @@
                 <div class="upload-section">
                     {% if blog.image %}
                     <div class="current-image-wrapper">
-                        <img src="{{ blog.image }}" class="edit-preview" alt="Blog Cover">
+                        <img src="{{ blog_image_url(blog.image) }}" class="edit-preview" alt="Blog Cover">
                         <div class="image-overlay">
                             <span>Current Cover</span>
                         </div>
@@ -60,13 +61,14 @@
 
                     <label class="upload-box" for="imageInput">
                         <div class="upload-content">
-                            <span class="upload-icon">🖼</span>
+                            <span class="upload-icon"><i class="fa-solid fa-image"></i></span>
                             <h4>Change Cover Image</h4>
                             <p>Upload a fresh image to update your blog cover</p>
                         </div>
                     </label>
 
-                    <input type="file" name="image" id="imageInput" accept="image/*">
+                    <input type="file" id="imageInput" accept="image/*">
+                    <input type="file" name="cover_image_cropped" id="croppedImage" hidden>
 
                     <div class="new-preview-wrapper" id="newPreviewWrapper">
                         <img id="newPreview" alt="New Preview">
@@ -113,7 +115,24 @@
     </div>
 </div>
 
+<!-- Crop Modal -->
+<div id="cropModal" class="crop-modal">
+    <div class="crop-box">
+        <h3>Crop Image (Square)</h3>
+
+        <div class="crop-image-shell">
+            <img id="cropImage" style="max-width:100%;">
+        </div>
+
+        <div class="crop-actions">
+            <button type="button" onclick="closeCrop()">Cancel</button>
+            <button type="button" onclick="applyCrop()">Crop &amp; Use</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
 <script>
 const quill = new Quill('#editor', {
@@ -130,25 +149,149 @@ const quill = new Quill('#editor', {
     }
 });
 
-document.getElementById("editBlogForm").addEventListener("submit", function () {
-    document.getElementById("hiddenContent").value = quill.root.innerHTML;
-});
-
 const imageInput = document.getElementById("imageInput");
 const newPreview = document.getElementById("newPreview");
 const newPreviewWrapper = document.getElementById("newPreviewWrapper");
+const croppedImage = document.getElementById("croppedImage");
+const cropModal = document.getElementById("cropModal");
+const cropImage = document.getElementById("cropImage");
+let cropper;
+let currentFile = null;
 
 imageInput.addEventListener("change", function (e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    const imageURL = URL.createObjectURL(file);
-    newPreview.src = imageURL;
-    newPreviewWrapper.style.display = "block";
+    currentFile = file;
+    openCropper();
+});
+
+function openCropper() {
+    const file = currentFile;
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        cropImage.src = e.target.result;
+        cropModal.style.display = "flex";
+
+        cropImage.onload = function() {
+            if (cropper) cropper.destroy();
+
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 1,
+                viewMode: 1,
+                dragMode: "move",
+                movable: true,
+                zoomable: true,
+                scalable: true,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                autoCropArea: 0.9,
+                background: false,
+                responsive: true
+            });
+        };
+    };
+
+    reader.readAsDataURL(file);
+}
+
+function applyCrop() {
+    if (!cropper) return;
+
+    const canvas = cropper.getCroppedCanvas({
+        width: 800,
+        height: 800
+    });
+
+    canvas.toBlob(function(blob) {
+        const file = new File([blob], "blog-cover.jpg", { type: "image/jpeg" });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        croppedImage.files = dataTransfer.files;
+
+        newPreview.src = URL.createObjectURL(file);
+        newPreviewWrapper.style.display = "block";
+
+        closeCrop();
+    }, "image/jpeg", 0.95);
+}
+
+function closeCrop() {
+    cropModal.style.display = "none";
+
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+}
+
+document.getElementById("editBlogForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    document.getElementById("hiddenContent").value = quill.root.innerHTML;
+
+    if (imageInput.files.length && !croppedImage.files.length) {
+        alert("Please crop the selected cover image before updating.");
+        return;
+    }
+
+    this.submit();
 });
 </script>
 
 <style>
+.crop-box {
+    width: 90%;
+    max-width: 650px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+}
+
+#cropImage {
+    max-width: 100%;
+    display: block;
+}
+
+.crop-image-shell {
+    width: 100%;
+    height: 300px;
+}
+
+.crop-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 15px;
+    position: relative;
+    z-index: 10;
+}
+
+.crop-actions button {
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #fff;
+    cursor: pointer;
+}
+
+.crop-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.crop-box h3 {
+    color: #111;
+    margin-bottom: 15px;
+}
+
 .blog-edit-page {
     min-height: 100vh;
     padding: 32px;
@@ -394,7 +537,7 @@ background:#fff;
 }
 
 .premium-checkbox input:checked + .checkmark::after {
-    content: "✓";
+    content: "\2713";
     position: absolute;
     color: white;
     font-size: 14px;
@@ -486,3 +629,4 @@ background:#fff;
 </style>
 
 {% endblock %}
+

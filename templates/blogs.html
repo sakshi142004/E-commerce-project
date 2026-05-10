@@ -71,15 +71,15 @@ body
 
     <div class="blog-grid">
         {% for b in blogs %}
-        <div class="blog-card" onclick="window.location='/blog/{{ b.slug }}'">
+        <div class="blog-card" onclick="window.location='{{ url_for('blog_detail', slug=b.slug) }}'">
 
-            <img src="{{ b.image or '/static/images/default.png' }}">
+            <img src="{{ blog_image_url(b.image) }}">
 
             <div class="blog-content">
-                <p>{{ b.author }} • {{ b.created_at.strftime('%d %b %Y') }}</p>
+                <p>{{ b.author }} - {% if b.created_at %}{{ b.created_at.strftime('%d %b %Y') }}{% else %}Recently added{% endif %}</p>
                 <h3>{{ b.title }}</h3>
 
-                <span class="read-more">Read More →</span>
+                <span class="read-more">Read More &rarr;</span>
             </div>
 
         </div>
@@ -103,9 +103,9 @@ body
     .blogs-container {
         max-width: 1300px;
         margin: auto;
-        padding-top: 30px;
+        padding-top: 12px;
         padding-right: 20px;
-        padding-bottom: 60px;
+        padding-bottom: 40px;
         padding-left: 20px;
     }
 /* ===== BLOG HERO SECTION ===== */
@@ -186,19 +186,20 @@ body
     .section-title {
         font-size: 42px;
         text-align: center;
-        margin-bottom: 50px;
+        margin-top: 0;
+        margin-bottom: 24px;
         color: #222;
     }
 
     .blog-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 35px;
+        gap: 24px;
     }
 
     .blog-card {
         background: #fff;
-        border-radius: 22px;
+        border-radius: 16px;
         overflow: hidden;
         cursor: pointer;
         transition: all 0.35s ease;
@@ -212,33 +213,36 @@ body
 
     .blog-image {
     width: 100%;
-    aspect-ratio: 1 / 1;   /* 🔥 perfect square */
-    background: #f5f5f5;   /* empty space clean lage */
+    aspect-ratio: 1 / 1;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    padding: 0;
+    border: 0;
 }
 
 .blog-image img {
     width: 100%;
     height: 100%;
-    object-fit: contain;   /* 🔥 FULL IMAGE visible (no crop) */
+    object-fit: cover;
+    display: block;
 }
 
     .blog-content {
-        padding: 24px;
+        padding: 18px;
     }
 
     .blog-meta {
         font-size: 14px;
         color: #888;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
 
     .blog-content h3 {
         font-size: 24px;
-        margin: 0 0 15px;
+        margin: 0 0 10px;
         color: #222;
         line-height: 1.4;
     }
@@ -246,12 +250,13 @@ body
     .blog-content p {
         font-size: 16px;
         color: #666;
-        line-height: 1.7;
+        line-height: 1.55;
+        margin: 0;
     }
 
     .read-more {
         display: inline-block;
-        margin-top: 20px;
+        margin-top: 14px;
         color: var (--btn-gradient);
         font-size: 15px;
         font-weight: 400;
@@ -274,6 +279,13 @@ body
     }
 
     @media (max-width: 768px) {
+        .blogs-container {
+            padding-top: 8px;
+            padding-right: 14px;
+            padding-bottom: 32px;
+            padding-left: 14px;
+        }
+
         .featured-content {
             padding: 30px;
         }
@@ -284,6 +296,15 @@ body
 
         .section-title {
             font-size: 32px;
+            margin-bottom: 18px;
+        }
+
+        .blog-grid {
+            gap: 18px;
+        }
+
+        .blog-content {
+            padding: 16px;
         }
     }
 </style>
@@ -296,28 +317,23 @@ body
     <h2 class="section-title">Recent Blog Posts</h2>
 
     <div class="blog-grid">
-        {% for b in blogs[1:] %}
-        <div class="blog-card" onclick="window.location='/blog/{{ b.slug }}'">
+        {% for b in blogs %}
+        <div class="blog-card" onclick="window.location='{{ url_for('blog_detail', slug=b.slug) }}'">
 
-    <!-- 🔥 NEW WRAPPER -->
     <div class="blog-image">
-        <img src="{{ b.image or '/static/images/default.png' }}" alt="{{ b.title }}">
+        <img src="{{ blog_image_url(b.image) }}" alt="{{ b.title }}">
     </div>
 
     <div class="blog-content">
                 <div class="blog-meta">
-                    {{ b.author }} • {{ b.created_at.strftime('%d %b %Y') }}
+                    {{ b.author }} - {% if b.created_at %}{{ b.created_at.strftime('%d %b %Y') }}{% else %}Recently added{% endif %}
                 </div>
 
                 <h3>{{ b.title }}</h3>
 
-                <p>
-                    <p>
-    {{ b.content | striptags | truncate(100) }}
-</p>
-                </p>
+                <p>{{ b.content | striptags | truncate(100) }}</p>
 
-                <span class="read-more">Read More →</span>
+                <span class="read-more">Read More &rarr;</span>
             </div>
         </div>
         {% endfor %}
@@ -326,3 +342,5 @@ body
 </div>
 
 {% endblock %}
+
+

@@ -8,38 +8,36 @@ body
 }
 .blog-page {
     max-width: 850px;
-    margin: 0 auto;
+    margin: 14px auto 40px;
     background: white;
-    padding-top: 80px;
-    padding-right: 40px;
-    padding-bottom: 40px;
-    padding-left: 40px;
+    padding-top: 28px;
+    padding-right: 32px;
+    padding-bottom: 32px;
+    padding-left: 32px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
 .blog-page img {
     width: 100%;
-    max-height: 380px;   /* height control */
-    
-    object-fit: contain; /* 🔥 FULL IMAGE SHOW (no crop) */
-    
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
     border-radius: 16px;
-    margin-bottom: 25px;
+    margin-bottom: 22px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-   
-
-    background: #f3f3f3; /* empty space stylish lage */
+    background: transparent;
 }
 .blog-page h1 {
     font-size: 34px;
-    margin-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 8px;
 }
 
 .blog-meta {
     color: gray;
     font-size: 14px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .blog-content {
@@ -50,16 +48,35 @@ body
 
 .back-btn {
     display: inline-block;
-    margin-top: 0;
+    margin-top: 12px;
 
-    font-size: 18px;        /* 🔥 size bada */
-    font-weight: 400;       /* 🔥 bold */
+    font-size: 18px;
+    font-weight: 400;
 
-    color: var(--btn-gradient); /* ✅ space fix */
+    color: var(--btn-gradient);
     text-decoration: none;
 
     cursor: pointer;
     transition: 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .blog-page {
+        margin: 10px 14px 32px;
+        padding: 22px 18px 26px;
+    }
+
+    .blog-page h1 {
+        font-size: 28px;
+    }
+
+    .blog-meta {
+        margin-bottom: 14px;
+    }
+
+    .blog-page img {
+        margin-bottom: 18px;
+    }
 }
 </style>
 
@@ -68,19 +85,21 @@ body
     <h1>{{ blog.title }}</h1>
 
     <div class="blog-meta">
-        {{ blog.author }} • {{ blog.created_at.strftime('%d %b %Y') }}
+        {{ blog.author }} - {% if blog.created_at %}{{ blog.created_at.strftime('%d %b %Y') }}{% else %}Recently added{% endif %}
     </div>
 
-    <img src="{{ blog.image }}">
+    <img src="{{ blog_image_url(blog.image) }}" alt="{{ blog.title }}">
 
     <div class="blog-content">
         {{ blog.content |safe }}
     </div>
 
     <div class="back-btn" onclick="window.location='/blogs'">
-        ← Back to Blogs
+        &larr; Back to Blogs
     </div>
 
 </div>
 
 {% endblock %}
+
+

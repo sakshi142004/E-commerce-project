@@ -2,7 +2,7 @@ from collections import defaultdict
 from flask_login import login_required, current_user
 import cloudinary
 import cloudinary.uploader
-from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort
+from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort, url_for
 from sqlalchemy import exists, text
 from sqlalchemy.orm import joinedload
 from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
@@ -11,6 +11,7 @@ from flask_login import LoginManager, login_user
 from functools import wraps
 import base64
 import os
+import re
 from datetime import datetime
 import uuid
 from werkzeug.utils import secure_filename
@@ -98,6 +99,11 @@ def load_user(user_id):
 
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "avi"}
+BLOG_UPLOAD_SUBDIR = "uploads/blogs"
+BLOG_UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads", "blogs")
+DEFAULT_IMAGE_URL = "/static/images/default.png"
+
+os.makedirs(BLOG_UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename, filetype="image"):
     if "." not in filename:
@@ -109,6 +115,57 @@ def allowed_file(filename, filetype="image"):
         return ext in {"png", "jpg", "jpeg", "webp"}
     else:
         return ext in {"mp4", "mov", "avi"}
+
+
+def save_blog_image(file):
+    if not file or not file.filename or not allowed_file(file.filename, "image"):
+        return None
+
+    filename = secure_filename(file.filename)
+    filename = f"{uuid.uuid4().hex}_{filename}"
+    file.save(os.path.join(BLOG_UPLOAD_FOLDER, filename))
+    return filename
+
+
+def request_blog_image_file():
+    for field_name in ("cover_image_cropped", "cover_image", "image"):
+        file = request.files.get(field_name)
+        if file and file.filename:
+            return file
+    return None
+
+
+def blog_image_url(image):
+    if not image:
+        return DEFAULT_IMAGE_URL
+
+    image = str(image).strip().replace("\\", "/")
+    if not image:
+        return DEFAULT_IMAGE_URL
+
+    if image.startswith(("http://", "https://", "//", "data:")):
+        return image
+
+    if image.startswith("/static/"):
+        return image
+
+    if image.startswith("static/"):
+        return f"/{image}"
+
+    if image.startswith("/uploads/blogs/"):
+        return url_for("static", filename=image.lstrip("/"))
+
+    if image.startswith(BLOG_UPLOAD_SUBDIR + "/"):
+        return url_for("static", filename=image)
+
+    static_marker = f"static/{BLOG_UPLOAD_SUBDIR}/"
+    if static_marker in image:
+        return f"/{image[image.index(static_marker):]}"
+
+    return url_for("static", filename=f"{BLOG_UPLOAD_SUBDIR}/{os.path.basename(image)}")
+
+
+app.jinja_env.globals["blog_image_url"] = blog_image_url
 
 
 def normalize_optional_int(value):
@@ -775,12 +832,17 @@ def set_primary_image(id):
     return redirect(request.referrer)
 
 
-def generate_slug(title):
-    base_slug = title.lower().strip().replace(" ", "-")
+def generate_slug(title, blog_id=None):
+    base_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    if not base_slug:
+        base_slug = uuid.uuid4().hex[:8]
     slug = base_slug
     counter = 1
 
-    while Blog.query.filter_by(slug=slug).first():
+    while True:
+        existing = Blog.query.filter_by(slug=slug).first()
+        if not existing or existing.id == blog_id:
+            break
         slug = f"{base_slug}-{counter}"
         counter += 1
 
@@ -789,7 +851,11 @@ def generate_slug(title):
 # 📚 All Blogs (Admin Panel)
 @app.route('/admin/blogs')
 def admin_blogs():
-    blogs = Blog.query.order_by(Blog.created_at.desc()).all()
+    blogs = Blog.query.order_by(
+        Blog.created_at.is_(None),
+        Blog.created_at.desc(),
+        Blog.id.desc()
+    ).all()
     categories = Category.query.all()
 
     return render_template(
@@ -816,13 +882,10 @@ def add_blog():
         slug = generate_slug(title)
 
         # 🔥 Image Upload
-        file = request.files.get('image')
+        file = request_blog_image_file()
 
-        image_filename = None
-        if file and file.filename != "":
-            
-            result = cloudinary.uploader.upload(file,folder="blogs")
-            image_filename = result["secure_url"]
+        image_filename = save_blog_image(file)
+        app.logger.info("Blog cover image saved: %s", image_filename)
 
 
         tag_names = request.form.get('tags', "").split(",")
@@ -878,14 +941,14 @@ def edit_blog(id):
         blog.seo_title = request.form.get('seo_title') or blog.title
         blog.seo_description = request.form.get('seo_description') or blog.content[:150]
 
-        blog.slug=generate_slug(blog.title)
+        blog.slug=generate_slug(blog.title, blog.id)
 
         # 🔥 Image update
-        file = request.files.get('image')
-        if file and file.filename != "":
-            
-            result = cloudinary.uploader.upload(file,folder="blogs")
-            blog.image = result["secure_url"]
+        file = request_blog_image_file()
+        image_filename = save_blog_image(file)
+        if image_filename:
+            blog.image = image_filename
+            app.logger.info("Blog %s cover image updated: %s", blog.id, image_filename)
          
 
         tag_names = request.form.get('tags', "").split(",")
@@ -2956,7 +3019,11 @@ def api_delete_account():
 @app.route('/blogs')
 def blogs():
     blogs = Blog.query.filter_by(is_published=True)\
-                      .order_by(Blog.created_at.desc())\
+                      .order_by(
+                          Blog.created_at.is_(None),
+                          Blog.created_at.desc(),
+                          Blog.id.desc()
+                      )\
                       .all()
     return render_template("blogs.html", blogs=blogs)
 

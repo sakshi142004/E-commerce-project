@@ -61,7 +61,7 @@
                     <td>
                         <div class="img-box">
                             {% if blog.image %}
-                                <img src="{{ blog.image }}" class="table-img" alt="{{ blog.title }}">
+                                <img src="{{ blog_image_url(blog.image) }}" class="table-img" alt="{{ blog.title }}">
                             {% else %}
                                 <img src="/static/images/default.png" class="table-img" alt="No Image">
                             {% endif %}
