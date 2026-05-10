@@ -169,7 +169,7 @@ body {
     border-radius: 999px;
     background: #eef4ff;
     color: #0f3a82;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 12px;
 }
 
@@ -178,7 +178,7 @@ body {
     gap: 8px;
     align-items: center;
     color: #1d976c;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .rating-pill span {
@@ -194,7 +194,7 @@ body {
 
 .price-new {
     font-size: 36px;
-    font-weight: 800;
+    font-weight: 400;
     color: #111;
 }
 
@@ -209,7 +209,7 @@ body {
     color: #cd5f3b;
     padding: 10px 16px;
     border-radius: 999px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .product-short {
@@ -250,7 +250,7 @@ body {
     border-radius: 18px;
     padding: 16px 26px;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
     transform: translateY(-3px);
     box-shadow: 0 22px 45px rgba(10, 92, 86, 0.28);
@@ -282,7 +282,7 @@ body {
     flex: 1;
     border-radius: 16px;
     padding: 14px;
-    font-weight: 600;
+    font-weight: 400;
     transition: 0.25s ease;
 }
 .product-actions button:hover {
@@ -310,7 +310,7 @@ body {
     margin: 0;
     background:  rgba(10, 92, 86, 0.88); /* 🔥 cyan-green */
     color: white;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .size-chart table {
@@ -329,7 +329,7 @@ body {
     padding: 12px;
     text-align: center;
     border-bottom: 1px solid #eee;
-    font-weight: 500;
+    font-weight: 400;
 }
 
 .size-chart tr:hover {
@@ -382,7 +382,7 @@ body {
     padding: 12px 0;
     color: #666;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
     position: relative;
 }
@@ -522,13 +522,13 @@ body {
 }
 
 .related-card-body .price-row .new-price {
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .related-card-body a {
     text-decoration: none;
     color: var(--btn-gradient);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 @media (max-width: 680px) {
@@ -740,7 +740,7 @@ body {
 .product-breadcrumb a {
     color: #244f4a;
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .product-hero {
@@ -831,7 +831,7 @@ body {
 .rating-pill {
     color: #111;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 400;
 }
 
 .rating-stars {
@@ -864,7 +864,7 @@ body {
     order: 2;
     font-size: 24px;
     color: #111;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .discount-badge {
@@ -874,7 +874,7 @@ body {
     padding: 0;
     border-radius: 0;
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .tax-note {
@@ -882,7 +882,7 @@ body {
     color: #8a8a8a;
     font-size: 13px;
     font-style: italic;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .product-choice-block {
@@ -901,11 +901,11 @@ body {
 }
 
 .choice-header strong {
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .current-color-name {
-    font-weight: 500;
+    font-weight: 400;
     color: #333;
 }
 
@@ -938,7 +938,7 @@ body {
     border: 1px solid #e5e7eb;
     color: #111;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 400;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -957,7 +957,7 @@ body {
     background: transparent;
     color: #d41224;
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
     cursor: pointer;
     display: inline-flex;
@@ -1045,7 +1045,7 @@ body {
     cursor: pointer;
     padding: 18px 14px;
     font-size: 17px;
-    font-weight: 700;
+    font-weight: 400;
     color: #4b5563;
     display: flex;
     align-items: center;
@@ -1147,7 +1147,7 @@ body {
     border: 1px solid #111;
     padding: 8px 12px;
     text-align: center;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .size-chart-table {
@@ -1336,6 +1336,170 @@ body {
         width: calc(100vw - 28px);
         position: sticky;
         left: 0;
+    }
+}
+
+@media (min-width: 991px) {
+    .product-hero {
+        grid-template-columns: minmax(460px, 0.95fr) minmax(390px, 0.85fr);
+        gap: 38px;
+        align-items: start;
+    }
+
+    .product-gallery {
+        align-self: start;
+        justify-items: center;
+    }
+
+    .product-gallery-main {
+        width: min(100%, 520px);
+        max-width: 520px;
+        min-height: 0;
+        aspect-ratio: 1 / 1;
+        align-self: start;
+    }
+
+    #detailMainMedia {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .product-gallery-main img,
+    .product-gallery-main video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .product-gallery-thumbs {
+        width: min(100%, 520px);
+    }
+
+    .product-info-panel {
+        max-width: 560px;
+        padding-top: 2px;
+        gap: 14px;
+    }
+
+    .product-title-row h1 {
+        font-size: clamp(22px, 1.55vw, 30px);
+        line-height: 1.16;
+    }
+
+    .product-short,
+    .property-card,
+    .choice-header,
+    .size-chip,
+    .product-feature-item,
+    .detail-row summary,
+    .detail-row-content,
+    .tab-panel,
+    .review-card,
+    .review-form input,
+    .review-form select,
+    .review-form textarea {
+        font-size: 14px;
+        font-weight: 400;
+    }
+
+    .product-price-row {
+        position: static;
+        display: flex;
+        align-items: baseline;
+        flex-wrap: nowrap;
+        gap: 10px;
+        margin-top: 0;
+        width: 100%;
+    }
+
+    .product-price-row .price-old,
+    .product-price-row .price-new,
+    .product-price-row .discount-badge {
+        position: static;
+        inset: auto;
+        margin: 0;
+        line-height: 1.15;
+        font-weight: 400;
+        white-space: nowrap;
+    }
+
+    .product-price-row .price-old {
+        order: 1;
+        font-size: 16px;
+    }
+
+    .product-price-row .price-new {
+        order: 2;
+        font-size: 22px;
+    }
+
+    .product-price-row .discount-badge {
+        order: 3;
+        display: inline-flex;
+        align-items: center;
+        background: transparent;
+        color: #d41224;
+        padding: 0;
+        border-radius: 0;
+        font-size: 15px;
+        letter-spacing: 0;
+        z-index: auto;
+    }
+
+    .tax-note {
+        font-size: 12px;
+        margin-top: -6px;
+    }
+
+    .product-actions .btn {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .product-price-row {
+        position: static !important;
+        display: flex !important;
+        align-items: baseline !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        margin-top: 0 !important;
+        width: 100% !important;
+    }
+
+    .product-price-row .price-old,
+    .product-price-row .price-new,
+    .product-price-row .discount-badge {
+        position: static !important;
+        inset: auto !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        left: auto !important;
+        transform: none !important;
+        margin: 0 !important;
+        line-height: 1.15 !important;
+        white-space: nowrap !important;
+        z-index: auto !important;
+    }
+
+    .product-price-row .price-old {
+        order: 1 !important;
+    }
+
+    .product-price-row .price-new {
+        order: 2 !important;
+    }
+
+    .product-price-row .discount-badge {
+        order: 3 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
     }
 }
 </style>
@@ -1789,10 +1953,10 @@ document.addEventListener("DOMContentLoaded", () => {
             {% endif %}
 
             <div class="product-price-row">
-                <span class="price-new">₹{{ product.price }}</span>
                 {% if product.original_price and product.original_price > product.price %}
                     <span class="price-old">₹{{ product.original_price }}</span>
                 {% endif %}
+                <span class="price-new">₹{{ product.price }}</span>
                 {% if computed_discount and computed_discount > 0 %}
                     <span class="discount-badge">{{ computed_discount|int }}% OFF</span>
                 {% endif %}

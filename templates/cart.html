@@ -3,7 +3,7 @@
 
 <div class="cart-container">
 
-    <h1 class="title">🛒 Your Shopping Cart</h1>
+    <h1 class="title">Your Shopping Cart</h1>
 
     <!-- Empty state: shown for logged-in empty cart OR initially for guests -->
     <div class="empty" id="cartEmpty" style="{% if products|length > 0 %}display:none{% endif %}">
@@ -352,7 +352,7 @@ function loadCheckoutReview(){
             <p><b>Name:</b> ${data.user.name}</p>
             <p><b>Email:</b> ${data.user.email}</p>
             <p><b>Phone:</b> ${data.user.phone ? data.user.phone : '⚠️ Not Set'}</p>
-            ${data.user.phone_warning ? `<p style="color: red; font-weight: bold;">${data.user.phone_warning}</p>` : ''}
+            ${data.user.phone_warning ? `<p style="color: red; font-weight: 400;">${data.user.phone_warning}</p>` : ''}
             <p><b>DOB:</b> ${data.user.dob || 'Not Set'}</p>
             
             <p style="margin-top: 10px; font-size: 12px; color: #666;">❌ Can't change name/email here? Go to <a href="/account">Profile Settings</a></p>
@@ -371,7 +371,7 @@ function loadCheckoutReview(){
         });
 
         reviewHTML += `
-            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 16px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 400; font-size: 16px; margin-top: 10px;">
                 <span>Total:</span>
                 <span>₹${data.total}</span>
             </div>
@@ -656,7 +656,7 @@ function moveToWishlist(id, color = "", size = ""){
     border-radius:12px;
 }
 
-.price{font-weight:bold;}
+.price{font-weight: 400;}
 
 .qty-box{
     display:flex;
@@ -794,22 +794,26 @@ function moveToWishlist(id, color = "", size = ""){
 @media (max-width: 768px) {
 
     .cart-container {
-        padding: 70px 12px 30px;
+        padding: 10px 12px 30px !important;
     }
 
     /* GRID STACK (items upar, summary niche) */
     .cart-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+        display: flex !important;
+        flex-direction: column !important;
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+        width: 100%;
     }
 
     /* ❌ REMOVE horizontal scroll */
     .cart-items {
-        display: flex;
-        flex-direction: column;
+        display: flex !important;
+        flex-direction: column !important;
         gap: 12px;
         overflow: visible;
+        order: 1;
+        width: 100%;
     }
 
     /* CARD NORMAL VERTICAL */
@@ -869,7 +873,8 @@ function moveToWishlist(id, color = "", size = ""){
     .cart-summary {
         position: static;
         width: 100%;
-        margin-top: 10px;
+        margin-top: 0;
+        order: 2;
     }
 
     .checkout-btn {

@@ -61,7 +61,7 @@ body {
     font-size: 11px;
     padding: 3px 7px;
     border-radius: 50%;
-    font-weight: bold;
+    font-weight: 400;
     box-shadow: 0 0 16px rgba(10, 92, 86, 0.4);
 }
 
@@ -78,7 +78,7 @@ body {
     transition: 0.3s;
     white-space: nowrap;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
     padding: 8px 16px;
     border-radius: 20px;
     background: rgba(10, 92, 86, 0.22);
@@ -221,7 +221,7 @@ body {
         font-size: 16px;
         transition: all 0.3s ease;
         position: relative;
-        font-weight: 600;
+        font-weight: 400;
         font-family: 'Gotham', sans-serif;
     }
 
@@ -301,7 +301,7 @@ body {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
+        font-weight: 400;
         color: white;
         border: none;
         box-shadow: none;
@@ -322,7 +322,7 @@ body {
 }
     .username {
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 400;
         color: white;
         white-space: nowrap;
         overflow: hidden;
@@ -698,7 +698,7 @@ body {
   .nav-center a {
     padding: 16px 20px;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 400;
     color: #e6f7f1;
 
     border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -1196,7 +1196,7 @@ body {
    background: linear-gradient(135deg, #0A5C56, #083E3A);
     color: white;
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 400;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1207,7 +1207,7 @@ body {
 /* username */
 .username {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
     color: #222;
     white-space: nowrap;
     overflow: hidden;
@@ -1331,7 +1331,7 @@ body {
 
     .products-page .new-price {
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 400;
     }
 
     .products-page .old-price {
@@ -1491,7 +1491,7 @@ body::before {
     margin-bottom: 20px;
     color: #eef7f4;
     font-size: 26px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: -0.5px;
 }
 
@@ -1553,7 +1553,7 @@ body::before {
     border: none;
     border-radius: 12px;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.12);
     transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1580,7 +1580,7 @@ body::before {
 
 .switch-text span {
     color: #9ee8db;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
 }
 /* 🔥 MOBILE LOGIN CARD FIX (COMPACT PREMIUM) */
@@ -1727,12 +1727,16 @@ body::before {
 
     .navbar .logo {
         height: 70px;
-        padding: 8px 0;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        box-sizing: border-box;
+        justify-content: center;
     }
 
     .navbar .logo a {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         height: 100%;
     }
 
@@ -1862,6 +1866,63 @@ body::before {
         transform: translateY(2px) scale(0.72) !important;
     }
 }
+
+.nav-center a.mobile-menu-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .nav-center a.mobile-menu-only {
+        display: block !important;
+    }
+
+    .nav-right .desktop-count-icon {
+        display: none !important;
+    }
+
+    .nav-right .premium-icon,
+    .nav-right .mobile-search-toggle {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        aspect-ratio: 1 / 1;
+        flex: 0 0 40px;
+    }
+
+    .navbar .desktop-login-link,
+    .nav-right .user-profile-link {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-right .desktop-count-icon,
+    .nav-right .user-profile-link,
+    .navbar .desktop-login-link {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
+
+    .nav-center a.mobile-menu-only,
+    .nav-center .mobile-account-link {
+        display: block !important;
+    }
+}
     </style>
 
 </head>
@@ -1954,11 +2015,14 @@ body::before {
     <!-- CENTER: LINKS -->
     <div class="nav-center" id="navCenter">
         <a href="/">Home</a>
+        <a href="/products-page" class="mobile-menu-only">Shop</a>
+        <a href="/wishlist" class="mobile-menu-only">Wishlist</a>
+        <a href="/cart" class="mobile-menu-only">Cart</a>
         <a href="/blogs">Blogs</a>
         <a href="/#about">About Us</a>
         <a href="/#contact">Contact</a>
         <!-- ✅ FIX - login check karo pehle -->
-<a href="#" class="mobile-account-link" onclick="handleAccountClick(event)">My Account</a>
+<a href="#" class="mobile-account-link" onclick="handleAccountClick(event)">Account / Login</a>
     </div>
 
     <!-- MOBILE HAMBURGER MENU -->
@@ -2032,7 +2096,7 @@ body::before {
     <div class="footer-col brand-info">
       <h3>BeltPurse</h3>
       <p>
-        Premium belts crafted with quality, comfort and timeless style.
+        Premium belts crafted for quality, comfort, and timeless style.
       </p>
      <div class="social-icons">
     <!-- Instagram -->
@@ -2085,6 +2149,22 @@ body::before {
     <p>© 2026 BeltPurse. All rights reserved.</p>
   </div>
 </footer>
+
+<style>
+body *:not(i):not(.fa):not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.fa-light):not(.fa-thin):not(h1):not(h2):not(h3) {
+    font-weight: 400 !important;
+}
+
+h1,
+h2,
+h3,
+.section-heading h2,
+.section-header h2,
+.hero-content h1,
+.product-title-row h1 {
+    font-weight: 600 !important;
+}
+</style>
 
 <!-- Mobile Menu Toggle Script -->
 <script>
