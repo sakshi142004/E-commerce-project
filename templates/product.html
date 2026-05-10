@@ -1502,6 +1502,225 @@ body {
         border-radius: 0 !important;
     }
 }
+
+.mobile-sticky-actions {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    body {
+        padding-bottom: 76px;
+    }
+
+    .product-detail-page {
+        padding: 10px 10px 92px !important;
+    }
+
+    .product-breadcrumb {
+        display: none;
+    }
+
+    .product-hero {
+        gap: 14px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .product-gallery {
+        gap: 8px;
+    }
+
+    .product-gallery-main {
+        border-radius: 0;
+    }
+
+    .product-info-panel {
+        gap: 9px !important;
+        padding: 0 !important;
+    }
+
+    .product-title-row h1 {
+        font-size: 18px !important;
+        line-height: 1.18 !important;
+        letter-spacing: 0.3px;
+    }
+
+    .product-price-row {
+        gap: 6px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .product-price-row .price-old {
+        font-size: 12px !important;
+    }
+
+    .product-price-row .price-new {
+        font-size: 18px !important;
+    }
+
+    .product-price-row .discount-badge {
+        font-size: 12px !important;
+    }
+
+    .tax-note {
+        font-size: 11px !important;
+        margin-top: -6px !important;
+    }
+
+    .product-info-panel > .product-properties:last-of-type .property-card {
+        padding: 12px 0 !important;
+    }
+
+    .product-info-panel > .product-properties:last-of-type .property-card strong,
+    .choice-header {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .size-chip {
+        min-width: 42px !important;
+        min-height: 38px !important;
+        padding: 7px 10px !important;
+        font-size: 12px !important;
+    }
+
+    .color-dot {
+        width: 34px !important;
+        height: 34px !important;
+    }
+
+    .color-list,
+    .size-list {
+        gap: 7px !important;
+    }
+
+    .product-actions {
+        display: none !important;
+    }
+
+    .mobile-sticky-actions {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+        background: #fff;
+        box-shadow: 0 -8px 22px rgba(0,0,0,0.12);
+    }
+
+    .mobile-sticky-actions .btn {
+        min-height: 44px;
+        border-radius: 4px;
+        padding: 11px 8px;
+        font-size: 12px;
+        line-height: 1;
+        letter-spacing: 0.2px;
+        text-transform: uppercase;
+        box-shadow: none;
+        transform: none;
+    }
+
+    .mobile-sticky-actions .btn-flat {
+        background: #fff !important;
+        color: #0A5C56 !important;
+        border: 1px solid #0A5C56 !important;
+    }
+
+    .mobile-sticky-actions .add-cart-btn {
+        background: linear-gradient(135deg, #0A5C56, #083E3A);
+        color: #fff;
+        border: 1px solid #0A5C56;
+    }
+
+    .product-feature-row {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 1px !important;
+        margin-top: 0 !important;
+    }
+
+    .product-feature-item {
+        min-height: 54px !important;
+        padding: 6px 3px !important;
+        gap: 4px !important;
+        font-size: 10px !important;
+        line-height: 1.15 !important;
+    }
+
+    .product-feature-item i {
+        font-size: 15px !important;
+    }
+
+    .product-info-accordion {
+        display: block !important;
+        margin: 10px auto 22px !important;
+        border-top: 1px solid #e5e7eb !important;
+        border-bottom: 0 !important;
+        overflow: visible !important;
+        padding-bottom: 0 !important;
+    }
+
+    .detail-row {
+        display: block !important;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .detail-row summary {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 13px 0 !important;
+        font-size: 14px !important;
+        line-height: 1.2 !important;
+        text-align: left !important;
+        justify-content: space-between !important;
+        color: #111 !important;
+        border-bottom: 0 !important;
+    }
+
+    .detail-row summary::after {
+        content: "\f107" !important;
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        font-size: 12px;
+        color: #111;
+        transition: transform 0.2s ease;
+    }
+
+    .detail-row[open] summary::after {
+        transform: rotate(180deg);
+    }
+
+    .detail-row[open] .detail-row-content {
+        position: static !important;
+        width: 100% !important;
+        display: block !important;
+        padding: 0 0 12px !important;
+        border-top: 0 !important;
+        font-size: 13px !important;
+        line-height: 1.55 !important;
+        color: #555 !important;
+    }
+
+    .detail-row-content p {
+        margin: 0 0 7px;
+    }
+}
+
+@media (max-width: 380px) {
+    .product-feature-item {
+        font-size: 9px !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+    }
+
+    .mobile-sticky-actions .btn {
+        font-size: 11px;
+    }
+}
 </style>
 <script id="images-data" type="application/json">
     {{ images | tojson }}
@@ -1560,7 +1779,7 @@ function toggleCart(productId, btn) {
             btn.innerText = "REMOVE FROM CART";
         } else {
             btn.classList.remove("active");
-            btn.innerText = "ADD TO CART";
+            btn.innerText = btn.classList.contains("mobile-add-bag") ? "ADD TO BAG" : "ADD TO CART";
         }
 
         const cartCount = document.getElementById("cartCount");
@@ -1612,7 +1831,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.classList.add("active");
                 btn.innerText = "REMOVE FROM CART";
             } else {
-                btn.innerText = "ADD TO CART";
+                btn.innerText = btn.classList.contains("mobile-add-bag") ? "ADD TO BAG" : "ADD TO CART";
             }
         });
 
@@ -1749,7 +1968,7 @@ function refreshVariantButtons() {
     document.querySelectorAll(".add-cart-btn").forEach(btn => {
         checkCart(DETAIL_PRODUCT_ID, selectedColorId).then(inCart => {
             btn.classList.toggle("active", inCart);
-            btn.innerText = inCart ? "REMOVE FROM CART" : "ADD TO CART";
+            btn.innerText = inCart ? "REMOVE FROM CART" : (btn.classList.contains("mobile-add-bag") ? "ADD TO BAG" : "ADD TO CART");
         });
     });
 
@@ -1865,6 +2084,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".detail-row summary").forEach(summary => {
         summary.addEventListener("click", (event) => {
+            if (window.matchMedia("(max-width: 768px)").matches) {
+                return;
+            }
+
             event.preventDefault();
             const current = summary.parentElement;
             document.querySelectorAll(".detail-row[open]").forEach(row => {
@@ -1873,6 +2096,12 @@ document.addEventListener("DOMContentLoaded", () => {
             current.setAttribute("open", "");
         });
     });
+
+    if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelectorAll(".detail-row[open]").forEach(row => {
+            row.removeAttribute("open");
+        });
+    }
 });
 
 </script>
@@ -2248,6 +2477,15 @@ document.addEventListener("DOMContentLoaded", () => {
             {% endfor %}
         </div>
     </section>
+
+    <div class="mobile-sticky-actions">
+        <button class="btn btn-flat" type="button" onclick="window.location.href='/cart'">
+            BUY NOW
+        </button>
+        <button class="btn btn-primary add-cart-btn mobile-add-bag" type="button" data-id="{{ product.id }}">
+            ADD TO BAG
+        </button>
+    </div>
 </section>
 
 
