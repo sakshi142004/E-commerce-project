@@ -226,6 +226,7 @@ p {
     justify-content: center;
     margin-top: 34px;
     padding: 16px 40px;
+    line-height: 1.2;
     min-width: 140px;
     border-radius: 999px;
     background: #ffffff;
@@ -301,7 +302,10 @@ p {
         padding: 8px 16px;
         font-size: 15px;
         border-radius: 999px;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.2;
     }
 }
 
@@ -357,7 +361,10 @@ p {
        padding: 8px 16px;
         font-size: 12.5px;
         border-radius: 999px;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.2;
         font-weight: 400;
     }
 
@@ -888,7 +895,15 @@ p {
 /* Featured Collection: homepage-only polish */
 .featured-collection {
     padding: 56px 5% 52px;
-    background: linear-gradient(180deg, #ffffff 0%, #f4f8f6 100%);
+    background: #faf7f2 !important;
+}
+
+.featured-collection::before,
+.featured-collection::after,
+.featured-actions::before,
+.featured-actions::after {
+    display: none !important;
+    content: none !important;
 }
 
 .featured-collection .featured-header {
@@ -960,7 +975,8 @@ p {
 .featured-actions {
     display: flex;
     justify-content: center;
-    margin-top: 34px;
+    margin-top: 24px;
+    margin-bottom: 24px;
 }
 
 .featured-explore-btn {
@@ -969,19 +985,20 @@ p {
     justify-content: center;
     min-width: 160px;
     min-height: 46px;
-    padding: 13px 24px;
+    padding: 12px 24px;
+    line-height: 1.2;
     border-radius: 999px;
     background: linear-gradient(135deg, #0A5C56, #083E3A);
     color: #ffffff;
     text-decoration: none;
     font-weight: 400;
-    box-shadow: 0 14px 32px rgba(8, 62, 58, 0.22);
+    box-shadow: none !important;
     transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .featured-explore-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 18px 42px rgba(8, 62, 58, 0.28);
+    box-shadow: none !important;
     background: linear-gradient(135deg, #0f746d, #083E3A);
 }
 
@@ -2146,6 +2163,14 @@ p {
     padding-bottom: 34px !important;
 }
 
+.featured-collection {
+    padding-bottom: 0 !important;
+}
+
+.featured-collection + .categories.section-space {
+    padding-top: 34px !important;
+}
+
 .section-heading,
 .section-header {
     margin-bottom: 18px !important;
@@ -2547,6 +2572,44 @@ nav,
     }
 }
 
+/* From Our Collection image cards: remove top white strip */
+.blog.section-space .blog-card {
+    padding: 0 !important;
+    margin-top: 0 !important;
+    background: transparent !important;
+    overflow: hidden !important;
+}
+
+.blog.section-space .blog-card img {
+    width: 100% !important;
+    height: 420px !important;
+    display: block !important;
+    object-fit: cover !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+
+@media (max-width: 768px) {
+    .blog.section-space .blog-card {
+        padding: 0 !important;
+        margin-top: 0 !important;
+        background: transparent !important;
+        overflow: hidden !important;
+    }
+
+    .blog.section-space .blog-card img {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1 !important;
+        display: block !important;
+        object-fit: cover !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+}
+
 /* ===== Mobile-only requested refinements ===== */
 @media (max-width: 768px) {
     .navbar {
@@ -2589,7 +2652,16 @@ nav,
     }
 
     .featured-actions {
-        margin-top: 18px !important;
+        margin-top: 16px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .featured-collection {
+        padding-bottom: 0 !important;
+    }
+
+    .featured-collection + .categories.section-space {
+        padding-top: 26px !important;
     }
 
     .featured-explore-btn {
@@ -2598,7 +2670,7 @@ nav,
         padding: 8px 16px !important;
         font-size: 12px !important;
         line-height: 1.15 !important;
-        box-shadow: 0 8px 20px rgba(8, 62, 58, 0.18) !important;
+        box-shadow: none !important;
     }
 
     .faq-item {

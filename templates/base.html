@@ -16,8 +16,8 @@
     
     <title>{% block title %}Belt Purse | Premium Wallets, Belts & Fashion Accessories{% endblock %}</title>
 
-    <meta name="description" content="Belt Purse offers premium leather wallets, stylish belts, handbags, purses and fashion accessories with quality craftsmanship. Shop luxury accessories online in India.">
-    <meta name="keywords" content="belt purse, leather wallet, luxury wallet, men's wallet, women's purse, leather belt, handbag, fashion accessories, premium wallet, online accessories store India">
+    <meta name="description" content="Belt Purse offers premium leather wallets, stylish belts,men's belts, purses and fashion accessories with quality craftsmanship. Shop luxury accessories online in India.">
+    <meta name="keywords" content="belt purse,belt purse shop,leather wallet, luxury wallet, men's wallet, women's purse, leather belt, belt , handbag, fashion accessories, premium wallet, online accessories store India">
     <meta name="author" content="Belt Purse">
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_logo.jpeg') }}">
@@ -1495,16 +1495,32 @@ body::before {
 }
 
 /* LOGO */
+.auth-brand-head {
+    display: grid;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
+    text-align: center;
+    margin: 0 auto 20px;
+    padding: 0;
+    position: relative;
+}
+
 .auth-logo {
     width: 120px;
+    height: auto;
     display: block;
-    margin: 0 auto 20px;
+    margin: 0 auto 12px;
+    object-fit: contain;
+    object-position: center;
+    position: static;
+    transform: none !important;
 }
 
 /* TITLE */
 #formTitle {
     text-align: center;
-    margin-bottom: 20px;
+    margin: 0;
     color: #eef7f4;
     font-size: 26px;
     font-weight: 400;
@@ -1610,15 +1626,20 @@ body::before {
     }
 
     /* LOGO SMALL */
+    .auth-brand-head {
+        margin-bottom: 8px;
+    }
+
     .auth-logo {
         width: 85px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
+        transform: none !important;
     }
 
     /* TITLE SMALL */
     #formTitle {
         font-size: 18px;
-        margin-bottom: 6px;
+        margin-bottom: 0;
     }
 
     /* MESSAGE */
@@ -1682,12 +1703,13 @@ body::before {
 
     .auth-logo {
         width: 92px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        transform: none !important;
     }
 
     #formTitle {
         font-size: 20px;
-        margin-bottom: 10px;
+        margin-bottom: 0;
     }
 
     .form-msg {
@@ -1974,9 +1996,10 @@ body::before {
 
             <span id="closeBtn">&times;</span>
 
-            <img src="/static/images/bp_logo-white.png" class="auth-logo" alt="Logo">
-
-            <h2 id="formTitle">Login</h2>
+            <div class="auth-brand-head">
+                <img src="/static/images/bp_logo-white.png" class="auth-logo" alt="Logo">
+                <h2 id="formTitle">Login</h2>
+            </div>
 
             <p id="formMsg" class="form-msg"></p>
 
@@ -2035,7 +2058,7 @@ body::before {
         <a href="/wishlist" class="mobile-menu-only">Wishlist</a>
         <a href="/cart" class="mobile-menu-only">Cart</a>
         <a href="/blogs">Blogs</a>
-        <a href="/#about">About Us</a>
+        <a href="/about">About Us</a>
         <a href="/#contact">Contact</a>
         <!-- ✅ FIX - login check karo pehle -->
 <a href="#" class="mobile-account-link" onclick="handleAccountClick(event)">Account / Login</a>
@@ -2133,7 +2156,7 @@ body::before {
       <ul>
         <li><a href="/">Home</a></li>
         <li><a href="/blogs">Blogs</a></li>
-        <li><a href="/#about">About</a></li>
+        <li><a href="/about">About</a></li>
         <li><a href="/#contact">Contact</a></li>
       </ul>
     </div>
@@ -2179,6 +2202,168 @@ h3,
 .hero-content h1,
 .product-title-row h1 {
     font-weight: 600 !important;
+}
+</style>
+
+<style>
+/* ================= SITE-WIDE HOVER CLEANUP =================
+   Removes misleading motion/glow/zoom hover effects while keeping
+   existing layout, colors, and click functionality intact. */
+a:hover,
+button:hover,
+.btn:hover,
+.hero-btn:hover,
+.featured-explore-btn:hover,
+.about-btn:hover,
+.primary-btn:hover,
+.contact-form button:hover,
+.premium-icon:hover,
+.social-icons a:hover,
+.user-profile-link:hover,
+.avatar-img:hover,
+.hamburger:hover,
+.mobile-search-card .search-close:hover,
+#closeBtn:hover,
+.wishlist-btn:hover,
+.select-btn:hover,
+.color-circle:hover,
+.product-card:hover,
+.product-card:hover img,
+.blog-card:hover img,
+.lux-card:hover,
+.cat-row:hover,
+.service-card:hover,
+.material-grid div:hover,
+.why-grid div:hover {
+    transform: none !important;
+    filter: none !important;
+}
+
+.product-card,
+.product-card img,
+.product-img,
+.blog-card img,
+.lux-card,
+.cat-row,
+.service-card,
+.material-grid div,
+.why-grid div,
+.premium-icon,
+.social-icons a,
+.user-profile-link,
+.avatar-img,
+.btn,
+.hero-btn,
+.featured-explore-btn,
+.about-btn,
+.primary-btn,
+.contact-form button,
+.wishlist-btn,
+.select-btn,
+.color-circle {
+    transition: none !important;
+}
+
+.premium-icon,
+.social-icons a,
+.user-profile-link,
+.avatar-img,
+.wishlist-btn,
+.select-btn,
+.add-cart-btn,
+.color-circle {
+    transform: none !important;
+    filter: none !important;
+}
+
+.product-card:hover {
+    box-shadow: 0 18px 50px rgba(0,0,0,0.08) !important;
+}
+
+.featured-collection .product-card:hover {
+    box-shadow: 0 18px 44px rgba(8, 62, 58, 0.1) !important;
+}
+
+.lux-card:hover {
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08) !important;
+}
+
+.cat-row:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
+}
+
+.service-card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.04) !important;
+}
+
+.material-grid div:hover,
+.why-grid div:hover {
+    box-shadow: 0 8px 18px rgba(0,0,0,0.1) !important;
+}
+
+.featured-explore-btn:hover {
+    background: linear-gradient(135deg, #0A5C56, #083E3A) !important;
+    box-shadow: none !important;
+}
+
+.about-btn:hover,
+.primary-btn:hover,
+.contact-form button:hover {
+    background: linear-gradient(135deg, #0A5C56, #083E3A) !important;
+}
+
+.hero-btn:hover {
+    background: #ffffff !important;
+}
+
+.nav-center a:hover,
+.footer-col ul li a:hover,
+.footer-links-inline a:hover,
+.dropdown-menu a:hover,
+.account-link:hover,
+.user-profile-link:hover,
+.desktop-search-toggle:hover,
+.desktop-search-close:hover,
+.search-item:hover {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+.nav-center a:hover::after,
+.footer-links-inline a:hover::after {
+    width: 0 !important;
+}
+
+@media (max-width: 768px) {
+    .nav-center a:hover {
+        padding-left: 20px !important;
+    }
+}
+
+.lux-card,
+.cat-row,
+.blog.section-space .blog-card,
+.service-card,
+.material-grid div,
+.why-grid div,
+.about-card,
+.faq-item {
+    cursor: default !important;
+}
+
+a,
+button,
+.product-card,
+.products-page .product-card,
+.wishlist-btn,
+.select-btn,
+.add-cart-btn,
+.color-circle,
+.premium-icon,
+.hamburger,
+.search-item,
+.faq-question {
+    cursor: pointer;
 }
 </style>
 
