@@ -91,6 +91,7 @@ migrate = Migrate(app, db)
 # ✅ OPTIONAL DEBUG PRINT (SAFE)
 with app.app_context():
     print("DB IN USE:", db.engine.url)
+    PasswordResetToken.__table__.create(db.engine, checkfirst=True)
 
 
 @login_manager.user_loader
