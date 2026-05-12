@@ -1565,15 +1565,94 @@ body::before {
 /* PASSWORD */
 .password-box {
     position: relative;
+    margin-bottom: 14px;
+}
+
+.password-box input {
+    display: block;
+    margin-bottom: 0;
+    padding-right: 46px;
 }
 
 .password-box i {
     position: absolute;
-    top: 38%;
     right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
     cursor: pointer;
+    font-size: 17px;
     font-style: normal;
-    color: rgba(238, 247, 244, 0.75);
+    line-height: 1;
+    color: rgba(238, 247, 244, 0.68);
+}
+
+.auth-login-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: -4px 0 16px;
+}
+
+.remember-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.remember-label span {
+    color: #ffffff;
+}
+
+.auth-card .remember-label input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: #0A5C56;
+    cursor: pointer;
+}
+
+.forgot-link,
+.auth-back-link {
+    color: #9ee8db;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.auth-back-link {
+    display: inline-block;
+    margin-bottom: 14px;
+}
+
+.forgot-link:hover,
+.auth-back-link:hover {
+    color: #c9fff6;
+}
+
+.auth-reset-panel {
+    display: none;
+}
+
+.auth-reset-note {
+    color: rgba(238, 247, 244, 0.72);
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0 0 14px;
+    text-align: center;
 }
 
 /* BUTTON */
@@ -1614,6 +1693,11 @@ body::before {
     color: #9ee8db;
     font-weight: 400;
     cursor: pointer;
+}
+
+.switch-text #switchPrompt {
+    color: rgba(238, 247, 244, 0.72);
+    cursor: default;
 }
 /* 🔥 MOBILE LOGIN CARD FIX (COMPACT PREMIUM) */
 @media (max-width: 500px) {
@@ -1656,10 +1740,33 @@ body::before {
         border-radius: 8px;
     }
 
+    .password-box {
+        margin-bottom: 8px;
+    }
+
+    .password-box input {
+        margin-bottom: 0;
+        padding-right: 34px;
+    }
+
     /* PASSWORD ICON FIX */
     .password-box i {
-        top: 32%;
         right: 8px;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        font-size: 16px;
+    }
+
+    .auth-login-options {
+        margin: -2px 0 8px;
+        gap: 8px;
+    }
+
+    .remember-label,
+    .forgot-link,
+    .auth-back-link,
+    .auth-reset-note {
         font-size: 11px;
     }
 
@@ -1719,6 +1826,15 @@ body::before {
     .auth-card input {
         padding: 10px 12px;
         margin-bottom: 9px;
+    }
+
+    .password-box {
+        margin-bottom: 9px;
+    }
+
+    .password-box input {
+        margin-bottom: 0;
+        padding-right: 40px;
     }
 
     .primary-btn {
@@ -2003,20 +2119,38 @@ body::before {
 
             <p id="formMsg" class="form-msg"></p>
 
-            <!-- Register only -->
-            <input type="text" id="name" placeholder="Full Name" style="display: none;">
+            <div id="authLoginPanel">
+                <!-- Register only -->
+                <input type="text" id="name" placeholder="Full Name" style="display: none;">
 
-            <input type="email" id="email" placeholder="Email">
+                <input type="email" id="email" placeholder="Email">
 
-            <div class="password-box">
-                <input type="password" id="password" placeholder="Password">
-                <i id="togglePassword">👁</i>
+                <div class="password-box">
+                    <input type="password" id="password" placeholder="Password">
+                    <i id="togglePassword">👁</i>
+                </div>
+
+                <div class="auth-login-options" id="loginOptions">
+                    <label class="remember-label">
+                        <input type="checkbox" id="rememberMe">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="forgot-link" id="forgotPasswordLink">Forgot Password?</a>
+                </div>
+            </div>
+
+            <div class="auth-reset-panel" id="authResetPanel">
+                <p class="auth-reset-note">
+                    Enter your registered email and we will send a secure reset link.
+                </p>
+                <input type="email" id="forgotEmail" placeholder="Email">
+                <a href="#" class="auth-back-link" id="backToLoginLink">Back to login</a>
             </div>
 
             <button id="mainBtn" class="primary-btn">Login</button>
 
             <p class="switch-text">
-                Don't have an account?
+                <span id="switchPrompt">Don't have an account?</span>
                 <span id="switchMode">Create Account</span>
             </p>
 

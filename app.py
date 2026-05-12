@@ -5,13 +5,15 @@ import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort, url_for
 from sqlalchemy import exists, text
 from sqlalchemy.orm import joinedload
-from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
+from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, PasswordResetToken, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from config import Config
 from flask_login import LoginManager, login_user
 from functools import wraps
 import base64
+import html
 import os
 import re
+import secrets
 from datetime import datetime
 import uuid
 from werkzeug.utils import secure_filename
@@ -200,7 +202,7 @@ def json_error(message="Something went wrong", status_code=500):
     return jsonify({"success": False, "message": message}), status_code
 
 
-def send_resend_email(subject, body, attachments=None):
+def send_resend_email(subject, body="", attachments=None, to_email=None, html=None):
     if resend is None:
         raise RuntimeError("resend package is not installed. Run: pip install resend")
 
@@ -211,15 +213,66 @@ def send_resend_email(subject, body, attachments=None):
     resend.api_key = api_key
     params = {
         "from": RESEND_FROM_EMAIL,
-        "to": [SUPPORT_EMAIL],
+        "to": [to_email or SUPPORT_EMAIL],
         "subject": subject,
-        "text": body,
     }
+
+    if html:
+        params["html"] = html
+    else:
+        params["text"] = body
 
     if attachments:
         params["attachments"] = attachments
 
     return resend.Emails.send(params)
+
+
+def get_base_url():
+    base_url = (os.environ.get("BASE_URL") or "").strip().rstrip("/")
+    if base_url:
+        return base_url
+    return request.url_root.rstrip("/")
+
+
+def build_reset_password_url(token):
+    return f"{get_base_url()}{url_for('reset_password', token=token)}"
+
+
+def password_is_strong(password):
+    return (
+        len(password or "") >= 8
+        and re.search(r"[A-Za-z]", password or "") is not None
+        and re.search(r"\d", password or "") is not None
+    )
+
+
+def build_password_reset_email(reset_url, username):
+    display_name = html.escape(username or "there")
+    safe_reset_url = html.escape(reset_url, quote=True)
+    return f"""
+    <div style="margin:0;padding:0;background:#f7f3ec;font-family:Arial,sans-serif;color:#183633;">
+      <div style="max-width:560px;margin:0 auto;padding:32px 18px;">
+        <div style="background:#ffffff;border:1px solid #eadfce;border-radius:16px;padding:28px;box-shadow:0 12px 34px rgba(8,62,58,0.08);">
+          <h2 style="margin:0 0 12px;color:#083E3A;font-size:24px;">Reset your Belt Purse password</h2>
+          <p style="margin:0 0 18px;line-height:1.6;color:#38504d;">Hi {display_name},</p>
+          <p style="margin:0 0 22px;line-height:1.6;color:#38504d;">
+            We received a request to reset your password. This secure link will expire in 30 minutes.
+          </p>
+          <a href="{safe_reset_url}" style="display:inline-block;background:#0A5C56;color:#ffffff;text-decoration:none;padding:13px 22px;border-radius:999px;font-weight:600;">
+            Reset Password
+          </a>
+          <p style="margin:24px 0 0;line-height:1.6;color:#6a7c78;font-size:13px;">
+            If the button does not work, open this link:<br>
+            <a href="{safe_reset_url}" style="color:#0A5C56;">{safe_reset_url}</a>
+          </p>
+          <p style="margin:18px 0 0;line-height:1.6;color:#6a7c78;font-size:13px;">
+            If you did not request this, you can ignore this email.
+          </p>
+        </div>
+      </div>
+    </div>
+    """
 
 
 def build_resend_attachment(file_storage):
@@ -1228,6 +1281,7 @@ def login():
 
     email = data.get('email')
     password = data.get('password')
+    remember = bool(data.get('remember'))
 
     if not email or not password:
         return jsonify({"message": "Email and password required"}), 400
@@ -1241,6 +1295,7 @@ def login():
         return jsonify({"message": "Wrong password"}), 401
 
     session.clear()
+    session.permanent = remember
 
     session['user_id'] = user.id
     session['username'] = user.username
@@ -1253,6 +1308,103 @@ def login():
         "email": user.email,
         "id": user.id
     }), 200
+
+
+@app.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"success": False, "message": "Email/User not found."}), 404
+
+    try:
+        PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({"used": True})
+
+        token = secrets.token_urlsafe(48)
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token=token,
+            expires_at=datetime.utcnow() + timedelta(minutes=30),
+            used=False,
+        )
+        db.session.add(reset_token)
+        db.session.flush()
+
+        reset_url = build_reset_password_url(token)
+        send_resend_email(
+            "Reset your Belt Purse password",
+            body=f"Open this link to reset your Belt Purse password: {reset_url}",
+            to_email=user.email,
+            html=build_password_reset_email(reset_url, user.username),
+        )
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Password reset email error: {e}")
+        return jsonify({"success": False, "message": "Unable to send reset link right now."}), 500
+
+    return jsonify({"success": True, "message": "Reset password link sent to your email."}), 200
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    reset_token = PasswordResetToken.query.filter_by(token=token, used=False).first()
+    token_valid = bool(reset_token and reset_token.expires_at >= datetime.utcnow())
+
+    if request.method == "POST":
+        if not token_valid:
+            return render_template(
+                "reset_password.html",
+                token=token,
+                token_valid=False,
+                error="This password reset link is invalid or expired.",
+            ), 400
+
+        new_password = (request.form.get("new_password") or "").strip()
+        confirm_password = (request.form.get("confirm_password") or "").strip()
+
+        if new_password != confirm_password:
+            return render_template(
+                "reset_password.html",
+                token=token,
+                token_valid=True,
+                error="Passwords do not match.",
+            ), 400
+
+        if not password_is_strong(new_password):
+            return render_template(
+                "reset_password.html",
+                token=token,
+                token_valid=True,
+                error="Password must be 8+ characters and include at least 1 letter and 1 number.",
+            ), 400
+
+        user = User.query.get(reset_token.user_id)
+        if not user:
+            return render_template(
+                "reset_password.html",
+                token=token,
+                token_valid=False,
+                error="This password reset link is invalid or expired.",
+            ), 400
+
+        user.password = generate_password_hash(new_password)
+        reset_token.used = True
+        db.session.commit()
+        session.clear()
+        return redirect("/?show_login=1&reset=success")
+
+    return render_template(
+        "reset_password.html",
+        token=token,
+        token_valid=token_valid,
+        error=None if token_valid else "This password reset link is invalid or expired.",
+    )
 
 from collections import defaultdict
 from flask import jsonify

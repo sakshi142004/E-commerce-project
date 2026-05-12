@@ -8,7 +8,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const popup     = document.getElementById("popup");
     const blurBg    = document.getElementById("blurBg");
     const loginBtn  = document.getElementById("loginBtn");
+    const switchPrompt = document.getElementById("switchPrompt");
     const switchBtn = document.getElementById("switchMode");
+    const authLoginPanel = document.getElementById("authLoginPanel");
+    const authResetPanel = document.getElementById("authResetPanel");
+    const loginOptions = document.getElementById("loginOptions");
+    const forgotLink = document.getElementById("forgotPasswordLink");
+    const backToLoginLink = document.getElementById("backToLoginLink");
+    const switchText = document.querySelector(".switch-text");
     const nameField = document.getElementById("name");
     const titleEl   = document.getElementById("formTitle");
     const mainBtn   = document.getElementById("mainBtn");
@@ -16,12 +23,52 @@ document.addEventListener("DOMContentLoaded", function () {
     const togglePwd = document.getElementById("togglePassword");
 
     let isLogin = true;
+    let isResetRequest = false;
+
+    function setAuthMode(mode) {
+        isResetRequest = mode === "reset";
+        isLogin = mode !== "register";
+
+        if (msg) msg.innerText = "";
+        if (authLoginPanel) authLoginPanel.style.display = isResetRequest ? "none" : "block";
+        if (authResetPanel) authResetPanel.style.display = isResetRequest ? "block" : "none";
+        if (loginOptions) loginOptions.style.display = mode === "login" ? "flex" : "none";
+        if (switchText) switchText.style.display = isResetRequest ? "none" : "block";
+
+        if (mode === "register") {
+            if (titleEl) titleEl.innerText = "Register";
+            if (nameField) nameField.style.display = "block";
+            if (mainBtn) mainBtn.innerText = "Register";
+            if (switchPrompt) switchPrompt.innerText = "Already have an account?";
+            if (switchBtn) switchBtn.innerText = "Login";
+            return;
+        }
+
+        if (mode === "reset") {
+            if (titleEl) titleEl.innerText = "Forgot Password";
+            if (mainBtn) mainBtn.innerText = "Send Reset Link";
+            return;
+        }
+
+        if (titleEl) titleEl.innerText = "Login";
+        if (nameField) nameField.style.display = "none";
+        if (mainBtn) mainBtn.innerText = "Login";
+        if (switchPrompt) switchPrompt.innerText = "Don't have an account?";
+        if (switchBtn) switchBtn.innerText = "Create Account";
+    }
 
     window.openPopup = function () {
         if (!popup) return;
         popup.classList.add("show");
         if (blurBg) blurBg.style.display = "block";
         document.body.style.overflow = "hidden";
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("reset") === "success" && msg) {
+            setAuthMode("login");
+            msg.style.color = "green";
+            msg.innerText = "Password reset successful. Please login with your new password.";
+        }
     };
 
     window.closePopup = function () {
@@ -38,19 +85,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (switchBtn) {
         switchBtn.onclick = () => {
-            isLogin = !isLogin;
-            if (msg) msg.innerText = "";
-            if (isLogin) {
-                if (titleEl)   titleEl.innerText           = "Login";
-                if (nameField) nameField.style.display     = "none";
-                if (mainBtn)   mainBtn.innerText           = "Login";
-                switchBtn.innerText = "Create Account";
-            } else {
-                if (titleEl)   titleEl.innerText           = "Register";
-                if (nameField) nameField.style.display     = "block";
-                if (mainBtn)   mainBtn.innerText           = "Register";
-                switchBtn.innerText = "Login";
-            }
+            setAuthMode(isLogin ? "register" : "login");
+        };
+    }
+
+    if (forgotLink) {
+        forgotLink.onclick = (e) => {
+            e.preventDefault();
+            const email = document.getElementById("email")?.value.trim();
+            const forgotEmail = document.getElementById("forgotEmail");
+            if (forgotEmail && email) forgotEmail.value = email;
+            setAuthMode("reset");
+        };
+    }
+
+    if (backToLoginLink) {
+        backToLoginLink.onclick = (e) => {
+            e.preventDefault();
+            setAuthMode("login");
         };
     }
 
@@ -66,9 +118,31 @@ document.addEventListener("DOMContentLoaded", function () {
             const email    = document.getElementById("email")?.value.trim();
             const password = document.getElementById("password")?.value.trim();
             const name     = document.getElementById("name")?.value.trim() || "";
+            const remember = document.getElementById("rememberMe")?.checked || false;
 
             if (!msg) return;
             msg.style.color = "red";
+
+            if (isResetRequest) {
+                const forgotEmail = document.getElementById("forgotEmail")?.value.trim();
+                if (!forgotEmail) { msg.innerText = "Email required"; return; }
+
+                fetch('/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: forgotEmail })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    msg.style.color = data.success ? "green" : "red";
+                    msg.innerText = data.message || (data.success ? "Reset password link sent to your email." : "Email/User not found.");
+                })
+                .catch(() => {
+                    msg.style.color = "red";
+                    msg.innerText = "Unable to send reset link right now.";
+                });
+                return;
+            }
 
             if (!email || !password || (!isLogin && !name)) { msg.innerText = "All fields required ❗"; return; }
             if (password.length < 6) { msg.innerText = "Password must be 6+ characters ❗"; return; }
@@ -77,7 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, password, remember })
                 })
                 .then(r => r.json())
                 .then(data => {

@@ -56,13 +56,13 @@
                         <label>Email Address</label>
                         <input id="email" type="email" value="{{ user.email }}" placeholder="Your email">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group profile-contact-field">
                         <label>Phone Number <span style="color: red;">*</span></label>
                         <input id="phone" placeholder="Enter phone number" value="{{ user.phone or '' }}">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group profile-contact-field">
                         <label>Date of Birth</label>
-                        <input type="date" id="dob" value="{{ user.dob.strftime('%Y-%m-%d') if user.dob else '' }}">
+                        <input type="date" id="dob" class="date-input{% if user.dob %} has-value{% endif %}" value="{{ user.dob.strftime('%Y-%m-%d') if user.dob else '' }}">
                     </div>
                    
                 </div>
@@ -788,6 +788,12 @@ async function submitWarranty(){
         alert("Something went wrong");
     }
 }
+document.querySelectorAll('input[type="date"].date-input').forEach(input => {
+    const syncDateValueState = () => input.classList.toggle('has-value', Boolean(input.value));
+    syncDateValueState();
+    input.addEventListener('input', syncDateValueState);
+    input.addEventListener('change', syncDateValueState);
+});
 </script>
 
 <!-- 🍏 APPLE UI CSS -->
@@ -1092,6 +1098,87 @@ body {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.profile-contact-field input::placeholder {
+    color: #9aa0a6;
+    opacity: 1;
+}
+
+.profile-contact-field input[type="date"] {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.profile-contact-field input[type="date"].date-input:not(.has-value) {
+    color: #9aa0a6;
+}
+
+.profile-contact-field input[type="date"].date-input.has-value,
+.profile-contact-field input[type="date"].date-input:focus {
+    color: #1c2f2c;
+}
+
+.profile-contact-field input[type="date"]::-webkit-datetime-edit {
+    line-height: 20px;
+}
+
+.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit,
+.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-fields-wrapper,
+.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-text,
+.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-day-field,
+.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-month-field,
+.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-year-field {
+    color: #9aa0a6;
+}
+
+.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit,
+.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-fields-wrapper,
+.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-text,
+.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-day-field,
+.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-month-field,
+.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-year-field,
+.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit,
+.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-fields-wrapper,
+.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-text,
+.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-day-field,
+.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-month-field,
+.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-year-field {
+    color: #1c2f2c;
+}
+
+.profile-contact-field input[type="date"]::-webkit-calendar-picker-indicator {
+    width: 18px;
+    height: 18px;
+    margin-right: 0;
+    opacity: 0.65;
+    cursor: pointer;
+}
+
+.profile-card .profile-contact-field {
+    display: grid;
+    grid-template-rows: 20px 62px;
+    row-gap: 8px;
+    align-self: start;
+}
+
+.profile-card .profile-contact-field label {
+    display: flex;
+    align-items: center;
+    min-height: 20px;
+    margin: 0;
+    line-height: 20px;
+}
+
+.profile-card .profile-contact-field input {
+    height: 62px;
+    min-height: 62px;
+    padding: 18px 20px;
+    line-height: 24px;
+}
+
+.profile-card .profile-contact-field input[type="date"].date-input {
+    padding: 18px 56px 18px 20px;
+}
+
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
@@ -1361,6 +1448,14 @@ body {
     border-radius: 14px;
     border: 1px solid rgba(0,0,0,0.12);
     background: #fff;
+}
+
+.profile-card .profile-contact-field input[type="date"].date-input {
+    height: 62px;
+    min-height: 62px;
+    padding: 18px 56px 18px 20px;
+    font-size: 14px;
+    line-height: 24px;
 }
 
 #addressForm,
