@@ -592,38 +592,200 @@ background:#fff;
 /* Mobile */
 @media (max-width: 768px) {
     .blog-edit-page {
-        padding: 18px;
+        padding: 0 8px 10px !important;
     }
 
-    .edit-card {
-        padding: 20px;
-        border-radius: 22px;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-        gap: 0;
+    .edit-header {
+        margin-bottom: 8px !important;
     }
 
     .edit-header h2 {
-        font-size: 28px;
+        font-size: 20px !important;
+        line-height: 1.15 !important;
+        margin: 0 0 3px !important;
+        letter-spacing: 0;
+    }
+
+    .edit-header p {
+        font-size: 11.5px !important;
+        line-height: 1.35 !important;
+        margin: 0 !important;
+    }
+
+    .edit-card {
+        padding: 12px !important;
+        margin: 0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04) !important;
+    }
+
+    .form-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .field-group {
+        margin-bottom: 12px !important;
+        min-width: 0;
+    }
+
+    .field-group label {
+        font-size: 11.5px !important;
+        line-height: 1.25 !important;
+        margin-bottom: 4px !important;
+    }
+
+    .field-group input[type="text"] {
+        min-height: 34px !important;
+        padding: 7px 8px !important;
+        border-radius: 8px !important;
+        font-size: 11.5px !important;
+        line-height: 1.25 !important;
+    }
+
+    .upload-section {
+        gap: 9px !important;
+    }
+
+    .current-image-wrapper,
+    .new-preview-wrapper {
+        border-radius: 10px !important;
+    }
+
+    .edit-preview,
+    #newPreview {
+        max-height: 150px !important;
+        aspect-ratio: 16 / 9;
+        object-fit: cover !important;
+    }
+
+    .image-overlay {
+        padding: 7px 9px !important;
+        font-size: 10.5px !important;
+        line-height: 1.2 !important;
+    }
+
+    .upload-box {
+        min-height: 82px !important;
+        padding: 12px !important;
+        border-radius: 10px !important;
+    }
+
+    .upload-icon {
+        font-size: 22px !important;
+        margin-bottom: 5px !important;
+    }
+
+    .upload-content h4 {
+        font-size: 12.5px !important;
+        line-height: 1.2 !important;
+        margin-bottom: 3px !important;
+    }
+
+    .upload-content p {
+        font-size: 10.5px !important;
+        line-height: 1.3 !important;
+    }
+
+    .editor-shell {
+        border-radius: 10px !important;
+    }
+
+    .ql-toolbar.ql-snow {
+        padding: 5px !important;
+    }
+
+    .ql-toolbar.ql-snow .ql-formats {
+        margin-right: 4px !important;
     }
 
     #editor,
     .ql-editor {
-        min-height: 320px;
+        min-height: 180px !important;
     }
 
-    .form-actions {
-        justify-content: stretch;
+    .ql-editor {
+        padding: 10px !important;
+        font-size: 12px !important;
+        line-height: 1.45 !important;
     }
 
-    .update-btn {
-        width: 100%;
+    .status-row {
+        margin-top: 4px !important;
+        margin-bottom: 12px !important;
     }
 
     .premium-checkbox {
         align-items: flex-start;
+        gap: 9px !important;
+        padding: 10px !important;
+        border-radius: 10px !important;
+    }
+
+    .checkmark {
+        width: 18px !important;
+        height: 18px !important;
+        border-radius: 5px !important;
+    }
+
+    .premium-checkbox input:checked + .checkmark::after {
+        font-size: 11px !important;
+    }
+
+    .status-text strong {
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+    }
+
+    .status-text small {
+        font-size: 10.5px !important;
+        line-height: 1.3 !important;
+    }
+
+    .form-actions {
+        justify-content: stretch;
+        gap: 8px !important;
+    }
+
+    .update-btn {
+        width: 100%;
+        min-height: 36px !important;
+        padding: 9px 12px !important;
+        border-radius: 9px !important;
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+        box-shadow: none !important;
+    }
+
+    .crop-box {
+        width: calc(100vw - 24px) !important;
+        padding: 12px !important;
+        border-radius: 12px !important;
+    }
+
+    .crop-box h3 {
+        font-size: 15px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .crop-image-shell {
+        height: 220px !important;
+    }
+
+    .crop-actions {
+        gap: 8px !important;
+    }
+
+    .crop-actions button {
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .form-grid {
+        grid-template-columns: 1fr !important;
     }
 }
 </style>

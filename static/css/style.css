@@ -2592,21 +2592,36 @@ nav,
 
 @media (max-width: 768px) {
     .blog.section-space .blog-card {
+        display: block !important;
+        aspect-ratio: 1 / 1 !important;
         padding: 0 !important;
+        margin: 0 !important;
         margin-top: 0 !important;
         background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        line-height: 0 !important;
+        height: auto !important;
         overflow: hidden !important;
+        border-radius: 14px !important;
     }
 
     .blog.section-space .blog-card img {
         width: 100% !important;
-        height: auto !important;
+        height: 100% !important;
         aspect-ratio: 1 / 1 !important;
         display: block !important;
         object-fit: cover !important;
         margin: 0 !important;
         padding: 0 !important;
         background: transparent !important;
+        border-radius: inherit !important;
+    }
+
+    .blog.section-space .blog-overlay {
+        border-radius: inherit !important;
+        overflow: hidden !important;
+        line-height: normal !important;
     }
 }
 

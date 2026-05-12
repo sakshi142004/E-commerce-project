@@ -66,20 +66,108 @@
     }
 
     @media (max-width: 768px) {
+        .hero {
+            --index-mobile-section-bg: #ffffff;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .featured-collection {
+            --index-mobile-section-bg: #faf7f2;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .categories {
+            --index-mobile-section-bg: #ffffff;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .blog {
+            --index-mobile-section-bg: #faf7f2;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .materials {
+            --index-mobile-section-bg: #ffffff;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .services {
+            --index-mobile-section-bg: #faf7f2;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .why {
+            --index-mobile-section-bg: #ffffff;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .faq {
+            --index-mobile-section-bg: #faf7f2;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .contact {
+            --index-mobile-section-bg: #ffffff;
+            background: var(--index-mobile-section-bg) !important;
+        }
+
+        .featured-collection .product-container,
+        .featured-collection .featured-actions {
+            background: transparent !important;
+        }
+
+        .featured-collection .product-container {
+            padding-bottom: 0 !important;
+            margin-bottom: 0 !important;
+            align-items: flex-start !important;
+        }
+
+        section.products.featured-collection .product-container,
+        section.products.featured-collection .featured-actions {
+            background: transparent;
+            box-shadow: none;
+        }
+
         .featured-collection .product-card,
         .featured-collection .product-card:hover {
+            background: #ffffff !important;
+            border: 1px solid rgba(8, 62, 58, 0.08) !important;
             border-radius: 18px !important;
+            box-shadow: 0 12px 30px rgba(8, 62, 58, 0.08) !important;
+            height: auto !important;
+            margin-bottom: 0 !important;
             overflow: hidden !important;
+        }
+
+        section.products.featured-collection .product-container .product-card,
+        section.products.featured-collection .product-container .product-card:hover,
+        section.products.featured-collection .product-container .product-card:focus,
+        section.products.featured-collection .product-container .product-card:active {
+            background: #ffffff !important;
+            box-shadow: 0 12px 30px rgba(8, 62, 58, 0.08) !important;
+            outline: 0;
+        }
+
+        .featured-collection .product-info,
+        .featured-collection .price-box,
+        .featured-collection .rating,
+        .featured-collection .product-info h4 {
+            background: #ffffff !important;
+        }
+
+        .featured-collection .product-info {
+            padding-top: 8px !important;
+            padding-bottom: 10px !important;
         }
 
         .featured-collection .product-image-wrapper {
             padding: 0 !important;
             margin: 0 !important;
-            background: transparent !important;
+            background: #ffffff !important;
             border: 0 !important;
-            border-radius: 0 !important;
+            border-radius: 18px 18px 0 0 !important;
             box-shadow: none !important;
-            overflow: visible !important;
+            overflow: hidden !important;
         }
 
         .featured-collection .product-image-wrapper img,
@@ -88,8 +176,30 @@
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
-            background: transparent !important;
+            background: #ffffff !important;
             border-radius: 18px 18px 0 0 !important;
+        }
+
+        .categories .cat-list,
+        .blog .blog-grid,
+        .materials .material-grid,
+        .services .service-grid,
+        .why .why-grid,
+        .faq .faq-container,
+        .contact .contact-container {
+            background: transparent !important;
+        }
+
+        .blog .blog-card,
+        .blog .blog-overlay,
+        .services .service-card {
+            background-color: transparent !important;
+        }
+
+        .faq .faq-item {
+            background: #faf7f2 !important;
+            border-color: rgba(8, 62, 58, 0.08) !important;
+            box-shadow: 0 8px 20px rgba(8, 62, 58, 0.04) !important;
         }
     }
 
@@ -295,7 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <section class="materials section-space index-page-section-white">
     <div class="section-heading">
         <span>CRAFTED WITH CARE</span>
-        <h2>Material Views</h2>
+        <h2>Material We Use</h2>
     </div>
 
     <div class="material-grid">
