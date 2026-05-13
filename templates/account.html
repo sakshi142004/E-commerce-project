@@ -62,7 +62,18 @@
                     </div>
                     <div class="form-group profile-contact-field">
                         <label>Date of Birth</label>
-                        <input type="date" id="dob" class="date-input{% if user.dob %} has-value{% endif %}" value="{{ user.dob.strftime('%Y-%m-%d') if user.dob else '' }}">
+                        <div class="date-input-wrapper">
+                            <input
+                                type="text"
+                                id="dob"
+                                class="profile-input date-input{% if user.dob %} has-value{% endif %}"
+                                value="{{ user.dob.strftime('%d-%m-%Y') if user.dob else '' }}"
+                                placeholder="dd-mm-yyyy"
+                                inputmode="numeric"
+                                autocomplete="off"
+                            >
+                            <i class="fa-regular fa-calendar calendar-icon"></i>
+                        </div>
                     </div>
                    
                 </div>
@@ -625,7 +636,7 @@ function updateProfile(){
     let name = document.getElementById("name").value;
     let email = document.getElementById("email").value;
     let phone = document.getElementById("phone").value;
-    let dob = document.getElementById("dob").value;
+    let dob = formatDobForApi(document.getElementById("dob").value);
     
     let current_password = document.getElementById("current_password").value;
     let new_password = document.getElementById("new_password").value;
@@ -694,6 +705,18 @@ function updateProfile(){
         console.error("Error:", err);
         alert("❌ Error updating profile: " + err.message);
     });
+}
+
+function formatDobForApi(value){
+    value = (value || "").trim();
+    if(!value) return "";
+
+    const ddmmyyyy = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if(ddmmyyyy){
+        return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+    }
+
+    return value;
 }
 
 
@@ -788,7 +811,7 @@ async function submitWarranty(){
         alert("Something went wrong");
     }
 }
-document.querySelectorAll('input[type="date"].date-input').forEach(input => {
+document.querySelectorAll('.date-input').forEach(input => {
     const syncDateValueState = () => input.classList.toggle('has-value', Boolean(input.value));
     syncDateValueState();
     input.addEventListener('input', syncDateValueState);
@@ -1001,10 +1024,10 @@ body {
     height: 140px;
     border-radius: 50%;
     overflow: hidden;
-    border: 4px solid rgba(0, 188, 212, 0.16);
-   box-shadow: 
-        0 10px 25px rgba(0,0,0,0.08),
-        0 0 0 6px rgba(10,92,86,0.06);
+    border: 1px solid rgba(0,0,0,0.12);
+    box-shadow: none;
+    outline: none;
+    background: transparent;
     transition: all 0.3s ease;
 }
 
@@ -1013,6 +1036,10 @@ body {
     height: 100%;
     object-fit: cover;
     display: block;
+    border-radius: 50%;
+    border: 0;
+    box-shadow: none;
+    outline: none;
 }
 
 .avatar-overlay {
@@ -1103,60 +1130,50 @@ body {
     opacity: 1;
 }
 
-.profile-contact-field input[type="date"] {
+.date-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.date-input-wrapper .profile-input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    min-height: 0;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #fff;
+    color: #1c2f2c;
+    font-size: 14px;
+    line-height: normal;
+    outline: none;
     appearance: none;
     -webkit-appearance: none;
+    -moz-appearance: textfield;
 }
 
-.profile-contact-field input[type="date"].date-input:not(.has-value) {
+.date-input-wrapper .profile-input::placeholder {
     color: #9aa0a6;
+    opacity: 1;
 }
 
-.profile-contact-field input[type="date"].date-input.has-value,
-.profile-contact-field input[type="date"].date-input:focus {
-    color: #1c2f2c;
-}
-
-.profile-contact-field input[type="date"]::-webkit-datetime-edit {
-    line-height: 20px;
-}
-
-.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit,
-.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-fields-wrapper,
-.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-text,
-.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-day-field,
-.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-month-field,
-.profile-contact-field input[type="date"].date-input:not(.has-value)::-webkit-datetime-edit-year-field {
+.date-input-wrapper .calendar-icon {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #9aa0a6;
-}
-
-.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit,
-.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-fields-wrapper,
-.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-text,
-.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-day-field,
-.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-month-field,
-.profile-contact-field input[type="date"].date-input.has-value::-webkit-datetime-edit-year-field,
-.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit,
-.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-fields-wrapper,
-.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-text,
-.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-day-field,
-.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-month-field,
-.profile-contact-field input[type="date"].date-input:focus::-webkit-datetime-edit-year-field {
-    color: #1c2f2c;
-}
-
-.profile-contact-field input[type="date"]::-webkit-calendar-picker-indicator {
-    width: 18px;
-    height: 18px;
-    margin-right: 0;
-    opacity: 0.65;
-    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    pointer-events: none;
 }
 
 .profile-card .profile-contact-field {
-    display: grid;
-    grid-template-rows: 20px 62px;
-    row-gap: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     align-self: start;
 }
 
@@ -1169,14 +1186,10 @@ body {
 }
 
 .profile-card .profile-contact-field input {
-    height: 62px;
-    min-height: 62px;
-    padding: 18px 20px;
-    line-height: 24px;
-}
-
-.profile-card .profile-contact-field input[type="date"].date-input {
-    padding: 18px 56px 18px 20px;
+    height: auto;
+    min-height: 0;
+    padding: 14px 16px;
+    line-height: normal;
 }
 
 .form-group input:focus,
@@ -1448,14 +1461,6 @@ body {
     border-radius: 14px;
     border: 1px solid rgba(0,0,0,0.12);
     background: #fff;
-}
-
-.profile-card .profile-contact-field input[type="date"].date-input {
-    height: 62px;
-    min-height: 62px;
-    padding: 18px 56px 18px 20px;
-    font-size: 14px;
-    line-height: 24px;
 }
 
 #addressForm,

@@ -1240,6 +1240,32 @@ body {
     border-radius: 999px;
 }
 
+.navbar .avatar-account-link {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.navbar .avatar-account-link .avatar-img,
+.navbar .avatar-account-link .premium-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: none;
+}
+
+.navbar .avatar-account-link .premium-avatar {
+    text-transform: uppercase;
+    line-height: 1;
+}
+
 
 /* mobile */
 @media (max-width: 800px) {
@@ -2244,12 +2270,12 @@ body::before {
 
         <!-- USER / ACCOUNT -->
 {% if user %}
-    <a href="/account" class="user-profile-link">
+    <a href="/account" class="user-profile-link avatar-account-link">
         {% if user.avatar %}
             <img src="{{ user.avatar }}" class="avatar-img">
         {% else %}
             <div class="avatar premium-avatar">
-                {{ user.username[0] }}
+                {{ user.username[0]|upper }}
             </div>
         {% endif %}
     </a>
@@ -2340,6 +2366,43 @@ h3,
 </style>
 
 <style>
+.navbar .avatar-account-link {
+    width: 42px;
+    height: 42px;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 50% !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.navbar .avatar-account-link .avatar-img,
+.navbar .avatar-account-link .premium-avatar {
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 50% !important;
+    box-shadow: none !important;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+@media (max-width: 800px) {
+    .navbar .avatar-account-link {
+        width: 38px;
+        height: 38px;
+    }
+
+    .navbar .avatar-account-link .avatar-img,
+    .navbar .avatar-account-link .premium-avatar {
+        width: 38px;
+        height: 38px;
+    }
+}
+
 /* ================= SITE-WIDE HOVER CLEANUP =================
    Removes misleading motion/glow/zoom hover effects while keeping
    existing layout, colors, and click functionality intact. */

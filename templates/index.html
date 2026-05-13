@@ -258,48 +258,42 @@ document.addEventListener("DOMContentLoaded", function () {
 
         <!-- Slide 1 -->
         <div class="hero-slide active">
-            <video autoplay muted loop playsinline preload="auto">
-                <source src="/static/images/videoplayback.mp4" type="video/mp4">
-            </video>
+            <img src="/static/images/herosection1.png" alt="BeltPurse Hero 1" class="hero-bg-img">
 
             <div class="hero-overlay"></div>
 
             <div class="hero-content">
-                <span class="hero-tagline">Upgrade Your Everyday Carry</span>
-                <h1>Side Push<br>RFID Pop Up Wallet</h1>
-                <p>BeltPurse Signature Series</p>
+                <span class="hero-tagline">Upgrade Your Everyday Style</span>
+                <h1>Textured Formal Belt</h1>
+                <p>Slightly glossy finish with crossing line texture</p>
                 <a href="/products-page" class="hero-btn">Explore Collection</a>
             </div>
         </div>
 
         <!-- Slide 2 -->
         <div class="hero-slide">
-            <video autoplay muted loop playsinline preload="auto">
-                <source src="/static/images/videoplayback (1).mp4" type="video/mp4">
-            </video>
+            <img src="/static/images/herosection2.png" alt="BeltPurse Hero 2" class="hero-bg-img">
 
             <div class="hero-overlay"></div>
 
             <div class="hero-content">
-                <span class="hero-tagline">Premium Leather, Handcrafted for You</span>
-                <h1>Luxury Wallet Collection</h1>
-                <p>Crafted for style & durability</p>
+                <span class="hero-tagline">Premium Belts, Crafted for You</span>
+                <h1>Carbon Fiber Design Belt</h1>
+                <p>Matt finish with a decent premium look</p>
                 <a href="/products-page" class="hero-btn hero-btn-shop">Shop Premium Belts</a>
             </div>
         </div>
 
         <!-- Slide 3 -->
         <div class="hero-slide">
-            <video autoplay muted loop playsinline preload="auto">
-                <source src="/static/images/videoplayback (2).mp4" type="video/mp4">
-            </video>
+            <img src="/static/images/herosection3.png" alt="BeltPurse Hero 3" class="hero-bg-img">
 
             <div class="hero-overlay"></div>
 
             <div class="hero-content">
-                <span class="hero-tagline">Smart Design Meets Luxury</span>
-                <h1>Minimal Pop Up Wallet</h1>
-                <p>Modern elegance for daily use</p>
+                <span class="hero-tagline">Smart Design Meets Formal Style</span>
+                <h1>Glossy Dot Texture Belt</h1>
+                <p>A refined formal belt with all-over dotted texture</p>
                 <a href="/products-page" class="hero-btn">Upgrade Your Style</a>
             </div>
         </div>
@@ -452,7 +446,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- ================= SERVICES ================= -->
 <!-- ================= SERVICES ================= -->
 <!-- ================= SERVICES ================= -->
-<section class="services section-space index-page-section-white" id="services">
+<section class="services section-space index-page-section-soft" id="services">
     <div class="section-heading">
         <span>FEATURED SERVICES</span>
         <h2>Our Services</h2>
@@ -462,10 +456,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         <div class="service-card">
             <div class="service-icon">
-                <i class="fa-solid fa-store"></i>
+                <i class="fa-solid fa-truck-fast"></i>
             </div>
-            <h3>Retail Sales</h3>
-            <p>Stylish and durable belts crafted for daily comfort and elegance.</p>
+            <h3>Free Shipping Across India</h3>
+            <p>Fast and reliable delivery to your doorstep.</p>
              <!--<a href="#" class="service-arrow">
                 <i class="fa-solid fa-arrow-right"></i>-->
             </a>
@@ -473,10 +467,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         <div class="service-card">
             <div class="service-icon">
-                <i class="fa-solid fa-boxes-stacked"></i>
+                <i class="fa-solid fa-shield-halved"></i>
             </div>
-            <h3>Wholesale Supply</h3>
-            <p>Trusted bulk belt supplies for stores and businesses nationwide.</p>
+            <h3>2-Year Warranty on Leather Products</h3>
+            <p>Shop with confidence with our trusted warranty support.</p>
              <!--<a href="#" class="service-arrow">
                <i class="fa-solid fa-arrow-right"></i>-->
             </a>
@@ -484,10 +478,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         <div class="service-card">
             <div class="service-icon">
-                <i class="fa-solid fa-truck-fast"></i>
+                <i class="fa-solid fa-gem"></i>
             </div>
-            <h3>Bulk Orders</h3>
-            <p>Fast and efficient fulfillment for large custom order requests.</p>
+            <h3>Premium Quality Products</h3>
+            <p>Crafted with fine materials for lasting style and durability.</p>
              <!--<a href="#" class="service-arrow">
                 <i class="fa-solid fa-arrow-right"></i>-->
             </a>
@@ -495,10 +489,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         <div class="service-card">
             <div class="service-icon">
-                <i class="fa-solid fa-headset"></i>
+                <i class="fa-solid fa-lock"></i>
             </div>
-            <h3>Customer Support</h3>
-            <p>Dedicated assistance to help with your orders and inquiries.</p>
+            <h3>Secure Payments</h3>
+            <p>Safe and protected payment options for a worry-free shopping experience.</p>
             <!-- <a href="#" class="service-arrow">
                <i class="fa-solid fa-arrow-right"></i>-->
             </a>
@@ -507,7 +501,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 </section>
 <!-- ⭐ WHY CHOOSE US -->
-<section class="why section-space index-page-section-soft">
+<section class="why section-space index-page-section-white">
     <div class="section-heading">
         <span>WHY BeltPurse</span>
         <h2>Why Choose Us</h2>
@@ -679,6 +673,7 @@ document.addEventListener("DOMContentLoaded", function () {
             dots[i].classList.toggle("active", i === index);
 
             const video = slide.querySelector("video");
+            if (!video) return;
 
             if (i === index) {
                 video.currentTime = 0;

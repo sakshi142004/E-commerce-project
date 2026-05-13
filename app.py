@@ -6,7 +6,6 @@ from flask import Flask, flash, render_template, request, jsonify, session, redi
 from sqlalchemy import exists, text
 from sqlalchemy.orm import joinedload
 from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, PasswordResetToken, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
-from config import Config
 from flask_login import LoginManager, login_user
 from functools import wraps
 import base64
@@ -49,6 +48,8 @@ except ImportError:
 
 load_dotenv()
 
+from config import Config
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -89,8 +90,18 @@ migrate = Migrate(app, db)
 #     ensure_variant_columns()
 
 # ✅ OPTIONAL DEBUG PRINT (SAFE)
+def describe_database_url(url):
+    if url.drivername.startswith("sqlite"):
+        return f"type=sqlite database={url.database or ':memory:'}"
+
+    host = url.host or "unknown"
+    database = url.database or "unknown"
+    port = f":{url.port}" if url.port else ""
+    return f"type={url.drivername} host={host}{port} database={database}"
+
+
 with app.app_context():
-    print("DB IN USE:", db.engine.url)
+    print("DB IN USE:", describe_database_url(db.engine.url))
     PasswordResetToken.__table__.create(db.engine, checkfirst=True)
 
 
