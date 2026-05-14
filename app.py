@@ -110,14 +110,19 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "avi"}
+
+# Keep this for old local blog image fallback support
 BLOG_UPLOAD_SUBDIR = "uploads/blogs"
-BLOG_UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads", "blogs")
+
+# Local folder saving is not needed for new blog images
+# BLOG_UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads", "blogs")
+
 DEFAULT_IMAGE_URL = "/static/images/default.png"
 
-os.makedirs(BLOG_UPLOAD_FOLDER, exist_ok=True)
+# Do not create local upload folder for production storage
+# os.makedirs(BLOG_UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename, filetype="image"):
     if "." not in filename:
@@ -135,10 +140,16 @@ def save_blog_image(file):
     if not file or not file.filename or not allowed_file(file.filename, "image"):
         return None
 
-    filename = secure_filename(file.filename)
-    filename = f"{uuid.uuid4().hex}_{filename}"
-    file.save(os.path.join(BLOG_UPLOAD_FOLDER, filename))
-    return filename
+    try:
+        result = cloudinary.uploader.upload(
+            file,
+            folder="blogs",
+            resource_type="image"
+        )
+        return result.get("secure_url")
+    except Exception as e:
+        app.logger.error("Cloudinary blog image upload failed: %s", e)
+        return None
 
 
 def request_blog_image_file():

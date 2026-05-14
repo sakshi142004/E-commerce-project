@@ -160,8 +160,9 @@ p {
     z-index: 2;
 }
 
-/* video fit */
-.hero-slide video {
+/* hero media fit */
+.hero-slide video,
+.hero-slide .hero-bg-img {
     position: absolute;
     inset: 0;
     width: 100%;

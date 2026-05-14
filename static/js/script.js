@@ -171,8 +171,8 @@ document.addEventListener("DOMContentLoaded", function () {
                                     <i class="fa-solid fa-cart-shopping"></i>
                                     <span class="badge" id="cartCount">0</span>
                                 </div>
-                                <a href="/account" class="user-profile-link">
-                                    <div class="avatar premium-avatar">${data.name.charAt(0)}</div>
+                                <a href="/account" class="user-profile-link avatar-account-link">
+                                    <div class="avatar premium-avatar">${data.name.charAt(0).toUpperCase()}</div>
                                 </a>
                             `;
                         }
