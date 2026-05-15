@@ -19,6 +19,8 @@ class Config:
         # Some platforms expose postgres://, but SQLAlchemy expects postgresql://.
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
+        if db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
         SQLALCHEMY_DATABASE_URI = db_url
     else:
@@ -32,6 +34,11 @@ class Config:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "static/images")
 
     # Cloudinary
-    CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME") or "dhjl5plm8"
-    CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY") or "881392445818876"
-    CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET") or "wJcwQke-UHL4YQAAskXSYDFNiTE"
+    CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME")
+    CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY")
+    CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET")
+
+    # Razorpay
+    RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
+    RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
+    RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET")

@@ -9,7 +9,10 @@ from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrac
 from flask_login import LoginManager, login_user
 from functools import wraps
 import base64
+import hashlib
+import hmac
 import html
+import json
 import os
 import re
 import secrets
@@ -19,6 +22,9 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from flask_migrate import Migrate
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DOTENV_PATH = os.path.join(BASE_DIR, ".env")
 
 try:
     from dotenv import load_dotenv
@@ -45,14 +51,26 @@ try:
 except ImportError:
     resend = None
 
+try:
+    import razorpay
+except ImportError:
+    razorpay = None
 
-load_dotenv()
+
+load_dotenv(DOTENV_PATH)
 
 from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
+print("Razorpay Key ID loaded:", "yes" if app.config.get("RAZORPAY_KEY_ID") else "no")
+print("Razorpay Secret loaded:", "yes" if app.config.get("RAZORPAY_KEY_SECRET") else "no")
+key_id = app.config.get("RAZORPAY_KEY_ID", "")
+key_secret = app.config.get("RAZORPAY_KEY_SECRET", "")
+
+print("Razorpay Key Prefix:", key_id[:8] if key_id else "missing")
+print("Razorpay Secret Length:", len(key_secret) if key_secret else 0)
 # ✅ Cloudinary config (KEEP)
 cloudinary.config(
     cloud_name=app.config["CLOUDINARY_CLOUD_NAME"],
@@ -217,12 +235,62 @@ def nullable_match_sql(column_name, param_name):
     return f"(({column_name} IS NULL AND :{param_name} IS NULL) OR {column_name}=:{param_name})"
 
 
-SUPPORT_EMAIL = "beltpurse.com@gmail.com"
-RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Belt Purse <noreply@belt-purse.com>")
+SUPPORT_EMAIL = os.environ.get("ADMIN_EMAIL") or os.environ.get("SUPPORT_EMAIL") or "beltpurse.com@gmail.com"
+RESEND_FROM_EMAIL = (
+    os.environ.get("MAIL_FROM")
+    or os.environ.get("RESEND_FROM_EMAIL")
+    or "Belt Purse <noreply@belt-purse.com>"
+)
 
 
 def json_error(message="Something went wrong", status_code=500):
     return jsonify({"success": False, "message": message}), status_code
+
+
+def user_counts(user_id):
+    cart_count = db.session.execute(text("""
+        SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id=:uid
+    """), {"uid": user_id}).scalar() or 0
+    wishlist_count = db.session.execute(text("""
+        SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
+    """), {"uid": user_id}).scalar() or 0
+    return int(cart_count), int(wishlist_count)
+
+
+def cart_totals_payload(user_id):
+    bag_total = db.session.execute(text("""
+        SELECT COALESCE(SUM(p.price * c.quantity),0)
+        FROM cart c
+        JOIN products p ON p.id = c.product_id
+        WHERE c.user_id=:uid
+    """), {"uid": user_id}).scalar() or 0
+    bag_total = float(bag_total)
+    discount = bag_total * 0.1
+    shipping = 50 if bag_total > 0 else 0
+    payable = bag_total - discount + shipping
+    cart_count, wishlist_count = user_counts(user_id)
+    return {
+        "cart_count": cart_count,
+        "wishlist_count": wishlist_count,
+        "bag_total": bag_total,
+        "discount": discount,
+        "shipping": shipping,
+        "payable": payable,
+        "subtotal": bag_total,
+        "is_empty": cart_count <= 0
+    }
+
+
+def cart_line_total(user_id, product_id, color_id=None, size_id=None):
+    return db.session.execute(text("""
+        SELECT COALESCE(p.price * c.quantity,0) AS item_total
+        FROM cart c
+        JOIN products p ON p.id = c.product_id
+        WHERE c.user_id=:uid AND c.product_id=:pid
+        AND ((c.color_id IS NULL AND :cid IS NULL) OR c.color_id=:cid)
+        AND (:sid IS NULL OR c.size_id=:sid)
+        LIMIT 1
+    """), {"uid": user_id, "pid": product_id, "cid": color_id, "sid": size_id}).scalar() or 0
 
 
 def send_resend_email(subject, body="", attachments=None, to_email=None, html=None):
@@ -249,6 +317,400 @@ def send_resend_email(subject, body="", attachments=None, to_email=None, html=No
         params["attachments"] = attachments
 
     return resend.Emails.send(params)
+
+
+def send_resend_email_safe(subject, body="", attachments=None, to_email=None, html=None):
+    try:
+        send_resend_email(subject, body=body, attachments=attachments, to_email=to_email, html=html)
+        return True, None
+    except Exception as exc:
+        app.logger.error("Email send failed for subject %s: %s", subject, exc)
+        return False, exc
+
+
+def get_logged_in_user():
+    if 'email' not in session:
+        return None
+
+    return User.query.filter_by(email=session['email']).first()
+
+
+def get_razorpay_client():
+    key_id = app.config.get("RAZORPAY_KEY_ID")
+    key_secret = app.config.get("RAZORPAY_KEY_SECRET")
+
+    if not key_id or not key_secret:
+        raise RuntimeError(
+            "Razorpay credentials missing. Please create .env from .env.example "
+            "and add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
+        )
+
+    if razorpay is None:
+        raise RuntimeError("razorpay package is not installed")
+
+    return razorpay.Client(auth=(key_id, key_secret))
+
+
+def cart_snapshot_for_user(user_id):
+    cart_items = Cart.query.filter_by(user_id=user_id).all()
+    order_lines = []
+    total = 0.0
+
+    for cart_item in cart_items:
+        product = cart_item.product or Product.query.get(cart_item.product_id)
+        if not product:
+            continue
+
+        quantity = int(cart_item.quantity or 1)
+        price = float(product.price or 0)
+        item_total = price * quantity
+        total += item_total
+        order_lines.append({
+            "product": product,
+            "product_id": product.id,
+            "size_id": cart_item.size_id,
+            "color_id": cart_item.color_id,
+            "quantity": quantity,
+            "price": price,
+            "item_total": item_total,
+        })
+
+    return order_lines, total
+
+
+def create_pending_order_from_cart(user, selected_address, payment_method="Razorpay"):
+    order_lines, total = cart_snapshot_for_user(user.id)
+    if not order_lines:
+        return None, "Cart is empty"
+
+    order = Order(
+        user_id=user.id,
+        address_id=selected_address.id,
+        total_amount=total,
+        status="Pending",
+        order_status="Pending",
+        payment_status="Pending",
+        payment_method=payment_method,
+        tracking_number=f"TRK{user.id}{int(datetime.utcnow().timestamp())}"
+    )
+
+    db.session.add(order)
+    db.session.flush()
+
+    for line in order_lines:
+        db.session.add(OrderItem(
+            order_id=order.id,
+            product_id=line["product_id"],
+            size_id=line["size_id"],
+            color_id=line["color_id"],
+            quantity=line["quantity"],
+            price=line["price"]
+        ))
+
+    db.session.commit()
+    return order, None
+
+
+def reusable_pending_order(user_id, address_id, total):
+    cutoff = datetime.utcnow() - timedelta(hours=2)
+    return Order.query.filter(
+        Order.user_id == user_id,
+        Order.address_id == address_id,
+        Order.payment_status == "Pending",
+        Order.order_status == "Pending",
+        Order.razorpay_order_id.isnot(None),
+        Order.created_at >= cutoff,
+        Order.total_amount == total
+    ).order_by(Order.id.desc()).first()
+
+
+def verify_razorpay_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature):
+    key_secret = app.config.get("RAZORPAY_KEY_SECRET")
+    if not key_secret:
+        raise RuntimeError("Razorpay secret is not configured")
+
+    message = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
+    expected_signature = hmac.new(
+        key_secret.encode("utf-8"),
+        message,
+        hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(expected_signature, razorpay_signature or "")
+
+
+def verify_razorpay_webhook(raw_body, signature):
+    webhook_secret = app.config.get("RAZORPAY_WEBHOOK_SECRET")
+    if not webhook_secret:
+        raise RuntimeError("Razorpay webhook secret is not configured")
+
+    expected_signature = hmac.new(
+        webhook_secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(expected_signature, signature or "")
+
+@app.route("/check-razorpay-order-status", methods=["POST"])
+@app.route("/check-razorpay-payment-status", methods=["POST"])
+def check_razorpay_order_status():
+    print("CHECK RAZORPAY ORDER STATUS HIT")
+    print("Status check data:", request.get_json())
+
+    user = get_logged_in_user()
+    if not user:
+        return json_error("Please login to continue", 401)
+
+    data = request.get_json() or {}
+
+    local_order_id = (
+        data.get("pending_order_id")
+        or data.get("local_order_id")
+        or data.get("order_id")
+    )
+    razorpay_order_id = data.get("razorpay_order_id")
+
+    if not local_order_id or not razorpay_order_id:
+        return json_error("Missing order details", 400)
+
+    order = Order.query.filter_by(
+        id=local_order_id,
+        user_id=user.id
+    ).first()
+
+    if not order:
+        return json_error("Order not found", 404)
+
+    if order.payment_status == "Paid":
+        return jsonify({
+            "success": True,
+            "payment_status": "Paid",
+            "message": "Order already confirmed",
+            "order_id": order.id,
+            "redirect": url_for("order_success", order_id=order.id),
+            "redirect_url": url_for("order_success", order_id=order.id)
+        })
+
+    if order.razorpay_order_id != razorpay_order_id:
+        return json_error("Order mismatch", 400)
+
+    try:
+        client = get_razorpay_client()
+
+        payments = client.order.payments(razorpay_order_id)
+        print("Razorpay order payments:", payments)
+
+        payment_items = payments.get("items", []) if isinstance(payments, dict) else []
+
+        paid_payment = None
+
+        for payment in payment_items:
+            if payment.get("status") in ["captured", "authorized"]:
+                paid_payment = payment
+                break
+
+        if not paid_payment:
+            return jsonify({
+                "success": False,
+                "payment_status": "Pending",
+                "message": "Payment is not completed yet. Your cart is safe."
+            }), 200
+
+        razorpay_payment_id = paid_payment.get("id")
+
+        # ✅ Mark order paid using your existing safe function
+        mark_order_paid(
+            order,
+            razorpay_payment_id=razorpay_payment_id,
+            razorpay_signature=None,
+            send_emails=True
+        )
+
+        return jsonify({
+            "success": True,
+            "payment_status": "Paid",
+            "message": "Payment confirmed successfully",
+            "order_id": order.id,
+            "redirect": url_for("order_success", order_id=order.id),
+            "redirect_url": url_for("order_success", order_id=order.id)
+        })
+
+    except Exception as exc:
+        db.session.rollback()
+        print("Razorpay fallback status check error:", exc)
+        app.logger.error(
+            "Razorpay fallback status check failed for order %s: %s",
+            order.id,
+            exc
+        )
+        return json_error("Could not verify payment status. Please contact support.", 500)
+    
+def build_order_email_lines(order):
+    lines = []
+    for item in order.items:
+        product_name = item.product.name if item.product else f"Product #{item.product_id}"
+        size_label = f", Size: {item.size.size_label}" if item.size else ""
+        color_name = f", Color: {item.color.name}" if item.color else ""
+        lines.append(
+            f"{product_name}{size_label}{color_name} x {item.quantity} - INR {item.price * item.quantity}"
+        )
+    return lines
+
+
+def format_order_address(order):
+    address = Address.query.get(order.address_id) if order.address_id else None
+    if not address:
+        return "Not provided"
+
+    return (
+        f"{address.full_name}, {address.phone}, {address.address_line}, "
+        f"{address.city}, {address.state} - {address.pincode}"
+    )
+
+
+def order_item_image_url(item):
+    image = None
+    if item.color_id:
+        image = ProductImage.query.filter_by(
+            product_id=item.product_id,
+            color_id=item.color_id
+        ).first()
+    if not image:
+        image = ProductImage.query.filter_by(product_id=item.product_id).first()
+    return image.image_url if image else DEFAULT_IMAGE_URL
+
+
+app.jinja_env.globals["order_item_image_url"] = order_item_image_url
+
+
+def send_paid_order_emails(order):
+    address = Address.query.get(order.address_id) if order.address_id else None
+    user = order.user
+    item_lines = build_order_email_lines(order)
+    address_text = format_order_address(order)
+
+    admin_body = "\n".join([
+        "New paid order received.",
+        "",
+        f"Order ID: {order.id}",
+        f"Customer: {user.username if user else ''}",
+        f"Email: {user.email if user else ''}",
+        f"Phone: {address.phone if address else (user.phone if user else '')}",
+        f"Full Address: {address_text}",
+        f"Amount: INR {order.total_amount}",
+        f"Razorpay Payment ID: {order.razorpay_payment_id or ''}",
+        f"Razorpay Order ID: {order.razorpay_order_id or ''}",
+        f"Payment Status: {order.payment_status}",
+        f"Order Status: {order.order_status}",
+        "Products:",
+        *item_lines,
+    ])
+
+    customer_body = "\n".join([
+        f"Hi {user.username if user else 'there'},",
+        "",
+        f"Your BeltPurse order #{order.id} is confirmed.",
+        f"Order ID: {order.id}",
+        f"Amount: INR {order.total_amount}",
+        f"Payment Status: {order.payment_status}",
+        f"Order Status: {order.order_status}",
+        f"Delivery Address: {address_text}",
+        "Products:",
+        *item_lines,
+    ])
+
+    try:
+        send_resend_email("New Paid Order Received - BeltPurse", admin_body)
+    except Exception as exc:
+        app.logger.error("Admin paid order email failed for order %s: %s", order.id, exc)
+
+    if user and user.email:
+        try:
+            send_resend_email(
+                "Your BeltPurse Order is Confirmed",
+                customer_body,
+                to_email=user.email
+            )
+        except Exception as exc:
+            app.logger.error("Customer paid order email failed for order %s: %s", order.id, exc)
+
+
+def build_order_status_email(order):
+    user = order.user
+    item_lines = build_order_email_lines(order)
+    tracking_text = f"\nTracking Number / AWB: {order.tracking_number}" if order.tracking_number else ""
+    courier_text = f"\nCourier Partner: {order.courier_partner}" if order.courier_partner else ""
+    tracking_url_text = f"\nTracking URL: {order.tracking_url}" if order.tracking_url else ""
+
+    if order.order_status == "Shipped":
+        subject = f"Your BeltPurse Order #{order.id} Has Shipped"
+        body = (
+            f"Hi {user.username if user else 'there'},\n\n"
+            f"Your order #{order.id} has been shipped.\n"
+            f"Order Status: Shipped"
+            f"{courier_text}{tracking_text}{tracking_url_text}\n\n"
+            "BeltPurse Team"
+        )
+        return subject, body
+
+    if order.order_status == "Delivered":
+        subject = f"Your BeltPurse Order #{order.id} Was Delivered"
+        body = "\n".join([
+            f"Hi {user.username if user else 'there'},",
+            "",
+            f"Your order #{order.id} has been delivered.",
+            "Order Status: Delivered",
+            "Products:",
+            *item_lines,
+            "",
+            "Thank you for shopping with BeltPurse.",
+            f"For support, contact {SUPPORT_EMAIL}.",
+        ])
+        return subject, body
+
+    subject = f"Your BeltPurse Order #{order.id} Update"
+    body = (
+        f"Hi {user.username if user else 'there'},\n\n"
+        f"Your order #{order.id} status is now: {order.order_status}."
+        f"{courier_text}{tracking_text}{tracking_url_text}\n\n"
+        "BeltPurse Team"
+    )
+    return subject, body
+
+
+def send_order_status_email(order):
+    if not order.user or not order.user.email:
+        return
+
+    subject, body = build_order_status_email(order)
+    send_resend_email_safe(subject, body, to_email=order.user.email)
+
+
+def mark_order_paid(order, razorpay_payment_id=None, razorpay_signature=None, send_emails=True):
+    already_paid = order.payment_status == "Paid"
+
+    if razorpay_payment_id and not order.razorpay_payment_id:
+        order.razorpay_payment_id = razorpay_payment_id
+    if razorpay_signature and not order.razorpay_signature:
+        order.razorpay_signature = razorpay_signature
+
+    order.payment_status = "Paid"
+    order.order_status = "Confirmed"
+    order.status = "Confirmed"
+    order.payment_method = order.payment_method or "Razorpay"
+    if not order.paid_at:
+        order.paid_at = datetime.utcnow()
+
+    if not already_paid:
+        Cart.query.filter_by(user_id=order.user_id).delete()
+
+    db.session.commit()
+
+    if send_emails and not already_paid:
+        send_paid_order_emails(order)
+
+    return already_paid
 
 
 def get_base_url():
@@ -298,6 +760,32 @@ def build_password_reset_email(reset_url, username):
     """
 
 
+def create_password_reset_token(user):
+    PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({"used": True})
+    token = secrets.token_urlsafe(48)
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.utcnow() + timedelta(minutes=30),
+        used=False,
+    )
+    db.session.add(reset_token)
+    db.session.flush()
+    return token
+
+
+def send_password_reset_link(user):
+    token = create_password_reset_token(user)
+    reset_url = build_reset_password_url(token)
+    send_resend_email(
+        "Reset your Belt Purse password",
+        body=f"Open this link to reset your Belt Purse password: {reset_url}",
+        to_email=user.email,
+        html=build_password_reset_email(reset_url, user.username),
+    )
+    return reset_url
+
+
 def build_resend_attachment(file_storage):
     if not file_storage or not file_storage.filename:
         return None
@@ -310,6 +798,10 @@ def build_resend_attachment(file_storage):
         "filename": filename,
         "content": content,
     }
+
+
+def format_support_timestamp():
+    return datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     
 
 def admin_required(f):
@@ -347,9 +839,11 @@ def google_site_verification():
 
 @app.route("/__seed__", methods=["GET"])
 def run_seed_route():
+    if os.environ.get("ENABLE_SEED_ROUTE") != "true":
+        return "Seed route disabled", 403
 
-    # 🔒 simple security key
-    if request.args.get("key") != "1234":
+    seed_key = os.environ.get("SEED_ROUTE_KEY")
+    if not seed_key or request.args.get("key") != seed_key:
         return "Forbidden", 403
 
     from seed import seed_colors, seed_products, seed_admin
@@ -411,6 +905,11 @@ def admin_dashboard():
         orders=total_orders,
         products=total_products
     )
+
+
+@app.route("/admin")
+def admin_root():
+    return redirect("/secure-admin-portal-9821")
 
 from werkzeug.security import generate_password_hash
 
@@ -488,9 +987,17 @@ def admin_products():
         db.joinedload(Product.images),
         db.joinedload(Product.videos), 
         db.joinedload(Product.product_colors).joinedload(ProductColor.color)
-    ).all()
+    ).order_by(Product.id.desc()).all()
 
-    return render_template("admin/products.html", products=products)
+    unique_products = []
+    seen_product_ids = set()
+    for product in products:
+        if product.id in seen_product_ids:
+            continue
+        unique_products.append(product)
+        seen_product_ids.add(product.id)
+
+    return render_template("admin/products.html", products=unique_products)
 @app.route("/admin/products/add", methods=["GET", "POST"])
 @admin_required
 def add_product():
@@ -557,11 +1064,17 @@ def add_product():
             for img in images:
                 if img and allowed_file(img.filename, "image"):
 
-                    result = cloudinary.uploader.upload(img)
+                    result = cloudinary.uploader.upload(
+                        img,
+                        folder="products/images",
+                        resource_type="image"
+                    )
+                    image_url = result.get("secure_url")
+                    print("Uploaded image URL:", image_url)
 
                     db.session.add(ProductImage(
                         product_id=product.id,
-                        image_url=result["secure_url"],
+                        image_url=image_url,
                         color_id=int(color_id),
                         is_primary=not first_for_color   # ✅ per color primary
                     ))
@@ -578,11 +1091,17 @@ def add_product():
         for img in default_images:
             if img and allowed_file(img.filename, "image"):
 
-                result = cloudinary.uploader.upload(img)
+                result = cloudinary.uploader.upload(
+                    img,
+                    folder="products/images",
+                    resource_type="image"
+                )
+                image_url = result.get("secure_url")
+                print("Uploaded image URL:", image_url)
 
                 db.session.add(ProductImage(
                     product_id=product.id,
-                    image_url=result["secure_url"],
+                    image_url=image_url,
                     color_id=None,
                     is_primary=not first_default
                 ))
@@ -622,6 +1141,7 @@ def add_product():
                 ))
 
         db.session.commit()
+        print("Product saved ID:", product.id)
         return redirect("/admin/products")
 
     # GET
@@ -687,11 +1207,17 @@ def edit_product(id):
             for img in images:
                 if img and allowed_file(img.filename, "image"):
 
-                    result = cloudinary.uploader.upload(img)
+                    result = cloudinary.uploader.upload(
+                        img,
+                        folder="products/images",
+                        resource_type="image"
+                    )
+                    image_url = result.get("secure_url")
+                    print("Uploaded image URL:", image_url)
 
                     db.session.add(ProductImage(
                         product_id=id,
-                        image_url=result["secure_url"],
+                        image_url=image_url,
                         color_id=int(color_id),
                         is_primary=False
                     ))
@@ -704,11 +1230,17 @@ def edit_product(id):
         for img in default_images:
             if img and allowed_file(img.filename, "image"):
 
-                result = cloudinary.uploader.upload(img)
+                result = cloudinary.uploader.upload(
+                    img,
+                    folder="products/images",
+                    resource_type="image"
+                )
+                image_url = result.get("secure_url")
+                print("Uploaded image URL:", image_url)
 
                 db.session.add(ProductImage(
                     product_id=id,
-                    image_url=result["secure_url"],
+                    image_url=image_url,
                     color_id=None,
                     is_primary=False
                 ))
@@ -838,6 +1370,11 @@ def delete_product(id):
     order_item = OrderItem.query.filter_by(product_id=id).first()
 
     if order_item:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({
+                "success": False,
+                "message": "Cannot delete. Product is used in an order."
+            }), 400
         return """
         <script>
             alert("❌ Cannot delete! Product is used in an order.");
@@ -854,6 +1391,13 @@ def delete_product(id):
     db.session.delete(product)
     db.session.commit()
 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": True,
+            "product_id": id,
+            "message": "Product deleted successfully"
+        })
+
     return redirect("/admin/products")
 
 
@@ -864,6 +1408,9 @@ def delete_video(id):
 
     db.session.delete(video)
     db.session.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "id": id, "message": "Video deleted"})
 
     return redirect(request.referrer)
 
@@ -887,6 +1434,9 @@ def delete_image(id):
             replacement.is_primary = True
 
     db.session.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "id": id, "message": "Image deleted"})
 
     return redirect(request.referrer)
 
@@ -926,6 +1476,7 @@ def generate_slug(title, blog_id=None):
 
 # 📚 All Blogs (Admin Panel)
 @app.route('/admin/blogs')
+@admin_required
 def admin_blogs():
     blogs = Blog.query.order_by(
         Blog.created_at.is_(None),
@@ -942,6 +1493,7 @@ def admin_blogs():
 
 # ➕ Add Blog
 @app.route('/admin/blogs/add', methods=['GET', 'POST'])
+@admin_required
 def add_blog():
 
     categories =  Category.query.all()
@@ -1004,6 +1556,7 @@ def add_blog():
 
 # ✏️ Edit Blog
 @app.route('/admin/blogs/edit/<int:id>', methods=['GET', 'POST'])
+@admin_required
 def edit_blog(id):
     blog = Blog.query.get_or_404(id)
     categories =  Category.query.all()
@@ -1053,6 +1606,7 @@ def edit_blog(id):
 
 # 🗑 Delete Blog
 @app.route('/admin/blogs/delete/<int:id>')
+@admin_required
 def delete_blog(id):
     blog = Blog.query.get_or_404(id)
 
@@ -1062,9 +1616,17 @@ def delete_blog(id):
     db.session.delete(blog)
     db.session.commit()
 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": True,
+            "blog_id": id,
+            "message": "Blog deleted successfully"
+        })
+
     return redirect('/admin/blogs')
 
 @app.route('/upload-image', methods=['POST'])
+@admin_required
 def upload_image():
     file = request.files.get('image')
 
@@ -1081,31 +1643,88 @@ def upload_image():
 
 
 @app.route('/admin/orders')
+@admin_required
 def admin_orders():
-    orders = Order.query.order_by(Order.id.desc()).all()
-    return render_template("admin/orders.html", orders=orders)
+    status_filter = (request.args.get("status") or "").strip()
+    payment_filter = (request.args.get("payment_status") or "").strip()
+
+    query = Order.query
+    if status_filter:
+        query = query.filter(Order.order_status == status_filter)
+    if payment_filter:
+        query = query.filter(Order.payment_status == payment_filter)
+
+    orders = query.order_by(Order.id.desc()).all()
+    return render_template(
+        "admin/orders.html",
+        orders=orders,
+        status_filter=status_filter,
+        payment_filter=payment_filter
+    )
 
 @app.route('/admin/orders/<int:id>')
+@admin_required
 def order_detail(id):
     order = Order.query.get_or_404(id)
     items = OrderItem.query.filter_by(order_id=id).all()
-    return render_template("admin/order_detail.html", order=order, items=items)
+    address = Address.query.get(order.address_id) if order.address_id else None
+    return render_template("admin/order_detail.html", order=order, items=items, address=address)
+
+
+@app.route('/admin/order/<int:id>')
+@admin_required
+def order_detail_legacy(id):
+    return redirect(url_for("order_detail", id=id))
 
 @app.route('/admin/orders/update/<int:id>', methods=['POST'])
+@admin_required
 def update_order(id):
     order = Order.query.get_or_404(id)
 
+    previous_status = order.order_status or order.status
+    previous_tracking = order.tracking_number
+    previous_courier = order.courier_partner
+    previous_tracking_url = order.tracking_url
     order.status = request.form['status']
-    order.tracking_number = request.form['tracking_number']
+    order.order_status = request.form['status']
+    order.tracking_number = (request.form.get('tracking_number') or '').strip() or None
+    order.courier_partner = (request.form.get('courier_partner') or '').strip() or None
+    order.tracking_url = (request.form.get('tracking_url') or '').strip() or None
 
     db.session.commit()
+
+    if order.user and order.user.email and (
+        previous_status != order.order_status
+        or previous_tracking != order.tracking_number
+        or previous_courier != order.courier_partner
+        or previous_tracking_url != order.tracking_url
+    ):
+        send_order_status_email(order)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": True,
+            "order_id": order.id,
+            "status": order.order_status,
+            "tracking_number": order.tracking_number or "",
+            "courier_partner": order.courier_partner or "",
+            "tracking_url": order.tracking_url or "",
+            "message": "Order updated successfully"
+        })
+
     return redirect('/admin/orders')
 
 @app.route('/my-orders')
 def my_orders():
     user_id = session.get('user_id')
+    if not user_id and 'email' in session:
+        user = User.query.filter_by(email=session['email']).first()
+        user_id = user.id if user else None
 
-    orders = Order.query.filter_by(user_id=user_id).all()
+    if not user_id:
+        return redirect('/?show_login=1')
+
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
 
     return render_template("user/orders.html", orders=orders)
 
@@ -1145,6 +1764,20 @@ def admin_users():
     users = User.query.order_by(User.id.desc()).all()
     return render_template("admin/users.html", users=users)
 
+
+@app.route("/admin/issues")
+@admin_required
+def admin_issues():
+    tickets = Ticket.query.order_by(Ticket.created_at.desc()).all()
+    return render_template("admin/issues.html", tickets=tickets)
+
+
+@app.route("/admin/warranty")
+@admin_required
+def admin_warranty():
+    warranty_claims = Warranty.query.order_by(Warranty.created_at.desc()).all()
+    return render_template("admin/warranty.html", warranty_claims=warranty_claims)
+
 # Fetch orders for modal
 @app.route("/admin/users/<int:user_id>/orders")
 @admin_required
@@ -1155,9 +1788,12 @@ def admin_user_orders(user_id):
         order_list.append({
             "id": o.id,
             "total_amount": o.total_amount,
-            "status": o.status,
+            "status": o.order_status or o.status,
+            "payment_status": o.payment_status,
             "created_at": o.created_at.strftime("%Y-%m-%d %H:%M"),
-            "tracking_number": o.tracking_number
+            "tracking_number": o.tracking_number,
+            "courier_partner": o.courier_partner,
+            "tracking_url": o.tracking_url
         })
     return jsonify({"orders": order_list})
 
@@ -1254,7 +1890,7 @@ from werkzeug.security import generate_password_hash
 
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     if not data:
         return jsonify({"message": "No data received"}), 400
@@ -1297,7 +1933,7 @@ from flask import request, jsonify, session
 # LOGIN FIX
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     if not data:
         return jsonify({"message": "Invalid request"}), 400
@@ -1346,32 +1982,34 @@ def forgot_password():
         return jsonify({"success": False, "message": "Email/User not found."}), 404
 
     try:
-        PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({"used": True})
-
-        token = secrets.token_urlsafe(48)
-        reset_token = PasswordResetToken(
-            user_id=user.id,
-            token=token,
-            expires_at=datetime.utcnow() + timedelta(minutes=30),
-            used=False,
-        )
-        db.session.add(reset_token)
-        db.session.flush()
-
-        reset_url = build_reset_password_url(token)
-        send_resend_email(
-            "Reset your Belt Purse password",
-            body=f"Open this link to reset your Belt Purse password: {reset_url}",
-            to_email=user.email,
-            html=build_password_reset_email(reset_url, user.username),
-        )
+        send_password_reset_link(user)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        print(f"Password reset email error: {e}")
+        app.logger.error("Password reset email error for %s: %s", email, e)
         return jsonify({"success": False, "message": "Unable to send reset link right now."}), 500
 
     return jsonify({"success": True, "message": "Reset password link sent to your email."}), 200
+
+
+@app.route('/account/change-password', methods=['POST'])
+def account_change_password():
+    user = get_logged_in_user()
+    if not user:
+        return jsonify({"success": False, "message": "Please login to continue."}), 401
+
+    try:
+        send_password_reset_link(user)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("Account password reset email error for user %s: %s", user.id, e)
+        return jsonify({"success": False, "message": "Unable to send reset link right now."}), 500
+
+    return jsonify({
+        "success": True,
+        "message": "Password reset link sent to your registered email."
+    })
 
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -1550,12 +2188,21 @@ def api_search():
 
 @app.route('/api/warranty', methods=['POST'])
 def warranty():
+    return register_warranty()
+
+
+@app.route('/register-warranty', methods=['POST'])
+def register_warranty():
 
     name = request.form.get('name')
     phone = request.form.get('phone')
     email = request.form.get('email')
     address = request.form.get('address')
     purchase = request.form.get('purchase')
+    order_id = request.form.get('order_id')
+    product_name = request.form.get('product_name')
+    purchase_date = request.form.get('purchase_date')
+    message = request.form.get('message')
 
     file = request.files.get('bill')
 
@@ -1564,19 +2211,61 @@ def warranty():
        ext = file.filename.split('.')[-1]
        filename = f"{uuid.uuid4()}.{ext}"
 
+    if not name or not phone or not purchase:
+        return json_error("Name, phone, and purchase source are required", 400)
+
     new_claim = Warranty(
         name=name,
         phone=phone,
         email=email,
         address=address,
         purchase=purchase,
+        order_id=order_id,
+        product_name=product_name,
+        purchase_date=purchase_date,
+        message=message,
         bill=filename
     )
 
     db.session.add(new_claim)
     db.session.commit()
 
-    return jsonify({"message": "Warranty claim submitted successfully"})
+    body = (
+        "New warranty registration received from Belt Purse account page.\n\n"
+        f"Customer Name: {name}\n"
+        f"Email: {email or 'Not provided'}\n"
+        f"Phone: {phone}\n"
+        f"Order ID: {order_id or 'Not provided'}\n"
+        f"Product Name: {product_name or 'Not provided'}\n"
+        f"Purchase Date: {purchase_date or 'Not provided'}\n"
+        f"Purchase Source: {purchase}\n"
+        f"Address: {address or 'Not provided'}\n"
+        f"Message: {message or 'Not provided'}\n"
+        f"Date/Time: {format_support_timestamp()}"
+    )
+
+    attachment = build_resend_attachment(file)
+    try:
+        send_resend_email(
+            "New Warranty Registration - Belt Purse",
+            body,
+            attachments=[attachment] if attachment else None
+        )
+        if email:
+            send_resend_email_safe(
+                "Warranty Registration Received - BeltPurse",
+                (
+                    f"Hi {name},\n\n"
+                    "We received your warranty registration. Our team will review it and contact you soon.\n\n"
+                    "BeltPurse Team"
+                ),
+                to_email=email
+            )
+    except Exception as e:
+        app.logger.error("Warranty email failed for warranty %s: %s", new_claim.id, e)
+        return json_error("Warranty saved, but email could not be sent right now.", 500)
+
+    return jsonify({"success": True, "message": "Warranty claim submitted successfully"})
 
 
 @app.route('/send-contact-email', methods=['POST'])
@@ -1593,15 +2282,28 @@ def send_contact_email():
         body = (
             "New contact message received from Belt Purse website.\n\n"
             f"Customer Name: {name}\n"
-            f"Customer Email: {email}\n\n"
+            f"Customer Email: {email}\n"
+            f"Date/Time: {format_support_timestamp()}\n\n"
             f"Message:\n{message}"
         )
 
         send_resend_email("New Contact Message - Belt Purse", body)
-        return jsonify({"success": True, "message": "Email sent successfully"})
+
+        customer_body = (
+            f"Hi {name},\n\n"
+            "We received your message and our team will contact you soon.\n\n"
+            "BeltPurse Team"
+        )
+        send_resend_email_safe(
+            "We received your message - BeltPurse",
+            customer_body,
+            to_email=email
+        )
+
+        return jsonify({"success": True, "message": "Message sent successfully"})
     except Exception as e:
-        print(f"Error sending contact email: {e}")
-        return json_error()
+        app.logger.error("Error sending contact email: %s", e)
+        return json_error("Unable to send your message right now. Please try again.", 500)
 
 
 @app.route('/send-help-email', methods=['POST'])
@@ -1612,6 +2314,9 @@ def send_help_email():
         message = (data.get("message") or "").strip()
         user_email = (data.get("user_email") or "").strip()
         user_name = (data.get("user_name") or "").strip()
+        phone = (data.get("phone") or "").strip()
+        order_id = (data.get("order_id") or "").strip()
+        category = (data.get("category") or subject).strip()
 
         if not subject or not message:
             return json_error("Subject and message are required", 400)
@@ -1620,15 +2325,77 @@ def send_help_email():
             "New support issue submitted from Belt Purse account page.\n\n"
             f"Name: {user_name or 'Not provided'}\n"
             f"Email: {user_email or 'Not provided'}\n"
+            f"Phone: {phone or 'Not provided'}\n"
+            f"Order ID: {order_id or 'Not provided'}\n"
+            f"Issue Type: {category or 'Not provided'}\n"
+            f"Date/Time: {format_support_timestamp()}\n"
             f"Subject: {subject}\n\n"
             f"Message:\n{message}"
         )
 
         send_resend_email(f"New Support Issue - {subject}", body)
+
+        if user_email:
+            send_resend_email_safe(
+                "We received your issue - BeltPurse",
+                "We have received your issue and our team will contact you soon.",
+                to_email=user_email
+            )
+
         return jsonify({"success": True, "message": "Email sent successfully"})
     except Exception as e:
-        print(f"Error sending help email: {e}")
-        return json_error()
+        app.logger.error("Error sending help email: %s", e)
+        return json_error("Unable to send support email right now. Please try again.", 500)
+
+
+@app.route('/submit-issue', methods=['POST'])
+def submit_issue():
+    user = get_logged_in_user()
+    if not user:
+        return jsonify({"success": False, "message": "Please login to continue."}), 401
+
+    subject = (request.form.get("subject") or request.form.get("category") or "").strip()
+    message = (request.form.get("message") or "").strip()
+    category = (request.form.get("category") or subject).strip()
+    order_id = (request.form.get("order_id") or "").strip()
+    phone = (request.form.get("phone") or user.phone or "").strip()
+    attachment = build_resend_attachment(request.files.get("attachment"))
+
+    if not subject or not message:
+        return json_error("Subject and message are required", 400)
+
+    ticket = Ticket(user_id=user.id, subject=subject, message=message)
+    db.session.add(ticket)
+    db.session.commit()
+
+    body = (
+        "New support issue submitted from Belt Purse account page.\n\n"
+        f"Name: {user.username}\n"
+        f"Email: {user.email}\n"
+        f"Phone: {phone or 'Not provided'}\n"
+        f"Order ID: {order_id or 'Not provided'}\n"
+        f"Issue Type: {category or 'Not provided'}\n"
+        f"Ticket ID: {ticket.id}\n"
+        f"Date/Time: {format_support_timestamp()}\n\n"
+        f"Message:\n{message}"
+    )
+
+    try:
+        send_resend_email(
+            f"New Support Issue - {subject}",
+            body,
+            attachments=[attachment] if attachment else None
+        )
+        send_resend_email_safe(
+            "We received your issue - BeltPurse",
+            "We have received your issue and our team will contact you soon.",
+            to_email=user.email
+        )
+    except Exception as e:
+        app.logger.error("Support issue email failed for ticket %s: %s", ticket.id, e)
+        return json_error("Issue saved, but email could not be sent right now.", 500)
+
+    return jsonify({"success": True, "message": "Issue submitted successfully", "ticket_id": ticket.id})
 
 
 @app.route('/send-warranty-email', methods=['POST'])
@@ -1639,6 +2406,10 @@ def send_warranty_email():
         email = (request.form.get("w_email") or "").strip()
         purchase = (request.form.get("w_purchase") or "").strip()
         address = (request.form.get("w_address") or "").strip()
+        order_id = (request.form.get("w_order_id") or "").strip()
+        product_name = (request.form.get("w_product_name") or "").strip()
+        purchase_date = (request.form.get("w_purchase_date") or "").strip()
+        message = (request.form.get("w_message") or "").strip()
 
         if not name or not phone or not purchase:
             return json_error("Name, phone, and purchase source are required", 400)
@@ -1648,8 +2419,13 @@ def send_warranty_email():
             f"Full Name: {name}\n"
             f"Phone: {phone}\n"
             f"Email: {email or 'Not provided'}\n"
+            f"Order ID: {order_id or 'Not provided'}\n"
+            f"Product Name: {product_name or 'Not provided'}\n"
+            f"Purchase Date: {purchase_date or 'Not provided'}\n"
             f"Purchase Source: {purchase}\n"
-            f"Address: {address or 'Not provided'}"
+            f"Address: {address or 'Not provided'}\n"
+            f"Message: {message or 'Not provided'}\n"
+            f"Date/Time: {format_support_timestamp()}"
         )
 
         bill = request.files.get("w_bill")
@@ -1667,10 +2443,21 @@ def send_warranty_email():
             print(f"Error sending warranty attachment, retrying without attachment: {attachment_error}")
             send_resend_email("New Warranty Registration - Belt Purse", body)
 
+        if email:
+            send_resend_email_safe(
+                "Warranty Registration Received - BeltPurse",
+                (
+                    f"Hi {name},\n\n"
+                    "We received your warranty registration. Our team will review it and contact you soon.\n\n"
+                    "BeltPurse Team"
+                ),
+                to_email=email
+            )
+
         return jsonify({"success": True, "message": "Email sent successfully"})
     except Exception as e:
-        print(f"Error sending warranty email: {e}")
-        return json_error()
+        app.logger.error("Error sending warranty email: %s", e)
+        return json_error("Unable to send warranty email right now. Please try again.", 500)
 # ================= PRODUCT DETAIL =================
 @app.route('/product/<int:id>')
 def product_detail(id):
@@ -1869,14 +2656,12 @@ def remove_cart(id):
 
     db.session.commit()
 
-    count = db.session.execute(text("""
-        SELECT COALESCE(SUM(quantity),0)
-        FROM cart WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
-
+    payload = cart_totals_payload(user.id)
     return jsonify({
         "success": True,
-        "count": count
+        **payload,
+        "count": payload["cart_count"],
+        "message": "Removed from cart"
     })
 
 
@@ -1948,11 +2733,13 @@ def add_to_cart(id):
 
     db.session.commit()
 
-    count = db.session.execute(text(
-        "SELECT COALESCE(SUM(quantity), 0) FROM cart WHERE user_id=:uid"
-    ), {"uid": user.id}).scalar()
-
-    return jsonify({"success": True, "count": count})
+    payload = cart_totals_payload(user.id)
+    return jsonify({
+        "success": True,
+        **payload,
+        "count": payload["cart_count"],
+        "message": "Added to cart"
+    })
 
 
 # ================= WISHLIST =================
@@ -1978,12 +2765,15 @@ def add_to_wishlist(id):
         """), {"uid": user.id, "pid": id, "cid": color_id})
         db.session.commit()
 
-    # count from DB
-    count = db.session.execute(text("""
-        SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
-
-    return jsonify({"count": count})
+    cart_count, wishlist_count = user_counts(user.id)
+    return jsonify({
+        "success": True,
+        "action": "added" if not existing else "exists",
+        "wishlist_count": wishlist_count,
+        "cart_count": cart_count,
+        "count": wishlist_count,
+        "message": "Added to wishlist" if not existing else "Already in wishlist"
+    })
 
 @app.route('/get_wishlist')
 def get_wishlist():
@@ -2040,7 +2830,14 @@ def remove_wishlist(id):
     )
     db.session.commit()
 
-    return "Removed"
+    cart_count, wishlist_count = user_counts(user.id)
+    return jsonify({
+        "success": True,
+        "action": "removed",
+        "wishlist_count": wishlist_count,
+        "cart_count": cart_count,
+        "message": "Removed from wishlist"
+    })
 
 def get_user():
     return User.query.filter_by(email=session.get('email')).first()
@@ -2140,14 +2937,16 @@ def toggle_wishlist(product_id):
 
     db.session.commit()
 
-    # 🔥 LIVE COUNT SAFE (UNCHANGED BEHAVIOR)
-    count = db.session.execute(text("""
-        SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
+    cart_count, wishlist_count = user_counts(user.id)
 
     return jsonify({
+        "success": True,
         "in_wishlist": in_wishlist,
-        "count": count
+        "action": "added" if in_wishlist else "removed",
+        "count": wishlist_count,
+        "wishlist_count": wishlist_count,
+        "cart_count": cart_count,
+        "message": "Added to wishlist" if in_wishlist else "Removed from wishlist"
     })
 @app.route("/cart/toggle/<int:product_id>", methods=["POST"])
 def toggle_cart(product_id):
@@ -2205,12 +3004,14 @@ def toggle_cart(product_id):
 
     db.session.commit()
 
-    count = db.session.execute(text("""
-        SELECT COALESCE(SUM(quantity),0)
-        FROM cart WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
-
-    return jsonify({"in_cart": in_cart, "count": count})
+    payload = cart_totals_payload(user.id)
+    return jsonify({
+        "success": True,
+        "in_cart": in_cart,
+        **payload,
+        "count": payload["cart_count"],
+        "message": "Added to cart" if in_cart else "Removed from cart"
+    })
 
 @app.route("/cart/check/<int:product_id>")
 def check_cart(product_id):
@@ -2243,13 +3044,7 @@ def get_counts():
       session.clear()              # ← clear stale session
       return jsonify({"cart": 0, "wishlist": 0})
 
-    cart_count = db.session.execute(text("""
-        SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
-
-    wishlist_count = db.session.execute(text("""
-        SELECT COUNT(*) FROM wishlist WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
+    cart_count, wishlist_count = user_counts(user.id)
 
     return jsonify({
         "cart": cart_count,
@@ -2304,12 +3099,15 @@ def update_quantity(product_id, action):
 
     db.session.commit()
 
-    # return updated cart count
-    new_count = db.session.execute(text("""
-        SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id=:uid
-    """), {"uid": user.id}).scalar()
-
-    return jsonify({"status": "ok", "quantity": qty, "cart_count": new_count})
+    payload = cart_totals_payload(user.id)
+    return jsonify({
+        "success": True,
+        "status": "ok",
+        "quantity": max(qty, 0),
+        "item_total": float(cart_line_total(user.id, product_id, color_id, size_id)) if qty > 0 else 0,
+        **payload,
+        "message": "Cart updated"
+    })
 
 
 
@@ -2359,7 +3157,19 @@ def api_orders():
     return jsonify([{
         "id": o.id,
         "total": o.total_amount,
-        "status": o.status,
+        "status": o.order_status or o.status,
+        "payment_status": o.payment_status or "Pending",
+        "tracking_number": o.tracking_number,
+        "courier_partner": o.courier_partner,
+        "tracking_url": o.tracking_url,
+        "items": [{
+            "product_name": item.product.name if item.product else f"Product #{item.product_id}",
+            "product_image": order_item_image_url(item),
+            "size": item.size.size_label if item.size else None,
+            "color": item.color.name if item.color else None,
+            "quantity": item.quantity,
+            "price": item.price
+        } for item in o.items],
         "created_at": o.created_at.isoformat() if o.created_at else None
     } for o in orders])
 
@@ -2369,23 +3179,41 @@ def add_address():
     if 'email' not in session:
         return jsonify({"message": "Login required"}), 401
 
-    data = request.get_json()
+    data = request.get_json() or {}
     user = User.query.filter_by(email=session['email']).first()
+    if not user:
+        return jsonify({"message": "Login required"}), 401
+
+    user_phone = (user.phone or "").strip()
+    alternate_phone = (data.get("alternate_phone") or "").strip()
+
+    if not user_phone:
+        return jsonify({"message": "Please add your phone number before placing order."}), 400
+
+    if alternate_phone and not re.fullmatch(r"[6-9]\d{9}", alternate_phone):
+        return jsonify({"message": "Please enter a valid 10 digit phone number"}), 400
+
+    delivery_phone = alternate_phone or user_phone
 
     address = Address(
         user_id=user.id,   # ✅ FIXED
-        full_name=data['full_name'],
-        phone=data['phone'],
-        address_line=data['address_line'],
-        city=data['city'],
-        state=data['state'],
-        pincode=data['pincode']
+        full_name=(data.get('full_name') or '').strip(),
+        phone=delivery_phone,
+        address_line=(data.get('address_line') or '').strip(),
+        city=(data.get('city') or '').strip(),
+        state=(data.get('state') or '').strip(),
+        pincode=(data.get('pincode') or '').strip()
     )
 
     db.session.add(address)
     db.session.commit()
 
-    return jsonify({"message": "Address saved"})
+    return jsonify({"message": "Address saved", "phone": delivery_phone})
+
+
+@app.route('/add-address', methods=['POST'])
+def add_address_alias():
+    return add_address()
 
 @app.route('/get_addresses')
 def get_addresses():
@@ -2397,7 +3225,7 @@ def get_addresses():
     addresses = Address.query.filter_by(user_id=user.id).all()  # ✅ FIXED
     return jsonify([{
        "full_name": a.full_name,
-        "phone": a.phone,
+        "phone": a.phone or user.phone,
         "address_line": a.address_line,
         "city": a.city,
         "state": a.state,
@@ -2509,7 +3337,6 @@ def checkout_review():
             "email": user.email,
             "phone": user.phone or None,
             "dob": user.dob.strftime('%Y-%m-%d') if user.dob else None,
-            "phone_warning": "⚠️ Phone number not set" if not user.phone else None
         },
         "cart": cart_details,
         "cart_count": len(cart_details),
@@ -2520,6 +3347,35 @@ def checkout_review():
     }
 
     return jsonify(review_data)
+
+@app.route('/profile/update-phone', methods=['POST'])
+def update_profile_phone():
+    user = get_logged_in_user()
+    if not user:
+        return jsonify({
+            "success": False,
+            "message": "Please login to continue",
+            "phone": None
+        }), 401
+
+    data = request.get_json(silent=True) or {}
+    phone = (data.get("phone") or "").strip()
+
+    if not re.fullmatch(r"[6-9]\d{9}", phone):
+        return jsonify({
+            "success": False,
+            "message": "Please enter a valid 10 digit phone number",
+            "phone": None
+        }), 400
+
+    user.phone = phone
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Phone number saved",
+        "phone": user.phone
+    })
 
 @app.route('/api/sync-guest-cart', methods=['POST'])
 def sync_guest_cart():
@@ -2570,6 +3426,245 @@ def sync_guest_wishlist():
     return jsonify({"message": "Wishlist synced"})
 
 
+@app.route('/create-razorpay-order', methods=['POST'])
+def create_razorpay_order():
+    user = get_logged_in_user()
+    if not user:
+        return json_error("Please login to continue", 401)
+
+    if not user.phone or user.phone.strip() == "":
+        return jsonify({
+            "success": False,
+            "message": "Please add your phone number before placing order.",
+            "error_type": "missing_phone",
+            "redirect": "/account"
+        }), 400
+
+    data = request.get_json() or {}
+    addresses = Address.query.filter_by(user_id=user.id).all()
+    if not addresses:
+        return json_error("No address found", 400)
+
+    try:
+        selected_index = int(data.get("address_index", 0))
+    except (TypeError, ValueError):
+        return json_error("Invalid address", 400)
+
+    if selected_index < 0 or selected_index >= len(addresses):
+        return json_error("Invalid address", 400)
+
+    selected_address = addresses[selected_index]
+    if not selected_address.phone:
+        selected_address.phone = user.phone
+        db.session.commit()
+    cart_lines, cart_total = cart_snapshot_for_user(user.id)
+    if not cart_lines:
+        return json_error("Cart is empty", 400)
+
+    try:
+        client = get_razorpay_client()
+    except RuntimeError as exc:
+        app.logger.error("Razorpay setup error: %s", exc)
+        return json_error(str(exc), 500)
+
+    existing_order = reusable_pending_order(user.id, selected_address.id, cart_total)
+    if existing_order:
+        return jsonify({
+            "success": True,
+            "key": app.config.get("RAZORPAY_KEY_ID"),
+            "key_id": app.config.get("RAZORPAY_KEY_ID"),
+            "amount": int(round(float(existing_order.total_amount or 0) * 100)),
+            "currency": "INR",
+            "razorpay_order_id": existing_order.razorpay_order_id,
+            "order_id": existing_order.id,
+            "pending_order_id": existing_order.id,
+            "local_order_id": existing_order.id,
+            "user_name": selected_address.full_name or user.username,
+            "user_email": user.email,
+            "user_phone": selected_address.phone or user.phone,
+            "name": "BeltPurse",
+            "description": f"Order #{existing_order.id}",
+            "customer": {
+                "name": selected_address.full_name or user.username,
+                "email": user.email,
+                "phone": selected_address.phone or user.phone
+            }
+        })
+
+    order, error = create_pending_order_from_cart(user, selected_address, payment_method="Razorpay")
+    if error:
+        return json_error(error, 400)
+
+    amount_paise = int(round(float(order.total_amount or 0) * 100))
+    if amount_paise <= 0:
+        order.payment_status = "Failed"
+        order.order_status = "Payment Failed"
+        order.status = "Payment Failed"
+        db.session.commit()
+        return json_error("Invalid order amount", 400)
+
+    try:
+        razorpay_order = client.order.create({
+            "amount": amount_paise,
+            "currency": "INR",
+            "receipt": f"order_{order.id}",
+            "payment_capture": 1,
+            "notes": {
+                "local_order_id": str(order.id),
+                "user_id": str(user.id)
+            }
+        })
+    except Exception as exc:
+        app.logger.error("Razorpay order creation failed for local order %s: %s", order.id, exc)
+        order.payment_status = "Failed"
+        order.order_status = "Payment Failed"
+        order.status = "Payment Failed"
+        db.session.commit()
+        if "Authentication failed" in str(exc):
+            return json_error(
+                "Razorpay authentication failed. Please check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env.",
+                500
+            )
+        return json_error("Payment could not be started. Please try again.", 500)
+
+    order.razorpay_order_id = razorpay_order.get("id")
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "key": app.config.get("RAZORPAY_KEY_ID"),
+        "key_id": app.config.get("RAZORPAY_KEY_ID"),
+        "amount": amount_paise,
+        "currency": "INR",
+        "razorpay_order_id": order.razorpay_order_id,
+        "order_id": order.id,
+        "pending_order_id": order.id,
+        "local_order_id": order.id,
+        "user_name": selected_address.full_name or user.username,
+        "user_email": user.email,
+        "user_phone": selected_address.phone or user.phone,
+        "name": "BeltPurse",
+        "description": f"Order #{order.id}",
+        "customer": {
+            "name": selected_address.full_name or user.username,
+            "email": user.email,
+            "phone": selected_address.phone or user.phone
+        }
+    })
+
+
+@app.route('/verify-payment', methods=['POST'])
+@app.route('/verify-razorpay-payment', methods=['POST'])
+def verify_razorpay_payment():
+    print("VERIFY PAYMENT ROUTE HIT")
+    print("Verify payment data:", request.get_json())
+
+    user = get_logged_in_user()
+    if not user:
+        return json_error("Please login to continue", 401)
+
+    data = request.get_json() or {}
+    local_order_id = data.get("pending_order_id") or data.get("local_order_id") or data.get("order_id")
+    razorpay_order_id = data.get("razorpay_order_id")
+    razorpay_payment_id = data.get("razorpay_payment_id")
+    razorpay_signature = data.get("razorpay_signature")
+
+    if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+        return json_error("Missing payment details", 400)
+
+    order = Order.query.filter_by(id=local_order_id, user_id=user.id).first()
+    if not order:
+        return json_error("Order not found", 404)
+
+    if order.payment_status == "Paid":
+        return jsonify({
+            "success": True,
+            "message": "Payment already verified",
+            "order_id": order.id,
+            "redirect": url_for("order_success", order_id=order.id),
+            "redirect_url": url_for("order_success", order_id=order.id)
+        })
+
+    if order.razorpay_order_id != razorpay_order_id:
+        order.payment_status = "Failed"
+        order.order_status = "Payment Failed"
+        order.status = "Payment Failed"
+        db.session.commit()
+        return json_error("Payment verification failed", 400)
+
+    try:
+        signature_ok = verify_razorpay_signature(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        )
+    except Exception as exc:
+        app.logger.error("Razorpay signature verification error for order %s: %s", order.id, exc)
+        signature_ok = False
+
+    if not signature_ok:
+        order.razorpay_payment_id = razorpay_payment_id
+        order.razorpay_signature = razorpay_signature
+        order.payment_status = "Failed"
+        order.order_status = "Payment Failed"
+        order.status = "Payment Failed"
+        db.session.commit()
+        return json_error("Payment verification failed. Your cart is safe.", 400)
+
+    mark_order_paid(order, razorpay_payment_id, razorpay_signature)
+
+    return jsonify({
+        "success": True,
+        "message": "Payment verified successfully",
+        "order_id": order.id,
+        "redirect": url_for("order_success", order_id=order.id),
+        "redirect_url": url_for("order_success", order_id=order.id)
+    })
+
+
+@app.route('/razorpay-webhook', methods=['POST'])
+def razorpay_webhook():
+    raw_body = request.get_data()
+    signature = request.headers.get("X-Razorpay-Signature")
+
+    try:
+        if not verify_razorpay_webhook(raw_body, signature):
+            return jsonify({"success": False}), 400
+    except Exception as exc:
+        app.logger.error("Razorpay webhook verification error: %s", exc)
+        return jsonify({"success": False}), 400
+
+    try:
+        event = json.loads(raw_body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return jsonify({"success": False}), 400
+
+    event_name = event.get("event")
+    payload = event.get("payload", {})
+    payment_entity = (payload.get("payment") or {}).get("entity") or {}
+    order_entity = (payload.get("order") or {}).get("entity") or {}
+
+    razorpay_order_id = payment_entity.get("order_id") or order_entity.get("id")
+    razorpay_payment_id = payment_entity.get("id")
+
+    if event_name in ("payment.captured", "order.paid") and razorpay_order_id:
+        order = Order.query.filter_by(razorpay_order_id=razorpay_order_id).first()
+        if order:
+            mark_order_paid(order, razorpay_payment_id=razorpay_payment_id, send_emails=True)
+
+    return jsonify({"success": True})
+
+
+@app.route('/order-success/<int:order_id>')
+def order_success(order_id):
+    user = get_logged_in_user()
+    if not user:
+        return redirect('/?show_login=1')
+
+    order = Order.query.filter_by(id=order_id, user_id=user.id).first_or_404()
+    return render_template("order_success.html", order=order)
+
+
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     if 'email' not in session:
@@ -2577,13 +3672,21 @@ def checkout():
                return redirect('/')
         return jsonify({"message": "login_required", "redirect": "/checkout"}), 401
 
+    if request.method == 'GET':
+        return redirect('/cart')
+
+    return jsonify({
+        "success": False,
+        "message": "Please use Razorpay payment to place your order."
+    }), 400
+
     user = User.query.filter_by(email=session['email']).first()
 
     # ✅ VALIDATE phone number is provided
     if not user.phone or user.phone.strip() == "":
         return jsonify({
             "error": True,
-            "message": "Phone number is required to complete order",
+            "message": "Please add your phone number before placing order.",
             "error_type": "missing_phone",
             "redirect": "/account"
         })
@@ -3150,14 +4253,41 @@ def api_tickets():
             "updated_at": t.updated_at.isoformat()
         } for t in tickets])
 
-    data = request.get_json()
+    data = request.get_json() or {}
+    subject = (data.get("subject") or "").strip()
+    message = (data.get("message") or "").strip()
+    if not subject or not message:
+        return jsonify({"message": "Subject and message are required"}), 400
+
     ticket = Ticket(
         user_id=user.id,
-        subject=data['subject'],
-        message=data['message']
+        subject=subject,
+        message=message
     )
     db.session.add(ticket)
     db.session.commit()
+
+    body = (
+        "New support issue submitted from Belt Purse account page.\n\n"
+        f"Name: {user.username}\n"
+        f"Email: {user.email}\n"
+        f"Phone: {user.phone or 'Not provided'}\n"
+        f"Order ID: {data.get('order_id') or 'Not provided'}\n"
+        f"Issue Type: {data.get('category') or subject}\n"
+        f"Ticket ID: {ticket.id}\n"
+        f"Date/Time: {format_support_timestamp()}\n\n"
+        f"Message:\n{message}"
+    )
+    admin_sent, _ = send_resend_email_safe(f"New Support Issue - {subject}", body)
+    send_resend_email_safe(
+        "We received your issue - BeltPurse",
+        "We have received your issue and our team will contact you soon.",
+        to_email=user.email
+    )
+
+    if not admin_sent:
+        return jsonify({"message": "Ticket created, but email could not be sent right now"}), 500
+
     return jsonify({"message": "Ticket created"})
 
 @app.route('/api/terms', methods=['GET'])
