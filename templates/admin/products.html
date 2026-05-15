@@ -96,13 +96,30 @@
             </div>
 
             <div class="card-content">
-                <div class="product-top">
-                    <h3>{{ p.name }}</h3>
+               <div class="product-top">
+    <div class="product-title-wrap">
+        <h3>{{ p.name }}</h3>
 
-                    {% if p.rating %}
-                    <div class="rating-box">&#9733; {{ p.rating }}</div>
-                    {% endif %}
-                </div>
+        {% if p.is_archived %}
+        <span class="archive-badge">Archived</span>
+        {% endif %}
+    </div>
+
+    <div class="right-controls">
+        {% if p.rating %}
+        <div class="rating-box">&#9733; {{ p.rating }}</div>
+        {% endif %}
+
+        <label class="archive-switch" title="Show / Hide product on user side">
+            <input 
+                type="checkbox"
+                {% if not p.is_archived %}checked{% endif %}
+                onchange="toggleArchive({{ p.id }}, this)"
+            >
+            <span class="switch-slider"></span>
+        </label>
+    </div>
+</div>
 
                 <div class="meta-list">
                     {% if p.material %}
@@ -126,10 +143,15 @@
                     {% endif %}
                 </div>
 
-                <div class="actions">
-                    <a href="/admin/products/edit/{{ p.id }}" class="action-btn edit-btn">Edit</a>
-                    <a href="/admin/products/delete/{{ p.id }}" class="action-btn delete-btn" onclick="return confirm('Delete this product?')">Delete</a>
-                </div>
+               <div class="actions">
+    <a href="/admin/products/edit/{{ p.id }}" class="action-btn edit-btn">Edit</a>
+
+    <a href="/admin/products/delete/{{ p.id }}"
+       class="action-btn delete-btn"
+       onclick="return confirm('Permanently delete this product? This will remove it from cart, wishlist, order items, images, videos also.')">
+       Delete Permanently
+    </a>
+</div>
             </div>
         </div>
         {% endfor %}
@@ -483,6 +505,103 @@
         font-size: 11px;
         border-radius: 8px;
     }
+    .product-top {
+    align-items: center;
+}
+
+.product-title-wrap {
+    gap: 6px;
+}
+
+.right-controls {
+    gap: 6px;
+}
+
+.archive-switch {
+    width: 40px;
+    height: 22px;
+}
+
+.switch-slider::before {
+    width: 16px;
+    height: 16px;
+}
+
+.archive-switch input:checked + .switch-slider::before {
+    transform: translateX(18px);
+}
+
+.archive-badge {
+    font-size: 9px;
+    padding: 3px 7px;
+}
+}
+.product-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.right-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.archive-badge {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255, 77, 77, 0.12);
+    color: #d93030;
+    font-size: 11px;
+    border: 1px solid rgba(255, 77, 77, 0.22);
+}
+
+.archive-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.archive-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #d1d5db;
+    border-radius: 999px;
+    transition: 0.3s ease;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+
+.switch-slider::before {
+    content: "";
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    top: 3px;
+    background: #ffffff;
+    border-radius: 50%;
+    transition: 0.3s ease;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+
+.archive-switch input:checked + .switch-slider {
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+}
+
+.archive-switch input:checked + .switch-slider::before {
+    transform: translateX(22px);
 }
 </style>
 
@@ -505,6 +624,53 @@ function moveSlide(id, step) {
     if (sliders[id] >= images.length) sliders[id] = 0;
 
     track.style.transform = `translateX(-${sliders[id] * 100}%)`;
+}
+async function toggleArchive(productId, checkbox) {
+    const isActive = checkbox.checked;
+
+    const url = isActive
+        ? `/admin/products/unarchive/${productId}`
+        : `/admin/products/archive/${productId}`;
+
+    const oldState = !isActive;
+
+    try {
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            checkbox.checked = oldState;
+            alert(data.message || "Something went wrong");
+            return;
+        }
+
+        const card = checkbox.closest(".product-card");
+        if (!card) return;
+
+        let badge = card.querySelector(".archive-badge");
+        const titleWrap = card.querySelector(".product-title-wrap");
+
+        if (isActive) {
+            if (badge) badge.remove();
+        } else {
+            if (!badge && titleWrap) {
+                badge = document.createElement("span");
+                badge.className = "archive-badge";
+                badge.innerText = "Archived";
+                titleWrap.appendChild(badge);
+            }
+        }
+
+    } catch (error) {
+        checkbox.checked = oldState;
+        alert("Network error. Please try again.");
+    }
 }
 </script>
 {% endblock %}

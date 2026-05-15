@@ -1398,83 +1398,93 @@ def delete_product(id):
 
     product = Product.query.get_or_404(id)
 
-    # ✅ Check if product is used in any order
-    order_item = OrderItem.query.filter_by(product_id=id).first()
+    try:
+        # ✅ Remove cart and wishlist first
+        db.session.execute(text("DELETE FROM cart WHERE product_id = :pid"), {"pid": id})
+        db.session.execute(text("DELETE FROM wishlist WHERE product_id = :pid"), {"pid": id})
 
-    if order_item:
-        # ✅ Check delivered order only
-        delivered_order_item = (
-            OrderItem.query
-            .join(Order, OrderItem.order_id == Order.id)
-            .filter(
-                OrderItem.product_id == id,
-                Order.order_status == "Delivered"
-            )
-            .first()
-        )
+        # ✅ Remove reviews
+        db.session.execute(text("DELETE FROM reviews WHERE product_id = :pid"), {"pid": id})
 
-        # ✅ If delivered, archive instead of hard delete
-        if delivered_order_item:
-            db.session.execute(
-                text("UPDATE products SET is_archived = TRUE WHERE id = :pid"),
-                {"pid": id}
-            )
-            db.session.commit()
+        # ✅ Remove from order items also
+        # WARNING: old orders will not show this product item after this
+        db.session.execute(text("DELETE FROM order_items WHERE product_id = :pid"), {"pid": id})
 
-            message = "Product is delivered, so it has been archived instead of deleted."
+        # ✅ Remove product child data
+        db.session.execute(text("DELETE FROM product_tags WHERE product_id = :pid"), {"pid": id})
+        db.session.execute(text("DELETE FROM product_colors WHERE product_id = :pid"), {"pid": id})
+        db.session.execute(text("DELETE FROM product_sizes WHERE product_id = :pid"), {"pid": id})
+        db.session.execute(text("DELETE FROM product_images WHERE product_id = :pid"), {"pid": id})
+        db.session.execute(text("DELETE FROM product_videos WHERE product_id = :pid"), {"pid": id})
 
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({
-                    "success": True,
-                    "product_id": id,
-                    "archived": True,
-                    "message": message
-                })
+        # ✅ Finally delete product
+        db.session.delete(product)
+        db.session.commit()
 
-            return f"""
-            <script>
-                alert("✅ {message}");
-                window.location.href = "/admin/products";
-            </script>
-            """
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({
+                "success": True,
+                "product_id": id,
+                "message": "Product permanently deleted successfully"
+            })
 
-        # ❌ If order exists but not delivered, block delete
-        message = "Product cannot be deleted because its order is not delivered yet."
+        return redirect("/admin/products")
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("Product delete failed for product %s: %s", id, e)
 
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({
                 "success": False,
-                "product_id": id,
-                "message": message
-            }), 400
+                "message": "Product delete failed. Please check logs."
+            }), 500
 
-        return f"""
+        return """
         <script>
-            alert("❌ {message}");
+            alert("❌ Product delete failed. Please check logs.");
             window.location.href = "/admin/products";
         </script>
         """
 
-    # ✅ Product has no orders, safe hard delete
-    db.session.execute(text("DELETE FROM cart WHERE product_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM wishlist WHERE product_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM product_tags WHERE product_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM product_colors WHERE product_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM product_sizes WHERE product_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM product_images WHERE product_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM product_videos WHERE product_id = :pid"), {"pid": id})
 
-    db.session.delete(product)
+@app.route("/admin/products/archive/<int:id>")
+@admin_required
+def archive_product(id):
+
+    product = Product.query.get_or_404(id)
+    product.is_archived = True
     db.session.commit()
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({
             "success": True,
             "product_id": id,
-            "archived": False,
-            "message": "Product deleted successfully"
+            "is_archived": True,
+            "message": "Product archived successfully"
         })
 
+    flash("Product archived successfully", "success")
+    return redirect("/admin/products")
+
+
+@app.route("/admin/products/unarchive/<int:id>")
+@admin_required
+def unarchive_product(id):
+
+    product = Product.query.get_or_404(id)
+    product.is_archived = False
+    db.session.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": True,
+            "product_id": id,
+            "is_archived": False,
+            "message": "Product unarchived successfully"
+        })
+
+    flash("Product unarchived successfully", "success")
     return redirect("/admin/products")
 
 @app.route("/admin/video/delete/<int:id>")
@@ -2148,7 +2158,12 @@ from flask import jsonify
 
 @app.route('/products')
 def products():
-    all_products = Product.query.all()
+    all_products = Product.query.filter(
+        db.or_(
+            Product.is_archived == False,
+            Product.is_archived.is_(None)
+        )
+    ).all()
 
     result = []
 
@@ -2244,9 +2259,12 @@ def api_search():
     query = request.args.get('q')
 
     products = Product.query.filter(
-        Product.name.ilike(f"%{query}%")
-    ).limit(6).all()
-
+       Product.name.ilike(f"%{query}%"),
+       db.or_(
+        Product.is_archived == False,
+        Product.is_archived.is_(None)
+    )
+).limit(6).all()
     result = []
 
     for p in products:
@@ -2539,7 +2557,7 @@ def send_warranty_email():
 def product_detail(id):
     product = db.session.get(Product, id)
 
-    if not product:
+    if not product or product.is_archived:
         return "Product not found", 404
 
     selected_color_id = normalize_optional_int(request.args.get("color"))
@@ -2574,7 +2592,13 @@ def product_detail(id):
     tags = ProductTag.query.filter_by(product_id=id).all()
     sizes = ProductSize.query.filter_by(product_id=id).all()
     colors = ProductColor.query.filter_by(product_id=id).all()
-    related_products = Product.query.limit(4).all()
+    related_products = Product.query.filter(
+       Product.id != id,
+       db.or_(
+        Product.is_archived == False,
+        Product.is_archived.is_(None)
+    )
+).limit(4).all()
     reviews = Review.query.options(joinedload(Review.user))\
        .filter_by(product_id=id).all()
 
@@ -2591,19 +2615,25 @@ def product_detail(id):
     )
 
 
-
 @app.route('/products-page')
 def products_page():
     color_id = request.args.get('color')
 
+    base_filter = db.or_(
+        Product.is_archived == False,
+        Product.is_archived.is_(None)
+    )
+
     if color_id:
         products = Product.query.join(ProductColor).filter(
-            ProductColor.color_id == color_id
+            ProductColor.color_id == color_id,
+            base_filter
         ).all()
     else:
-        products = Product.query.all()
+        products = Product.query.filter(base_filter).all()
 
     return render_template("products.html", products=products)
+
 # ================= CONTEXT =================
 @app.context_processor
 def inject_counts():
@@ -2780,7 +2810,9 @@ def decrease_cart(id):
 def add_to_cart(id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
-
+    product = Product.query.get(id)
+    if not product or product.is_archived:
+        return jsonify({"error": "Product is not available"}), 404
     user     = User.query.filter_by(email=session['email']).first()
     data     = request.get_json(silent=True) or {}
     color_id = request_color_id(data)
@@ -2823,7 +2855,9 @@ def add_to_cart(id):
 def add_to_wishlist(id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
-
+    product = Product.query.get(id)
+    if not product or product.is_archived:
+        return jsonify({"error": "Product is not available"}), 404
     user = User.query.filter_by(email=session['email']).first()
     color_id = request_color_id()
     print(f"add_to_wishlist user={user.id} product={id} color={color_id}")
@@ -2984,7 +3018,9 @@ def check_wishlist(product_id):
 def toggle_wishlist(product_id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
-
+    product = Product.query.get(id)
+    if not product or product.is_archived:
+        return jsonify({"error": "Product is not available"}), 404
     user = get_user()
     color_id = request_color_id()
 
@@ -3029,11 +3065,13 @@ def toggle_cart(product_id):
 
     if 'email' not in session:
         return jsonify({"error": "login required"}), 401
-
+    
     data = request.get_json() or {}
     size_id = data.get("size_id")
     color_id = request_color_id(data)
-
+    product = Product.query.get(id)
+    if not product or product.is_archived:
+        return jsonify({"error": "Product is not available"}), 404
     user = get_user()
 
     if not size_id:
