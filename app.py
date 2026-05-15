@@ -377,11 +377,12 @@ def cart_snapshot_for_user(user_id):
 
     return order_lines, total
 
-
 def create_pending_order_from_cart(user, selected_address, payment_method="Razorpay"):
     order_lines, total = cart_snapshot_for_user(user.id)
     if not order_lines:
         return None, "Cart is empty"
+
+    temp_razorpay_order_id = f"TEMP-{user.id}-{uuid.uuid4().hex[:16]}"
 
     order = Order(
         user_id=user.id,
@@ -391,7 +392,18 @@ def create_pending_order_from_cart(user, selected_address, payment_method="Razor
         order_status="Pending",
         payment_status="Pending",
         payment_method=payment_method,
-        tracking_number=f"TRK{user.id}{int(datetime.utcnow().timestamp())}"
+        tracking_number=f"TRK{user.id}{int(datetime.utcnow().timestamp())}",
+
+        # ✅ Railway DB me razorpay_order_id Not NULL ban gaya hai,
+        # isliye pending order create karte time temporary value deni zaroori hai.
+        razorpay_order_id=temp_razorpay_order_id,
+
+        # ✅ Ye columns nullable hone chahiye, but safe ke liye None rehne do
+        razorpay_payment_id=None,
+        razorpay_signature=None,
+        paid_at=None,
+        courier_partner=None,
+        tracking_url=None
     )
 
     db.session.add(order)
@@ -409,8 +421,6 @@ def create_pending_order_from_cart(user, selected_address, payment_method="Razor
 
     db.session.commit()
     return order, None
-
-
 def reusable_pending_order(user_id, address_id, total):
     cutoff = datetime.utcnow() - timedelta(hours=2)
     return Order.query.filter(
@@ -419,10 +429,10 @@ def reusable_pending_order(user_id, address_id, total):
         Order.payment_status == "Pending",
         Order.order_status == "Pending",
         Order.razorpay_order_id.isnot(None),
+        Order.razorpay_order_id.like("order_%"),   # ✅ only real Razorpay order IDs
         Order.created_at >= cutoff,
         Order.total_amount == total
     ).order_by(Order.id.desc()).first()
-
 
 def verify_razorpay_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature):
     key_secret = app.config.get("RAZORPAY_KEY_SECRET")
@@ -3468,28 +3478,29 @@ def create_razorpay_order():
         return json_error(str(exc), 500)
 
     existing_order = reusable_pending_order(user.id, selected_address.id, cart_total)
-    if existing_order:
-        return jsonify({
-            "success": True,
-            "key": app.config.get("RAZORPAY_KEY_ID"),
-            "key_id": app.config.get("RAZORPAY_KEY_ID"),
-            "amount": int(round(float(existing_order.total_amount or 0) * 100)),
-            "currency": "INR",
-            "razorpay_order_id": existing_order.razorpay_order_id,
-            "order_id": existing_order.id,
-            "pending_order_id": existing_order.id,
-            "local_order_id": existing_order.id,
-            "user_name": selected_address.full_name or user.username,
-            "user_email": user.email,
-            "user_phone": selected_address.phone or user.phone,
-            "name": "BeltPurse",
-            "description": f"Order #{existing_order.id}",
-            "customer": {
-                "name": selected_address.full_name or user.username,
-                "email": user.email,
-                "phone": selected_address.phone or user.phone
-            }
-        })
+
+    if existing_order and existing_order.razorpay_order_id and existing_order.razorpay_order_id.startswith("order_"):
+      return jsonify({
+        "success": True,
+        "key": app.config.get("RAZORPAY_KEY_ID"),
+        "key_id": app.config.get("RAZORPAY_KEY_ID"),
+        "amount": int(round(float(existing_order.total_amount or 0) * 100)),
+        "currency": "INR",
+        "razorpay_order_id": existing_order.razorpay_order_id,
+        "order_id": existing_order.id,
+        "pending_order_id": existing_order.id,
+        "local_order_id": existing_order.id,
+        "user_name": selected_address.full_name or user.username,
+        "user_email": user.email,
+        "user_phone": selected_address.phone or user.phone,
+        "name": "BeltPurse",
+        "description": f"Order #{existing_order.id}",
+        "customer": {
+            "name": selected_address.full_name or user.username,
+            "email": user.email,
+            "phone": selected_address.phone or user.phone
+        }
+    })
 
     order, error = create_pending_order_from_cart(user, selected_address, payment_method="Razorpay")
     if error:
