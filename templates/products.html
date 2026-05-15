@@ -594,6 +594,11 @@
     <div class="size-glass">
         <h3>Select Size</h3>
         <div id="sizeList"></div>
+        <button onclick="confirmProductCardAddToCart()"
+            style="margin-top:14px; width:100%; padding:10px; border:none;
+                   border-radius:10px; background:var(--btn-gradient); color:#fff; cursor:pointer;">
+            Add to Cart
+        </button>
         <button onclick="closeSizeModal()"
             style="margin-top:14px; width:100%; padding:10px; border:none;
                    border-radius:10px; background:#eee; cursor:pointer;">
@@ -606,7 +611,9 @@
 let allProductsData = [];
 let activeColorFilter = new URLSearchParams(window.location.search).get("color") || "";
 let selectedProductId = null;
+let selectedProductCardColorId = null;
 let selectedSizeId = null;
+let selectedProductCardButton = null;
 
 function getProductBaseId(product) {
     return product.product_id || product.id;
@@ -678,8 +685,8 @@ function applyProductFilters() {
     renderProductsGrid(products);
 }
 
-/* ================= CART ================= */
-function toggleCart(productId, btn, colorId = null) {
+/* ================= LEGACY CART FLOW ================= */
+function legacyImmediateToggleCart(productId, btn, colorId = null) {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img");
     if (!isLoggedIn) {
         addToGuestCart(productId, colorId, null);
@@ -713,8 +720,8 @@ function toggleCart(productId, btn, colorId = null) {
     openSizeModal(productId, colorId);
 }
 
-/* ================= OPEN SIZE MODAL ================= */
-function openSizeModal(productId, colorId = null) {
+/* ================= LEGACY SIZE MODAL ================= */
+function legacyImmediateOpenSizeModal(productId, colorId = null) {
     fetch(`/product/sizes/${productId}`)
         .then(res => res.json())
         .then(sizes => {
@@ -779,7 +786,170 @@ function openSizeModal(productId, colorId = null) {
 function closeSizeModal() {
     document.getElementById("sizeModal").classList.add("hidden");
     selectedProductId = null;
+    selectedProductCardColorId = null;
     selectedSizeId = null;
+    selectedProductCardButton = null;
+}
+
+/* ================= PRODUCT CARD SIZE MODAL FLOW ================= */
+function toggleCart(productId, btn, colorId = null) {
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img");
+    selectedProductId = productId;
+
+    if (btn.classList.contains("active")) {
+        if (!isLoggedIn) {
+            removeProductCardGuestCart(productId, colorId, btn.dataset.size || null);
+            btn.classList.remove("active");
+            btn.innerText = "Add to Cart";
+            btn.dataset.size = "";
+            updateGuestCartCount();
+            return;
+        }
+
+        const sizeId = btn.dataset.size || "";
+        fetch(`/remove_cart/${productId}?color_id=${colorId || ""}&size_id=${sizeId}`)
+            .then(res => res.json())
+            .then(() => {
+                btn.classList.remove("active");
+                btn.innerText = "Add to Cart";
+                btn.dataset.size = "";
+                updateCartCount();
+            });
+        return;
+    }
+
+    selectedSizeId = null;
+    selectedProductCardButton = btn;
+    openProductSizeModal(productId, colorId);
+}
+
+function openProductSizeModal(productId, colorId = null) {
+    selectedProductId = productId;
+    selectedProductCardColorId = colorId || null;
+    selectedSizeId = null;
+
+    fetch(`/product/sizes/${productId}`)
+        .then(res => res.json())
+        .then(sizes => {
+            const list = document.getElementById("sizeList");
+            list.innerHTML = "";
+
+            if (!Array.isArray(sizes) || sizes.length === 0) {
+                list.innerHTML = "<p>No sizes available</p>";
+                return;
+            }
+
+            sizes.forEach(size => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.innerText = size.label;
+                btn.onclick = () => selectProductCardSize(size.id, btn);
+                list.appendChild(btn);
+            });
+
+            document.getElementById("sizeModal").classList.remove("hidden");
+        });
+}
+
+function openSizeModal(productId, colorId = null) {
+    openProductSizeModal(productId, colorId);
+}
+
+function selectProductCardSize(sizeId, element) {
+    selectedSizeId = sizeId;
+
+    document.querySelectorAll("#sizeList button")
+        .forEach(btn => btn.classList.remove("active"));
+    element.classList.add("active");
+}
+
+function confirmProductCardAddToCart() {
+    if (!selectedProductId) return;
+
+    if (!selectedSizeId) {
+        alert("Please select size first");
+        return;
+    }
+
+    const productId = selectedProductId;
+    const colorId = selectedProductCardColorId;
+    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+
+    if (!isLoggedIn) {
+        addProductCardGuestCart(productId, colorId, selectedSizeId);
+        updateProductCardCartButton(productId, colorId, selectedSizeId);
+        updateGuestCartCount();
+        closeSizeModal();
+        return;
+    }
+
+    fetch(`/cart/toggle/${productId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ size_id: selectedSizeId, color_id: colorId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error === "size_required") {
+            alert("Please select size first");
+            return;
+        }
+
+        const cartCount = document.getElementById("cartCount");
+        if (cartCount && data.count !== undefined) cartCount.innerText = data.count;
+
+        updateProductCardCartButton(productId, colorId, selectedSizeId);
+        updateCartCount();
+        closeSizeModal();
+    });
+}
+
+function updateProductCardCartButton(productId, colorId, sizeId) {
+    const cartBtn = selectedProductCardButton || document.querySelector(
+        `.prd-cart-btn[data-id="${productId}"][data-color="${colorId || ""}"]`
+    );
+
+    if (!cartBtn) return;
+
+    cartBtn.classList.add("active");
+    cartBtn.innerText = "Remove from Cart";
+    cartBtn.dataset.size = sizeId || "";
+}
+
+function addProductCardGuestCart(productId, colorId, sizeId) {
+    let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const existing = guestCart.find(item =>
+        String(item.productId) === String(productId) &&
+        String(item.colorId || null) === String(colorId || null) &&
+        String(item.sizeId || null) === String(sizeId || null)
+    );
+
+    if (existing) {
+        existing.qty = (existing.qty || 1) + 1;
+    } else {
+        guestCart.push({ productId, colorId, sizeId, qty: 1 });
+    }
+
+    localStorage.setItem("guestCart", JSON.stringify(guestCart));
+    if (typeof showGuestToast === "function") showGuestToast("Added to cart! Login to checkout 🛒");
+}
+
+function removeProductCardGuestCart(productId, colorId, sizeId = null) {
+    let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    guestCart = guestCart.filter(item => !(
+        String(item.productId) === String(productId) &&
+        String(item.colorId || null) === String(colorId || null) &&
+        (!sizeId || String(item.sizeId || null) === String(sizeId || null))
+    ));
+    localStorage.setItem("guestCart", JSON.stringify(guestCart));
+}
+
+function updateGuestCartCount() {
+    const guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
+    const cartCount = document.getElementById("cartCount");
+    if (cartCount) {
+        cartCount.innerText = guestCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+    }
 }
 
 /* ================= CHECK CART ================= */

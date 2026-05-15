@@ -70,12 +70,12 @@
 
 <div class="summary-row">
     <span>Shipping</span>
-    <span>₹50</span>
+    <span>Free</span>
 </div>
 
 <div class="summary-row total">
     <span>You Pay</span>
-   <span id="finalTotal">₹{{ total - (total * 0.1) + 50 }}</span>
+   <span id="finalTotal">₹{{ total - (total * 0.1) }}</span>
 </div>
 
          <p class="subtotal">Subtotal: ₹<span id="subtotal">{{ total }}</span></p>
@@ -463,7 +463,7 @@ function guestRemoveCart(productId, colorId) {
 
 function updateGuestCartSummary(total) {
     const discount = total * 0.1;
-    const final = total - discount + 50;
+    const final = total - discount;
     const bagTotal = document.getElementById("bagTotal");
     const discountEl = document.getElementById("discount");
     const finalTotal = document.getElementById("finalTotal");
@@ -494,7 +494,7 @@ function updateCartUI(){
     });
 
     let discount = subtotal * 0.1;
-    let shipping = 50;
+    let shipping = 0;
     let finalTotal = subtotal - discount + shipping;
 
     document.getElementById("subtotal").innerText = subtotal;

@@ -487,6 +487,10 @@ body {
 }
 
 .related-card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    cursor: pointer;
     background: #fff;
     border-radius: 24px;
     overflow: hidden;
@@ -765,8 +769,195 @@ body {
     background: #f6f3ee;
     box-shadow: none;
     padding: 0;
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
+}
+#detailMainMedia {
+    width: 100%;
+    height: 100%;
+    cursor: zoom-in;
+    user-select: none;
 }
 
+#detailMainMedia img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+#detailMainMedia video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.product-gallery-thumbs button {
+    opacity: 0.62;
+    transition: opacity 0.25s ease, border-color 0.25s ease;
+}
+
+.product-gallery-thumbs button.active-thumb {
+    opacity: 1;
+    outline: none !important;
+    border-color: #0A5C56;
+}
+
+.product-gallery-thumbs button:hover {
+    opacity: 1;
+}
+.product-gallery-main.is-swiping {
+    cursor: grabbing;
+}
+
+.product-gallery-main.is-swiping #detailMainMedia {
+    cursor: grabbing;
+}
+
+.gallery-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+}
+
+.gallery-lightbox.active {
+    display: flex;
+}
+
+.gallery-lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.lightbox-media-wrap {
+    position: relative;
+    z-index: 2;
+    width: min(92vw, 980px);
+    height: min(86vh, 760px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: pan-y;
+}
+
+#lightboxMedia {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#lightboxMedia img,
+#lightboxMedia video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    background: #f6f3ee;
+    border-radius: 10px;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 22px;
+    right: 26px;
+    z-index: 3;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.94);
+    color: #111;
+    font-size: 30px;
+    line-height: 1;
+    cursor: pointer;
+    transform: none !important;
+}
+
+.lightbox-arrow {
+    position: absolute;
+    top: 50% !important;
+    z-index: 3;
+
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
+
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.94);
+    color: #111;
+
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 0;
+    line-height: 1;
+
+    transform: translateY(-50%) !important;
+    transition: background 0.2s ease !important;
+
+    padding: 0;
+    margin: 0;
+}
+
+.lightbox-arrow::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    font-size: 32px;
+    line-height: 1;
+    font-weight: 400;
+
+    transform: translateY(-1px);
+}
+
+.lightbox-prev::before {
+    content: "‹";
+}
+
+.lightbox-next::before {
+    content: "›";
+}
+
+.lightbox-arrow:hover,
+.lightbox-arrow:active,
+.lightbox-arrow:focus {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: rgba(255,255,255,0.94) !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.lightbox-prev {
+    left: 28px;
+}
+
+.lightbox-next {
+    right: 28px;
+}
+
+.product-gallery-thumbs button.active-thumb {
+    outline: 2px solid #0A5C56;
+}
 .product-gallery-main img,
 .product-gallery-main video {
     width: 100%;
@@ -1210,7 +1401,61 @@ body {
         padding: 20px;
     }
 }
+@media (max-width: 768px) {
+   
 
+    .product-gallery-thumbs {
+        display: flex !important;
+        overflow-x: auto;
+        gap: 6px !important;
+        grid-template-columns: none !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+    }
+
+    .product-gallery-thumbs button {
+        min-width: 64px;
+        width: 64px;
+        flex: 0 0 64px;
+    }
+
+    .gallery-lightbox {
+        padding: 14px;
+    }
+
+    .lightbox-media-wrap {
+        width: 100vw;
+        height: 82vh;
+    }
+
+    .lightbox-arrow {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .lightbox-arrow::before {
+        font-size: 28px;
+        transform: translateY(-1px);
+    }
+
+    .lightbox-prev {
+        left: 12px;
+    }
+
+    .lightbox-next {
+        right: 12px;
+    }
+
+    .lightbox-close {
+        top: 12px;
+        right: 12px;
+        width: 38px;
+        height: 38px;
+        font-size: 26px;
+    }
+}
 .product-title-row > .discount-badge,
 .product-info-panel > .product-short,
 .product-info-panel > .product-short + .product-properties,
@@ -1726,8 +1971,29 @@ body {
     {{ images | tojson }}
 </script>
 
+<script id="videos-data" type="application/json">
+    [
+        {% for video in videos %}
+        {
+            "video_url": {{ video.video_url | tojson }},
+            "color_id": {{ video.color_id | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+
 <script>
-const ALL_IMAGES = JSON.parse(document.getElementById("images-data").textContent);
+const ALL_IMAGES = JSON.parse(document.getElementById("images-data").textContent || "[]");
+const ALL_VIDEOS = JSON.parse(document.getElementById("videos-data").textContent || "[]");
+
+let galleryItems = [];
+let currentGalleryIndex = 0;
+let lightboxTouchStartX = 0;
+let lightboxTouchEndX = 0;
+let lightboxMouseStartX = 0;
+let lightboxMouseEndX = 0;
+let isLightboxDragging = false;
+
 const DETAIL_PRODUCT_ID = Number("{{ product.id }}");
 let selectedSize = null;
 let selectedColorId = new URLSearchParams(window.location.search).get("color") || null;
@@ -1752,10 +2018,10 @@ function toggleCart(productId, btn) {
 
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
-  if (!isLoggedIn) {
-    addToGuestCart(productId, selectedColorId, selectedSize);
-    return;
-}
+    if (!isLoggedIn) {
+        addToGuestCart(productId, selectedColorId, selectedSize);
+        return;
+    }
 
     btn.disabled = true;
 
@@ -1799,25 +2065,329 @@ function checkCart(productId) {
 
 /* ================= GALLERY ================= */
 function setGalleryImage(src, isVideo) {
-    const main = document.getElementById('detailMainMedia');
+    const main = document.getElementById("detailMainMedia");
+
+    if (!main) return;
 
     if (isVideo) {
         main.innerHTML = `
-            <video controls>
+            <video controls playsinline draggable="false">
                 <source src="${src}" type="video/mp4">
             </video>
         `;
     } else {
-        main.innerHTML = `
-            <img src="${src}">
-        `;
+        main.innerHTML = `<img src="${src}" alt="Product image" draggable="false">`;
     }
 }
 
+function buildGalleryItems(colorId = null) {
+    let filteredImages = ALL_IMAGES;
 
+    if (colorId) {
+        const colorImages = ALL_IMAGES.filter(img => String(img.color_id) === String(colorId));
+
+        if (colorImages.length > 0) {
+            filteredImages = colorImages;
+        }
+    }
+
+    let filteredVideos = ALL_VIDEOS;
+
+    if (colorId) {
+        filteredVideos = ALL_VIDEOS.filter(video => String(video.color_id) === String(colorId));
+    }
+
+    galleryItems = [
+        ...filteredImages.map(img => ({
+            type: "image",
+            src: img.image_url
+        })),
+        ...filteredVideos.map(video => ({
+            type: "video",
+            src: video.video_url
+        }))
+    ];
+
+    currentGalleryIndex = 0;
+    renderGallerySlide();
+    renderGalleryThumbs();
+}
+
+function renderGallerySlide() {
+    if (!galleryItems.length) {
+        updateGalleryCounter();
+        return;
+    }
+
+    const item = galleryItems[currentGalleryIndex];
+    setGalleryImage(item.src, item.type === "video");
+    updateGalleryCounter();
+    updateActiveThumb();
+}
+
+function changeGallerySlide(step) {
+    if (!galleryItems.length) return;
+
+    currentGalleryIndex += step;
+
+    if (currentGalleryIndex < 0) {
+        currentGalleryIndex = galleryItems.length - 1;
+    }
+
+    if (currentGalleryIndex >= galleryItems.length) {
+        currentGalleryIndex = 0;
+    }
+
+    renderGallerySlide();
+}
+
+function goToGallerySlide(index) {
+    if (!galleryItems[index]) return;
+
+    currentGalleryIndex = index;
+    renderGallerySlide();
+}
+function updateGalleryCounter() {
+    return;
+}
+
+function updateActiveThumb() {
+    const thumbs = document.querySelectorAll("#galleryThumbs button");
+
+    thumbs.forEach((btn, index) => {
+        btn.classList.toggle("active-thumb", index === currentGalleryIndex);
+    });
+
+    const activeThumb = thumbs[currentGalleryIndex];
+
+    if (activeThumb) {
+        activeThumb.scrollIntoView({
+            behavior: "smooth",
+            inline: "center",
+            block: "nearest"
+        });
+    }
+}
+
+function renderGalleryThumbs() {
+    const thumbs = document.getElementById("galleryThumbs");
+    if (!thumbs) return;
+
+    thumbs.innerHTML = "";
+
+    galleryItems.forEach((item, index) => {
+        if (item.type === "video") {
+            thumbs.innerHTML += `
+                <button type="button" onclick="goToGallerySlide(${index})">
+                    <video src="${item.src}"></video>
+                </button>
+            `;
+        } else {
+            thumbs.innerHTML += `
+                <button type="button" onclick="goToGallerySlide(${index})">
+                    <img src="${item.src}" alt="Product thumbnail">
+                </button>
+            `;
+        }
+    });
+
+    updateActiveThumb();
+}
+function initSwipeGallery() {
+    const gallery = document.querySelector(".product-gallery-main");
+    if (!gallery) return;
+
+    let isPointerDown = false;
+    let startX = 0;
+    let endX = 0;
+    let hasMoved = false;
+    let pointerStartTime = 0;
+
+    gallery.addEventListener("pointerdown", (e) => {
+        if (e.target.closest(".wishlist-btn")) return;
+        if (e.target.closest("button")) return;
+
+        isPointerDown = true;
+        startX = e.clientX;
+        endX = e.clientX;
+        hasMoved = false;
+        pointerStartTime = Date.now();
+
+        gallery.classList.add("is-swiping");
+
+        try {
+            gallery.setPointerCapture(e.pointerId);
+        } catch (err) {}
+    });
+
+    gallery.addEventListener("pointermove", (e) => {
+        if (!isPointerDown) return;
+
+        endX = e.clientX;
+
+        if (Math.abs(startX - endX) > 8) {
+            hasMoved = true;
+        }
+    });
+
+    gallery.addEventListener("pointerup", (e) => {
+        if (!isPointerDown) return;
+
+        isPointerDown = false;
+        gallery.classList.remove("is-swiping");
+
+        const diff = startX - endX;
+        const duration = Date.now() - pointerStartTime;
+
+        try {
+            gallery.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+
+        if (Math.abs(diff) >= 45) {
+            if (diff > 0) {
+                changeGallerySlide(1);
+            } else {
+                changeGallerySlide(-1);
+            }
+            return;
+        }
+
+        if (!hasMoved && duration < 350) {
+            openGalleryLightbox();
+        }
+    });
+
+    gallery.addEventListener("pointercancel", () => {
+        isPointerDown = false;
+        gallery.classList.remove("is-swiping");
+    });
+
+    gallery.addEventListener("dragstart", (e) => {
+        e.preventDefault();
+    });
+}
+
+function openGalleryLightbox() {
+    if (!galleryItems.length) return;
+
+    const lightbox = document.getElementById("galleryLightbox");
+    if (!lightbox) return;
+
+    lightbox.classList.add("active");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+
+    renderLightboxMedia();
+}
+
+function closeGalleryLightbox() {
+    const lightbox = document.getElementById("galleryLightbox");
+    if (!lightbox) return;
+
+    lightbox.classList.remove("active");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+}
+
+function renderLightboxMedia() {
+    const lightboxMedia = document.getElementById("lightboxMedia");
+    if (!lightboxMedia || !galleryItems.length) return;
+
+    const item = galleryItems[currentGalleryIndex];
+
+    if (item.type === "video") {
+        lightboxMedia.innerHTML = `
+            <video controls autoplay playsinline>
+                <source src="${item.src}" type="video/mp4">
+            </video>
+        `;
+    } else {
+        lightboxMedia.innerHTML = `<img src="${item.src}" alt="Product preview">`;
+    }
+}
+
+function changeLightboxSlide(step) {
+    changeGallerySlide(step);
+    renderLightboxMedia();
+}
+
+document.addEventListener("keydown", (event) => {
+    const lightbox = document.getElementById("galleryLightbox");
+    const isOpen = lightbox && lightbox.classList.contains("active");
+
+    if (!isOpen) return;
+
+    if (event.key === "Escape") {
+        closeGalleryLightbox();
+    }
+
+    if (event.key === "ArrowLeft") {
+        changeLightboxSlide(-1);
+    }
+
+    if (event.key === "ArrowRight") {
+        changeLightboxSlide(1);
+    }
+});
 
 /* ================= MAIN DOM READY ================= */
 document.addEventListener("DOMContentLoaded", () => {
+
+    initSwipeGallery();
+
+    const lightboxWrap = document.getElementById("lightboxMediaWrap");
+
+    if (lightboxWrap) {
+        lightboxWrap.addEventListener("touchstart", (e) => {
+            lightboxTouchStartX = e.touches[0].clientX;
+            lightboxTouchEndX = lightboxTouchStartX;
+        }, { passive: true });
+
+        lightboxWrap.addEventListener("touchmove", (e) => {
+            lightboxTouchEndX = e.touches[0].clientX;
+        }, { passive: true });
+
+        lightboxWrap.addEventListener("touchend", () => {
+            const diff = lightboxTouchStartX - lightboxTouchEndX;
+
+            if (Math.abs(diff) < 45) return;
+
+            if (diff > 0) {
+                changeLightboxSlide(1);
+            } else {
+                changeLightboxSlide(-1);
+            }
+        }, { passive: true });
+
+        lightboxWrap.addEventListener("mousedown", (e) => {
+            isLightboxDragging = true;
+            lightboxMouseStartX = e.clientX;
+            lightboxMouseEndX = e.clientX;
+        });
+
+        lightboxWrap.addEventListener("mousemove", (e) => {
+            if (!isLightboxDragging) return;
+            lightboxMouseEndX = e.clientX;
+        });
+
+        lightboxWrap.addEventListener("mouseup", () => {
+            if (!isLightboxDragging) return;
+            isLightboxDragging = false;
+
+            const diff = lightboxMouseStartX - lightboxMouseEndX;
+            if (Math.abs(diff) < 45) return;
+
+            if (diff > 0) {
+                changeLightboxSlide(1);
+            } else {
+                changeLightboxSlide(-1);
+            }
+        });
+
+        lightboxWrap.addEventListener("mouseleave", () => {
+            isLightboxDragging = false;
+        });
+    }
 
     const productId = DETAIL_PRODUCT_ID;
 
@@ -1840,39 +2410,40 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    /* ===== WISHLIST BUTTONS ===== */
-  /* ===== WISHLIST BUTTON ===== */
-document.querySelectorAll(".wishlist-btn").forEach(btn => {
+    /* ===== WISHLIST BUTTON ===== */
+    document.querySelectorAll(".wishlist-btn").forEach(btn => {
 
-    const id = btn.dataset.id;
+        const id = btn.dataset.id;
 
-   const isLoggedIn = document.querySelector(".avatar, .avatar-img");
+        const isLoggedIn = document.querySelector(".avatar, .avatar-img");
 
-if (isLoggedIn) {
-    checkWishlist(id, selectedColorId).then(inWishlist => {
-        if (inWishlist) {
-            btn.classList.add("active");
-            btn.innerHTML = "❤️";
+        if (isLoggedIn) {
+            checkWishlist(id, selectedColorId).then(inWishlist => {
+                if (inWishlist) {
+                    btn.classList.add("active");
+                    btn.innerHTML = "❤️";
+                }
+            });
+        } else {
+            if (isInGuestWishlist(id, selectedColorId)) {
+                btn.classList.add("active");
+                btn.innerHTML = "❤️";
+            }
         }
-    });
-} else {
-    if (isInGuestWishlist(id, selectedColorId)) {
-        btn.classList.add("active");
-        btn.innerHTML = "❤️";
-    }
-}
 
-    // click
-   btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
-  if (!isLoggedIn) {
-    addToWishlist(id, btn, selectedColorId);
-    return;
-}
-    addToWishlist(id, btn, selectedColorId);
-});
-});
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+
+            const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
+
+            if (!isLoggedIn) {
+                addToWishlist(id, btn, selectedColorId);
+                return;
+            }
+
+            addToWishlist(id, btn, selectedColorId);
+        });
+    });
 
     /* ===== RESTORE SIZE ===== */
     fetch(`/cart/selected_size/${productId}${selectedColorId ? `?color_id=${selectedColorId}` : ""}`)
@@ -1891,22 +2462,23 @@ if (isLoggedIn) {
         });
 
     /* ===== TABS ===== */
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
+    const tabButtons = document.querySelectorAll(".tab-button");
+    const tabPanels = document.querySelectorAll(".tab-panel");
 
     tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
+        button.addEventListener("click", () => {
 
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabPanels.forEach(panel => panel.classList.remove('active'));
+            tabButtons.forEach(btn => btn.classList.remove("active"));
+            tabPanels.forEach(panel => panel.classList.remove("active"));
 
-            button.classList.add('active');
-            document.getElementById(button.dataset.tab).classList.add('active');
+            button.classList.add("active");
+            document.getElementById(button.dataset.tab).classList.add("active");
         });
     });
 
 });
 
+/* ================= COLOR CHANGE + INITIAL GALLERY ================= */
 document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".color-dot").forEach(el => {
@@ -1916,57 +2488,51 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const colorFromUrl = new URLSearchParams(window.location.search).get("color");
+
     if (colorFromUrl) {
         const selectedColor = document.querySelector(`.color-dot[data-color-id="${colorFromUrl}"]`);
+
         if (selectedColor) {
             changeColor(colorFromUrl, selectedColor);
+        } else {
+            buildGalleryItems(null);
         }
     } else {
         const firstColor = document.querySelector(".color-dot");
+
         if (firstColor) {
             changeColor(firstColor.dataset.colorId, firstColor);
+        } else {
+            buildGalleryItems(null);
         }
     }
 
 });
+
 function changeColor(colorId, el) {
     selectedColorId = colorId;
 
     document.querySelectorAll(".color-dot").forEach(dot => {
         dot.classList.remove("active");
     });
-    el.classList.add("active");
+
+    if (el) {
+        el.classList.add("active");
+    }
 
     const colorName = document.getElementById("selectedColorName");
-    if (colorName) {
+
+    if (colorName && el) {
         colorName.textContent = el.dataset.colorName || "";
     }
 
-    const filtered = ALL_IMAGES.filter(img => img.color_id == colorId);
-    if (filtered.length === 0) {
-        refreshVariantButtons();
-        return;
-    }
-
-    setGalleryImage(filtered[0].image_url, false);
-
-    const thumbs = document.querySelector('.product-gallery-thumbs');
-    thumbs.innerHTML = "";
-
-    filtered.forEach((img) => {
-        thumbs.innerHTML += `
-            <button onclick="setGalleryImage('${img.image_url}', false)">
-                <img src="${img.image_url}">
-            </button>
-        `;
-    });
-
+    buildGalleryItems(colorId);
     refreshVariantButtons();
 }
 
 function refreshVariantButtons() {
     document.querySelectorAll(".add-cart-btn").forEach(btn => {
-        checkCart(DETAIL_PRODUCT_ID, selectedColorId).then(inCart => {
+        checkCart(DETAIL_PRODUCT_ID).then(inCart => {
             btn.classList.toggle("active", inCart);
             btn.innerText = inCart ? "REMOVE FROM CART" : (btn.classList.contains("mobile-add-bag") ? "ADD TO BAG" : "ADD TO CART");
         });
@@ -1980,22 +2546,20 @@ function refreshVariantButtons() {
     });
 }
 
-
-
+/* ================= REVIEW ================= */
 function submitReview(productId, e) {
     const reviewList = document.querySelector(".review-list") || document.getElementById("reviews");
-    const rating = document.getElementById('reviewRating').value;
-    const textEl = document.getElementById('reviewText');
+    const rating = document.getElementById("reviewRating").value;
+    const textEl = document.getElementById("reviewText");
     const text = textEl.value.trim();
 
-    const btn = e.target; // ✅ correct event
+    const btn = e.target;
 
     if (!text) {
         alert("Write something");
         return;
     }
 
-    // disable button
     btn.disabled = true;
     btn.innerText = "Submitting...";
 
@@ -2005,7 +2569,7 @@ function submitReview(productId, e) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            rating: parseInt(rating), // ✅ safe conversion
+            rating: parseInt(rating),
             comment: text
         })
     })
@@ -2035,9 +2599,8 @@ function submitReview(productId, e) {
 
             reviewList.prepend(newReview);
 
-            // clear form
             textEl.value = "";
-            document.getElementById('reviewRating').value = "5";
+            document.getElementById("reviewRating").value = "5";
         }
 
         if (data.error && data.error !== "login_required") {
@@ -2054,9 +2617,11 @@ function submitReview(productId, e) {
     });
 }
 
+/* ================= SIZE CHART ================= */
 function openSizeChart() {
     const modal = document.getElementById("sizeChartModal");
     if (!modal) return;
+
     modal.classList.add("active");
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
@@ -2065,13 +2630,16 @@ function openSizeChart() {
 function closeSizeChart() {
     const modal = document.getElementById("sizeChartModal");
     if (!modal) return;
+
     modal.classList.remove("active");
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
 }
 
+/* ================= MODAL + ACCORDION ================= */
 document.addEventListener("DOMContentLoaded", () => {
     const modal = document.getElementById("sizeChartModal");
+
     if (modal) {
         modal.addEventListener("click", (event) => {
             if (event.target === modal) closeSizeChart();
@@ -2089,10 +2657,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             event.preventDefault();
+
             const current = summary.parentElement;
+
             document.querySelectorAll(".detail-row[open]").forEach(row => {
                 if (row !== current) row.removeAttribute("open");
             });
+
             current.setAttribute("open", "");
         });
     });
@@ -2103,7 +2674,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
-
 </script>
 
 <section class="product-detail-page">
@@ -2123,27 +2693,27 @@ document.addEventListener("DOMContentLoaded", () => {
 </button>
 
     <!-- 🔥 ONLY THIS WILL CHANGE -->
-    <div id="detailMainMedia">
-        {% if videos|length > 0 %}
-            <video controls src="{{ videos[0].video_url }}"></video>
-        {% elif images|length > 0 %}
-            <img id="mainImage" src="{{ images[0].image_url }}">
-        {% endif %}
-    </div>
+<div id="detailMainMedia">
+    {% if images|length > 0 %}
+        <img id="mainImage" src="{{ images[0].image_url }}" draggable="false">
+    {% elif videos|length > 0 %}
+        <video controls src="{{ videos[0].video_url }}" draggable="false"></video>
+    {% endif %}
+</div>
 
 </div>
 
-           <div class="product-gallery-thumbs">
+         <div class="product-gallery-thumbs" id="galleryThumbs">
 
     {% for img in images %} 
-        <button onclick="setGalleryImage('{{ img.image_url | safe }}', false)">
+        <button type="button" onclick="goToGallerySlide({{ loop.index0 }})">
             <img src="{{ img.image_url }}">
         </button>
     {% endfor %}
 
     {% if videos|length > 0 %}
         {% for video in videos %}
-            <button onclick="setGalleryImage('{{ video.video_url }}', true)">
+            <button type="button" onclick="goToGallerySlide({{ images|length + loop.index0 }})">
                 <video src="{{ video.video_url }}"></video>
             </button>
         {% endfor %}
@@ -2464,16 +3034,16 @@ document.addEventListener("DOMContentLoaded", () => {
         <h2>Explore Related Products</h2>
         <div class="related-grid">
             {% for p in related_products %}
-            <div class="related-card">
-               <img src="{{ p.images[0].image_url if p.images and p.images[0] else '/static/images/default.png' }}">
-                <div class="related-card-body">
-                    <h4>{{ p.name }}</h4>
-                    <div class="price-row">
-                        <span class="new-price">₹{{ p.price }}</span>
-                    </div>
-                    <a href="/product/{{ p.id }}">View details</a>
-                </div>
-            </div>
+          <a href="/product/{{ p.id }}" class="related-card">
+   <img src="{{ p.images[0].image_url if p.images and p.images[0] else '/static/images/default.png' }}">
+    <div class="related-card-body">
+        <h4>{{ p.name }}</h4>
+        <div class="price-row">
+            <span class="new-price">₹{{ p.price }}</span>
+        </div>
+        <span class="related-view-link">View details</span>
+    </div>
+</a>
             {% endfor %}
         </div>
     </section>
@@ -2484,6 +3054,24 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
         <button class="btn btn-primary add-cart-btn mobile-add-bag" type="button" data-id="{{ product.id }}">
             ADD TO BAG
+        </button>
+    </div>
+
+    <div class="gallery-lightbox" id="galleryLightbox" aria-hidden="true">
+        <div class="gallery-lightbox-backdrop" onclick="closeGalleryLightbox()"></div>
+
+        <button class="lightbox-close" type="button" onclick="closeGalleryLightbox()" aria-label="Close">&times;</button>
+
+        <button class="lightbox-arrow lightbox-prev" type="button" onclick="event.stopPropagation(); changeLightboxSlide(-1)">
+            &#8249;
+        </button>
+
+        <div class="lightbox-media-wrap" id="lightboxMediaWrap">
+            <div id="lightboxMedia"></div>
+        </div>
+
+        <button class="lightbox-arrow lightbox-next" type="button" onclick="event.stopPropagation(); changeLightboxSlide(1)">
+            &#8250;
         </button>
     </div>
 </section>

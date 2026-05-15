@@ -288,7 +288,7 @@ def cart_totals_payload(user_id):
     """), {"uid": user_id}).scalar() or 0
     bag_total = float(bag_total)
     discount = bag_total * 0.1
-    shipping = 50 if bag_total > 0 else 0
+    shipping = 0
     payable = bag_total - discount + shipping
     cart_count, wishlist_count = user_counts(user_id)
     return {
