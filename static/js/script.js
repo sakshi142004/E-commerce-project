@@ -229,14 +229,23 @@ function isUserLoggedIn() {
 }
 
 // ================= NAVBAR COUNTS =================
-function updateNavbarCounts() {
+function updateNavbarCounts(cartCount = null, wishlistCount = null) {
+    if (cartCount !== null || wishlistCount !== null) {
+        const c = document.getElementById("cartCount");
+        const w = document.getElementById("wishlistCount");
+        if (c && cartCount !== null) c.textContent = cartCount || 0;
+        if (w && wishlistCount !== null) w.textContent = wishlistCount || 0;
+        syncNavbarBadgeVisibility();
+        return Promise.resolve();
+    }
+
     if (isUserLoggedIn()) {
         fetch("/get_counts")
             .then(r => r.json())
             .then(d => {
                 const c = document.getElementById("cartCount");
                 const w = document.getElementById("wishlistCount");
-                if (c) c.textContent = d.cart    || 0;
+                if (c) c.textContent = d.cart || 0;
                 if (w) w.textContent = d.wishlist || 0;
                 syncNavbarBadgeVisibility();
             }).catch(() => {});
@@ -267,17 +276,90 @@ function updateGuestCounts() {
     syncNavbarBadgeVisibility();
 }
 
-function showGuestToast(message) {
-    let toast = document.getElementById("guestToast");
-    if (!toast) {
-        toast = document.createElement("div");
-        toast.id = "guestToast";
-        toast.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:9999;opacity:0;transition:opacity 0.3s;white-space:nowrap;pointer-events:none;";
-        document.body.appendChild(toast);
+function ensureToastStyles() {
+    if (document.getElementById("bpToastStyles")) return;
+    const style = document.createElement("style");
+    style.id = "bpToastStyles";
+    style.textContent = `
+        .bp-toast-wrap{position:fixed;top:18px;right:18px;display:grid;gap:10px;z-index:100000;pointer-events:none}
+        .bp-toast{min-width:240px;max-width:360px;padding:12px 14px;border-radius:12px;background:#fff;color:#1d2f2d;box-shadow:0 14px 34px rgba(0,0,0,.16);border-left:4px solid #0A5C56;font-size:14px;line-height:1.35;opacity:0;transform:translateY(-8px);transition:opacity .22s ease,transform .22s ease}
+        .bp-toast.show{opacity:1;transform:translateY(0)}
+        .bp-toast.success{border-left-color:#0A5C56}
+        .bp-toast.error{border-left-color:#c62828}
+        .bp-toast.warning{border-left-color:#f5a623}
+        .bp-toast.info{border-left-color:#2f80ed}
+        .bp-removing{opacity:0!important;transform:translateY(8px);transition:opacity .22s ease,transform .22s ease}
+        @media(max-width:768px){.bp-toast-wrap{top:auto;right:12px;left:12px;bottom:16px}.bp-toast{min-width:0;max-width:none;width:100%}}
+    `;
+    document.head.appendChild(style);
+}
+
+function showToast(message, type = "info") {
+    ensureToastStyles();
+    let wrap = document.getElementById("bpToastWrap");
+    if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.id = "bpToastWrap";
+        wrap.className = "bp-toast-wrap";
+        document.body.appendChild(wrap);
     }
-    toast.innerText = message;
-    toast.style.opacity = "1";
-    setTimeout(() => { toast.style.opacity = "0"; }, 2500);
+    const toast = document.createElement("div");
+    toast.className = `bp-toast ${type}`;
+    toast.textContent = message || "Updated";
+    wrap.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.remove(), 240);
+    }, 3000);
+}
+
+function showGuestToast(message) {
+    showToast(message, "info");
+}
+
+function setButtonLoading(button, loadingText = "Updating...") {
+    if (!button) return () => {};
+    const oldText = button.innerHTML;
+    button.disabled = true;
+    button.dataset.loading = "true";
+    button.innerHTML = loadingText;
+    return () => {
+        button.disabled = false;
+        button.dataset.loading = "false";
+        button.innerHTML = oldText;
+    };
+}
+
+function ajaxRequest(url, method = "GET", data = null) {
+    const options = {
+        method,
+        headers: {
+            "X-Requested-With": "XMLHttpRequest"
+        }
+    };
+    if (data !== null) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(data);
+    }
+    return fetch(url, options).then(async response => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.success === false || payload.error) {
+            throw payload;
+        }
+        return payload;
+    });
+}
+
+function removeElementSmoothly(element) {
+    if (!element) return Promise.resolve();
+    element.classList.add("bp-removing");
+    return new Promise(resolve => {
+        setTimeout(() => {
+            element.remove();
+            resolve();
+        }, 240);
+    });
 }
 
 function isInGuestWishlist(productId, colorId = null) {
@@ -295,7 +377,7 @@ function isInGuestCart(productId, colorId = null) {
 // ================= CART =================
 function addToCart(productId, colorId = null, sizeId = null) {
     if (isUserLoggedIn()) {
-        fetch(`/cart/toggle/${productId}`, {
+        fetch(`/add_to_cart/${productId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ color_id: colorId, size_id: sizeId })
@@ -303,10 +385,9 @@ function addToCart(productId, colorId = null, sizeId = null) {
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById("cartCount");
-            if (el && data.count != null) el.innerText = data.count;
-            syncNavbarBadgeVisibility();
-            showGuestToast("Added to cart! 🛒");
-        }).catch(() => {});
+            updateNavbarCounts(data.cart_count ?? data.count, data.wishlist_count ?? null);
+            showToast(data.message || "Added to cart", "success");
+        }).catch((err) => showToast(err.message || "Something went wrong. Please try again.", "error"));
     } else {
         addToGuestCart(productId, colorId, sizeId);
     }
@@ -331,12 +412,11 @@ function addToWishlist(productId, btn = null, colorId = null) {
         fetch(`/wishlist/toggle/${productId}${colorId ? `?color_id=${colorId}` : ""}`)
         .then(r => r.json())
         .then(data => {
-            if (data.error) return;
+            if (data.error) return showToast(data.error, "error");
             if (btn) { btn.classList.toggle("active", data.in_wishlist); btn.innerHTML = data.in_wishlist ? "❤️" : "♡"; }
-            const w = document.getElementById("wishlistCount");
-            if (w) w.innerText = data.count;
-            syncNavbarBadgeVisibility();
-        }).catch(err => console.error("Wishlist error:", err));
+            updateNavbarCounts(data.cart_count ?? null, data.wishlist_count ?? data.count);
+            showToast(data.message || "Wishlist updated", data.in_wishlist ? "success" : "info");
+        }).catch(err => showToast(err.message || "Something went wrong. Please try again.", "error"));
     } else {
         let gWish = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
         const idx = gWish.findIndex(i =>

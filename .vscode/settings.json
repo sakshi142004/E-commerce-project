@@ -14,5 +14,6 @@
             "database": "belt_paradise",
             "username": "root"
         }
-    ]
+    ],
+    "liveServer.settings.port": 5502
 }

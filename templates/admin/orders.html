@@ -75,6 +75,43 @@
     color: #ff4d6d;
 }
 
+.paid, .confirmed {
+    background: rgba(0,170,110,0.15);
+    color: #008f5d;
+}
+
+.failed, .payment-failed {
+    background: rgba(255,60,80,0.15);
+    color: #ff4d6d;
+}
+
+.processing {
+    background: rgba(120,90,255,0.15);
+    color: #6d5dfc;
+}
+
+.filter-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.filter-row a {
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    color: #111;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.filter-row a.active {
+    background: #0A5C56;
+    color: #fff;
+    border-color: #0A5C56;
+}
+
 /* BUTTON */
 .btn {
     padding: 8px 14px;
@@ -96,12 +133,26 @@
 <div class="orders-container">
     <h2>📦 Orders</h2>
 
+    <div class="filter-row">
+        <a class="{{ 'active' if not payment_filter and not status_filter else '' }}" href="/admin/orders">All</a>
+        <a class="{{ 'active' if payment_filter == 'Pending' else '' }}" href="/admin/orders?payment_status=Pending">Pending Payment</a>
+        <a class="{{ 'active' if payment_filter == 'Paid' else '' }}" href="/admin/orders?payment_status=Paid">Paid</a>
+        <a class="{{ 'active' if payment_filter == 'Failed' else '' }}" href="/admin/orders?payment_status=Failed">Failed</a>
+        <a class="{{ 'active' if status_filter == 'Confirmed' else '' }}" href="/admin/orders?status=Confirmed">Confirmed</a>
+        <a class="{{ 'active' if status_filter == 'Processing' else '' }}" href="/admin/orders?status=Processing">Processing</a>
+        <a class="{{ 'active' if status_filter == 'Shipped' else '' }}" href="/admin/orders?status=Shipped">Shipped</a>
+        <a class="{{ 'active' if status_filter == 'Delivered' else '' }}" href="/admin/orders?status=Delivered">Delivered</a>
+        <a class="{{ 'active' if status_filter == 'Cancelled' else '' }}" href="/admin/orders?status=Cancelled">Cancelled</a>
+    </div>
+
     <table class="table">
         <tr>
             <th>ID</th>
             <th>User</th>
             <th>Total</th>
-            <th>Status</th>
+            <th>Payment</th>
+            <th>Payment ID</th>
+            <th>Order Status</th>
             <th>Action</th>
         </tr>
 
@@ -111,8 +162,14 @@
             <td>{{ order.user_id }}</td>
             <td>₹{{ order.total_amount }}</td>
             <td>
-                <span class="status {{ order.status|lower|replace(' ', '-') }}">
-                    {{ order.status }}
+                <span class="status {{ (order.payment_status or 'Pending')|lower|replace(' ', '-') }}">
+                    {{ 'Pending Payment' if (order.payment_status or 'Pending') == 'Pending' else order.payment_status }}
+                </span>
+            </td>
+            <td>{{ order.razorpay_payment_id or '-' }}</td>
+            <td>
+                <span class="status {{ (order.order_status or order.status)|lower|replace(' ', '-') }}">
+                    {{ order.order_status or order.status }}
                 </span>
             </td>
             <td>
