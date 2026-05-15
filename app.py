@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, flash, render_template, request, jsonify, session, redirect, abort, url_for
-from sqlalchemy import exists, text
+from sqlalchemy import exists, text,inspect
 from sqlalchemy.orm import joinedload
 from models import Address, Blog, Cart, Category, Color, EmailHistory, EmailTrack, Order, OrderItem, PasswordResetToken, ProductColor, ProductSize, Review, Tag, Warranty, db, User, Product, ProductImage, ProductVideo, ProductTag, PaymentMethod, WalletTransaction, Ticket
 from flask_login import LoginManager, login_user
@@ -117,10 +117,32 @@ def describe_database_url(url):
     port = f":{url.port}" if url.port else ""
     return f"type={url.drivername} host={host}{port} database={database}"
 
+def ensure_column_exists(table_name, column_name, column_sql):
+    inspector = inspect(db.engine)
+
+    if table_name not in inspector.get_table_names():
+        return
+
+    existing_columns = [col["name"] for col in inspector.get_columns(table_name)]
+
+    if column_name not in existing_columns:
+        with db.engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}"))
+
+
+def ensure_live_db_columns():
+    # ✅ Warranty page fix
+    ensure_column_exists("warranty", "order_id", "order_id INTEGER")
+    ensure_column_exists("warranty", "product_name", "product_name VARCHAR(255)")
+    ensure_column_exists("warranty", "purchase_date", "purchase_date DATE")
+
+    # ✅ Product archive fix
+    ensure_column_exists("products", "is_archived", "is_archived BOOLEAN DEFAULT FALSE")
 
 with app.app_context():
     print("DB IN USE:", describe_database_url(db.engine.url))
     PasswordResetToken.__table__.create(db.engine, checkfirst=True)
+    ensure_live_db_columns()
 
 
 @login_manager.user_loader
@@ -1376,27 +1398,71 @@ def delete_product(id):
 
     product = Product.query.get_or_404(id)
 
-    # ❌ BLOCK if in orders
+    # ✅ Check if product is used in any order
     order_item = OrderItem.query.filter_by(product_id=id).first()
 
     if order_item:
+        # ✅ Check delivered order only
+        delivered_order_item = (
+            OrderItem.query
+            .join(Order, OrderItem.order_id == Order.id)
+            .filter(
+                OrderItem.product_id == id,
+                Order.order_status == "Delivered"
+            )
+            .first()
+        )
+
+        # ✅ If delivered, archive instead of hard delete
+        if delivered_order_item:
+            db.session.execute(
+                text("UPDATE products SET is_archived = TRUE WHERE id = :pid"),
+                {"pid": id}
+            )
+            db.session.commit()
+
+            message = "Product is delivered, so it has been archived instead of deleted."
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({
+                    "success": True,
+                    "product_id": id,
+                    "archived": True,
+                    "message": message
+                })
+
+            return f"""
+            <script>
+                alert("✅ {message}");
+                window.location.href = "/admin/products";
+            </script>
+            """
+
+        # ❌ If order exists but not delivered, block delete
+        message = "Product cannot be deleted because its order is not delivered yet."
+
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({
                 "success": False,
-                "message": "Cannot delete. Product is used in an order."
+                "product_id": id,
+                "message": message
             }), 400
-        return """
+
+        return f"""
         <script>
-            alert("❌ Cannot delete! Product is used in an order.");
+            alert("❌ {message}");
             window.location.href = "/admin/products";
         </script>
         """
 
-    # 🟡 REMOVE FROM CART
-    db.session.execute(
-        text("DELETE FROM cart WHERE product_id = :pid"),
-        {"pid": id}
-    )
+    # ✅ Product has no orders, safe hard delete
+    db.session.execute(text("DELETE FROM cart WHERE product_id = :pid"), {"pid": id})
+    db.session.execute(text("DELETE FROM wishlist WHERE product_id = :pid"), {"pid": id})
+    db.session.execute(text("DELETE FROM product_tags WHERE product_id = :pid"), {"pid": id})
+    db.session.execute(text("DELETE FROM product_colors WHERE product_id = :pid"), {"pid": id})
+    db.session.execute(text("DELETE FROM product_sizes WHERE product_id = :pid"), {"pid": id})
+    db.session.execute(text("DELETE FROM product_images WHERE product_id = :pid"), {"pid": id})
+    db.session.execute(text("DELETE FROM product_videos WHERE product_id = :pid"), {"pid": id})
 
     db.session.delete(product)
     db.session.commit()
@@ -1405,11 +1471,11 @@ def delete_product(id):
         return jsonify({
             "success": True,
             "product_id": id,
+            "archived": False,
             "message": "Product deleted successfully"
         })
 
     return redirect("/admin/products")
-
 
 @app.route("/admin/video/delete/<int:id>")
 @admin_required

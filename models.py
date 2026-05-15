@@ -73,7 +73,7 @@ class Product(db.Model):
     description = db.Column(db.Text)
 
     size_unit = db.Column(db.String(20), default="inch")
-
+    is_archived = db.Column(db.Boolean, default=False)
     images = db.relationship('ProductImage', backref='product', cascade="all, delete")
     videos = db.relationship('ProductVideo', backref='product', cascade="all, delete")
     tags = db.relationship('ProductTag', backref='product', cascade="all, delete")
