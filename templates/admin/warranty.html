@@ -1,0 +1,48 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+<div class="orders-container">
+    <h2>Warranty Registrations</h2>
+
+    <div class="orders-table-wrap">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Order/Product</th>
+                    <th>Purchase</th>
+                    <th>Message</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in warranty_claims %}
+                <tr>
+                    <td>#{{ claim.id }}</td>
+                    <td>{{ claim.name }}</td>
+                    <td>{{ claim.email or '-' }}</td>
+                    <td>{{ claim.phone }}</td>
+                    <td>
+                        {{ claim.order_id or '-' }}<br>
+                        {{ claim.product_name or '-' }}
+                    </td>
+                    <td>
+                        {{ claim.purchase or '-' }}<br>
+                        {{ claim.purchase_date or '-' }}
+                    </td>
+                    <td>{{ claim.message or '-' }}</td>
+                    <td>{{ claim.created_at.strftime('%Y-%m-%d %H:%M') if claim.created_at else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8">No warranty registrations yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

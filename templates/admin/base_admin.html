@@ -374,7 +374,7 @@ html, body {
 <div class="sidebar" id="sidebar">
 
     <div class="brand">
-        <img src="static\images\favicon_logo.jpeg" alt="Logo">
+        <img src="{{ url_for('static', filename='images/BP_OnlyLogo-01.png') }}" alt="BeltPurse Logo">
         <div class="brand-text">
             <h2>Admin</h2>
             <p>Control Center</p>
@@ -400,6 +400,16 @@ html, body {
         <a href="/admin/users">
             <span class="icon">👥</span>
             Users
+        </a>
+
+        <a href="/admin/issues">
+            <span class="icon">?</span>
+            Issues
+        </a>
+
+        <a href="/admin/warranty">
+            <span class="icon">W</span>
+            Warranty
         </a>
 
         <a href="/admin/blogs">
@@ -1435,6 +1445,107 @@ document.querySelectorAll(".sidebar a").forEach(link => {
         sidebar.classList.remove("open");
    
     });
+});
+
+function adminEnsureToastStyles() {
+    if (document.getElementById("adminToastStyles")) return;
+    const style = document.createElement("style");
+    style.id = "adminToastStyles";
+    style.textContent = `
+        .admin-toast-wrap{position:fixed;top:18px;right:18px;display:grid;gap:10px;z-index:100000;pointer-events:none}
+        .admin-toast{min-width:240px;max-width:360px;padding:12px 14px;border-radius:12px;background:#fff;color:#1d2f2d;box-shadow:0 14px 34px rgba(0,0,0,.16);border-left:4px solid #0A5C56;font-size:14px;opacity:0;transform:translateY(-8px);transition:opacity .22s ease,transform .22s ease}
+        .admin-toast.show{opacity:1;transform:translateY(0)}
+        .admin-toast.error{border-left-color:#c62828}
+        .admin-toast.warning{border-left-color:#f5a623}
+        .admin-removing{opacity:0!important;transform:translateY(8px);transition:opacity .22s ease,transform .22s ease}
+        @media(max-width:768px){.admin-toast-wrap{top:auto;right:12px;left:12px;bottom:16px}.admin-toast{min-width:0;max-width:none;width:100%}}
+    `;
+    document.head.appendChild(style);
+}
+
+function adminToast(message, type = "success") {
+    adminEnsureToastStyles();
+    let wrap = document.getElementById("adminToastWrap");
+    if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.id = "adminToastWrap";
+        wrap.className = "admin-toast-wrap";
+        document.body.appendChild(wrap);
+    }
+    const toast = document.createElement("div");
+    toast.className = `admin-toast ${type}`;
+    toast.textContent = message || "Updated";
+    wrap.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.remove(), 240);
+    }, 3000);
+}
+
+function adminButtonLoading(button, text = "Updating...") {
+    if (!button) return () => {};
+    const oldText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = text;
+    return () => {
+        button.disabled = false;
+        button.innerHTML = oldText;
+    };
+}
+
+function adminFetch(url, options = {}) {
+    options.headers = {
+        ...(options.headers || {}),
+        "X-Requested-With": "XMLHttpRequest"
+    };
+    return fetch(url, options).then(async response => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) throw data;
+        return data;
+    });
+}
+
+document.addEventListener("click", function(event) {
+    const deleteLink = event.target.closest('a[href*="/admin/products/delete/"], a[href*="/admin/blogs/delete/"], a[href*="/admin/image/delete/"], a[href*="/admin/video/delete/"]');
+    if (!deleteLink) return;
+
+    event.preventDefault();
+    if (!confirm("Delete this item?")) return;
+
+    adminFetch(deleteLink.href)
+        .then(data => {
+            const removable = deleteLink.closest(".product-card, tr, .img-card, .image-box, .video-box, .media-card, .gallery-item") || deleteLink.closest("div");
+            if (removable) {
+                removable.classList.add("admin-removing");
+                setTimeout(() => removable.remove(), 240);
+            }
+            adminToast(data.message || "Deleted successfully", "success");
+        })
+        .catch(error => adminToast(error.message || "Something went wrong. Please try again.", "error"));
+});
+
+document.addEventListener("submit", function(event) {
+    const form = event.target.closest("#adminOrderUpdateForm");
+    if (!form) return;
+
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    const restore = adminButtonLoading(button, "Updating...");
+    adminFetch(form.action, {
+        method: "POST",
+        body: new FormData(form)
+    })
+    .then(data => {
+        const badge = document.getElementById("orderStatusBadge");
+        if (badge) {
+            badge.textContent = data.status;
+            badge.className = "status " + String(data.status || "").toLowerCase().replaceAll(" ", "-");
+        }
+        adminToast(data.message || "Order updated successfully", "success");
+    })
+    .catch(error => adminToast(error.message || "Something went wrong. Please try again.", "error"))
+    .finally(restore);
 });
 
 

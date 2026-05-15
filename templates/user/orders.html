@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="orders-page">
+    <h1>My Orders</h1>
+
+    {% if orders %}
+        <div class="orders-list">
+            {% for order in orders %}
+                <article class="order-card">
+                    <div class="order-head">
+                        <strong>Order #{{ order.id }}</strong>
+                        <span>{{ order.order_status or order.status }}</span>
+                    </div>
+                    <p>Payment: {{ order.payment_status or 'Pending' }}</p>
+                    <p>Total: INR {{ order.total_amount }}</p>
+                    {% if order.tracking_number %}
+                        <p>Tracking ID: {{ order.tracking_number }}</p>
+                    {% endif %}
+                    {% if order.courier_partner %}
+                        <p>Courier: {{ order.courier_partner }}</p>
+                    {% endif %}
+                    {% if order.tracking_url %}
+                        <a href="{{ order.tracking_url }}" target="_blank" rel="noopener">Track Order</a>
+                    {% endif %}
+
+                    {% for item in order.items %}
+                        <div class="order-item">
+                            <img src="{{ order_item_image_url(item) }}" alt="">
+                            <div>
+                                <p>{{ item.product.name if item.product else 'Product #' ~ item.product_id }}</p>
+                                <small>
+                                    Qty: {{ item.quantity }}
+                                    {% if item.size %} | Size: {{ item.size.size_label }}{% endif %}
+                                    {% if item.color %} | Color: {{ item.color.name }}{% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No orders yet.</p>
+    {% endif %}
+</section>
+
+<style>
+.orders-page {
+    padding: 32px 18px;
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+.orders-list {
+    display: grid;
+    gap: 16px;
+}
+
+.order-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 18px;
+}
+
+.order-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.order-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.order-item img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

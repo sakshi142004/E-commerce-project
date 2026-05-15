@@ -993,6 +993,20 @@ function updateFinalPrice() {
 
 mrpInput.addEventListener("input", updateFinalPrice);
 discountInput.addEventListener("input", updateFinalPrice);
+
+const productForm = document.getElementById("productForm");
+if (productForm) {
+    productForm.addEventListener("submit", function() {
+        if (productForm.dataset.submitting === "true") return false;
+
+        productForm.dataset.submitting = "true";
+        const submitButton = productForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerText = "Saving...";
+        }
+    });
+}
 </script>
 
 {% endblock %}

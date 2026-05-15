@@ -1078,6 +1078,20 @@ function previewVideos(event, colorId) {
     });
 }
 
+const editProductForm = document.getElementById("editProductForm");
+if (editProductForm) {
+    editProductForm.addEventListener("submit", function() {
+        if (editProductForm.dataset.submitting === "true") return false;
+
+        editProductForm.dataset.submitting = "true";
+        const submitButton = editProductForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerText = "Saving...";
+        }
+    });
+}
+
 </script>
 
 {% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="order-success-page">
+    <div class="order-success-box">
+        <h1>Order Confirmed</h1>
+        <p>Your payment was verified and your BeltPurse order is confirmed.</p>
+
+        <div class="order-success-summary">
+            <div>
+                <span>Order ID</span>
+                <strong>#{{ order.id }}</strong>
+            </div>
+            <div>
+                <span>Amount</span>
+                <strong>INR {{ order.total_amount }}</strong>
+            </div>
+            <div>
+                <span>Payment</span>
+                <strong>{{ order.payment_status }}</strong>
+            </div>
+        </div>
+
+        <a href="/account" class="order-success-btn">View Orders</a>
+    </div>
+</section>
+
+<style>
+.order-success-page {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 18px;
+    background: #f8fafc;
+}
+
+.order-success-box {
+    width: min(560px, 100%);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 28px;
+    text-align: center;
+}
+
+.order-success-box h1 {
+    margin: 0 0 10px;
+    color: #083E3A;
+}
+
+.order-success-box p {
+    color: #52615f;
+}
+
+.order-success-summary {
+    display: grid;
+    gap: 12px;
+    margin: 24px 0;
+    text-align: left;
+}
+
+.order-success-summary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #edf0ef;
+}
+
+.order-success-summary span {
+    color: #61716e;
+}
+
+.order-success-btn {
+    display: inline-block;
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color: #fff;
+    text-decoration: none;
+}
+</style>
+
+{% endblock %}

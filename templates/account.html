@@ -80,6 +80,10 @@
 
                 <div class="form-grid" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
                     <h3 style="grid-column: 1/-1; margin-bottom: 15px;"> Change Password (Optional)</h3>
+                    <p style="grid-column: 1/-1; margin: -8px 0 4px; color: #4b4b4b;">
+                        Need a reset link instead?
+                        <button type="button" class="secondary-btn" onclick="sendAccountPasswordReset()">Send Password Reset Link</button>
+                    </p>
                     <div class="form-group">
                         <label>Current Password</label>
                         <input id="current_password" type="password" placeholder="Enter current password">
@@ -190,9 +194,31 @@
         <h3>Submit Issue</h3>
 
         <div class="floating-group">
+            <select id="issue_category" required>
+                <option value=""></option>
+                <option value="Order">Order</option>
+                <option value="Payment">Payment</option>
+                <option value="Product">Product</option>
+                <option value="Warranty">Warranty</option>
+                <option value="Other">Other</option>
+            </select>
+            <label>Issue Type</label>
+        </div>
+
+        <div class="floating-group">
             <input id="subject" required>
             <label>Subject</label>
         </div>
+
+        <div class="floating-group">
+            <input id="issue_order_id">
+            <label>Order ID (optional)</label>
+        </div>
+
+        <label class="file-upload">
+            <input type="file" id="issue_attachment">
+            <span>Attach Image / File (optional)</span>
+        </label>
 
         <div class="floating-group">
             <textarea id="message" rows="4" required></textarea>
@@ -223,6 +249,21 @@
             </div>
 
             <div class="floating-group">
+                <input id="w_order_id">
+                <label>Order ID</label>
+            </div>
+
+            <div class="floating-group">
+                <input id="w_product_name">
+                <label>Product Name</label>
+            </div>
+
+            <div class="floating-group">
+                <input id="w_purchase_date" type="date">
+                <label>Purchase Date</label>
+            </div>
+
+            <div class="floating-group">
                 <select id="w_purchase" required>
                     <option value=""></option>
                     <option value="online">Online</option>
@@ -236,6 +277,11 @@
         <div class="floating-group">
             <textarea id="w_address" rows="3"></textarea>
             <label>Address</label>
+        </div>
+
+        <div class="floating-group">
+            <textarea id="w_message" rows="3"></textarea>
+            <label>Message</label>
         </div>
 
         <!-- CUSTOM FILE UPLOAD -->
@@ -362,7 +408,17 @@ function loadOrders(){
                 <div class="order-card">
                     <p>Order #${o.id}</p>
                     <p>₹${o.total}</p>
-                    <p>Status: ${o.status}</p>
+                    <p>Order Status: ${o.status}</p>
+                    <p>Payment Status: ${o.payment_status || 'Pending'}</p>
+                    ${(o.items || []).map(item => `
+                        <div class="order-item-row">
+                            <img src="${item.product_image || '/static/images/default.png'}" alt="">
+                            <span>${item.product_name} ${item.size ? ' | Size: ' + item.size : ''} ${item.color ? ' | Color: ' + item.color : ''} x ${item.quantity}</span>
+                        </div>
+                    `).join('')}
+                    ${o.tracking_number ? `<p>Tracking ID: ${o.tracking_number}</p>` : ''}
+                    ${o.courier_partner ? `<p>Courier: ${o.courier_partner}</p>` : ''}
+                    ${o.tracking_url ? `<p><a href="${o.tracking_url}" target="_blank" rel="noopener">Track Order</a></p>` : ''}
                     <p>${o.created_at ? new Date(o.created_at).toLocaleDateString() : ''}</p>
                 </div>`).join("");
 
@@ -571,21 +627,22 @@ function showAddTicketForm(){
 }
 
 async function saveTicket(){
-    let data = {
-        subject: document.getElementById("subject").value,
-        message: document.getElementById("message").value,
-        user_name: document.getElementById("name") ? document.getElementById("name").value : "",
-        user_email: document.getElementById("email") ? document.getElementById("email").value : ""
-    };
+    let formData = new FormData();
+    formData.append("category", document.getElementById("issue_category").value);
+    formData.append("subject", document.getElementById("subject").value);
+    formData.append("message", document.getElementById("message").value);
+    formData.append("order_id", document.getElementById("issue_order_id").value);
+    formData.append("phone", document.getElementById("phone") ? document.getElementById("phone").value : "");
+
+    let attachment = document.getElementById("issue_attachment").files[0];
+    if(attachment){
+        formData.append("attachment", attachment);
+    }
 
     try {
-        let ticketRes = await fetch('/api/tickets',{
+        let ticketRes = await fetch('/submit-issue',{
             method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-                subject: data.subject,
-                message: data.message
-            })
+            body: formData
         });
         let ticketData = await ticketRes.json();
 
@@ -594,20 +651,11 @@ async function saveTicket(){
             return;
         }
 
-        let emailRes = await fetch('/send-help-email',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify(data)
-        });
-        let emailData = await emailRes.json();
-
-        if(!emailRes.ok || !emailData.success){
-            alert(emailData.message || "Something went wrong");
-            return;
-        }
-
         alert("Issue submitted successfully");
+        document.getElementById("issue_category").value = "";
         document.getElementById("subject").value = "";
+        document.getElementById("issue_order_id").value = "";
+        document.getElementById("issue_attachment").value = "";
         document.getElementById("message").value = "";
         loadTickets();
         cancelTicketForm();
@@ -683,10 +731,12 @@ function updateProfile(){
     .then(res=>res.json())
     .then(d=>{
         if(d.error){
-            alert("❌ " + d.error);
+            if(typeof showToast === "function") showToast(d.error, "error");
+            else alert("❌ " + d.error);
             return;
         }
-        alert("✅ " + (d.message || "Profile updated successfully"));
+        if(typeof showToast === "function") showToast(d.message || "Profile updated successfully", "success");
+        else alert("✅ " + (d.message || "Profile updated successfully"));
         console.log("Profile updated:", d);
         
         // Clear password fields after successful update
@@ -696,14 +746,11 @@ function updateProfile(){
             document.getElementById("confirm_password").value = "";
         }
         
-        // Reload after successful save
-        setTimeout(()=>{
-            window.location.href = "/account";
-        }, 500);
     })
     .catch(err=>{
         console.error("Error:", err);
-        alert("❌ Error updating profile: " + err.message);
+        if(typeof showToast === "function") showToast("Error updating profile: " + err.message, "error");
+        else alert("❌ Error updating profile: " + err.message);
     });
 }
 
@@ -756,28 +803,24 @@ function openHelpForm(type){
 async function submitWarranty(){
 
     let saveFormData = new FormData();
-    let emailFormData = new FormData();
 
     saveFormData.append("name", document.getElementById("w_name").value);
     saveFormData.append("phone", document.getElementById("w_phone").value);
     saveFormData.append("email", document.getElementById("w_email").value);
     saveFormData.append("address", document.getElementById("w_address").value);
     saveFormData.append("purchase", document.getElementById("w_purchase").value);
-
-    emailFormData.append("w_name", document.getElementById("w_name").value);
-    emailFormData.append("w_phone", document.getElementById("w_phone").value);
-    emailFormData.append("w_email", document.getElementById("w_email").value);
-    emailFormData.append("w_purchase", document.getElementById("w_purchase").value);
-    emailFormData.append("w_address", document.getElementById("w_address").value);
+    saveFormData.append("order_id", document.getElementById("w_order_id").value);
+    saveFormData.append("product_name", document.getElementById("w_product_name").value);
+    saveFormData.append("purchase_date", document.getElementById("w_purchase_date").value);
+    saveFormData.append("message", document.getElementById("w_message").value);
 
     let file = document.getElementById("w_bill").files[0];
     if(file){
         saveFormData.append("bill", file);
-        emailFormData.append("w_bill", file);
     }
 
     try {
-        let warrantyRes = await fetch('/api/warranty', {
+        let warrantyRes = await fetch('/register-warranty', {
             method: 'POST',
             body: saveFormData
         });
@@ -788,28 +831,32 @@ async function submitWarranty(){
             return;
         }
 
-        let emailRes = await fetch('/send-warranty-email', {
-            method: 'POST',
-            body: emailFormData
-        });
-        let emailData = await emailRes.json();
-
-        if(!emailRes.ok || !emailData.success){
-            alert(emailData.message || "Something went wrong");
-            return;
-        }
-
         alert("Warranty submitted successfully");
         document.getElementById("w_name").value = "";
         document.getElementById("w_phone").value = "";
         document.getElementById("w_email").value = "";
+        document.getElementById("w_order_id").value = "";
+        document.getElementById("w_product_name").value = "";
+        document.getElementById("w_purchase_date").value = "";
         document.getElementById("w_purchase").value = "";
         document.getElementById("w_address").value = "";
+        document.getElementById("w_message").value = "";
         document.getElementById("w_bill").value = "";
     } catch(err) {
         console.error("Warranty submission error:", err);
         alert("Something went wrong");
     }
+}
+
+function sendAccountPasswordReset(){
+    fetch('/account/change-password', { method:'POST' })
+    .then(res=>res.json())
+    .then(data=>{
+        alert(data.message || "Password reset link sent to your registered email.");
+    })
+    .catch(()=>{
+        alert("Unable to send reset link right now.");
+    });
 }
 document.querySelectorAll('.date-input').forEach(input => {
     const syncDateValueState = () => input.classList.toggle('has-value', Boolean(input.value));
@@ -1410,6 +1457,20 @@ body {
 .order-card p {
     margin: 0;
     color: #2f4f52;
+}
+
+.order-item-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.order-item-row img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 10px;
 }
 
 .address-card button,

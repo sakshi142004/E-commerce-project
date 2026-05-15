@@ -112,7 +112,6 @@
                             <a
                                 href="/admin/blogs/delete/{{ blog.id }}"
                                 class="action-btn delete-btn"
-                                onclick="return confirm('Delete this blog?')"
                             >
                                 Delete
                             </a>
@@ -129,7 +128,7 @@
     {% else %}
     <!-- EMPTY STATE -->
     <div class="empty-state">
-        <img src="/static/images/empty-box.png" alt="No Blogs">
+        <img src="/static/images/default.png" alt="No Blogs">
         <h3>No Blogs Yet</h3>
         <p>Create your first blog and start publishing content.</p>
         <a href="/admin/blogs/add" class="add-btn">+ Add Blog</a>

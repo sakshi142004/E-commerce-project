@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="cart-container">
+<div class="cart-container cart-page-container">
 
     <h1 class="title">Your Shopping Cart</h1>
 
@@ -13,16 +13,16 @@
     </div>
 
     <!-- Cart grid: always in DOM so JS can populate it for guests -->
-    <div class="cart-grid" id="cartGrid" style="{% if products|length == 0 %}display:none{% endif %}">
+    <div class="cart-grid cart-page-grid" id="cartGrid" style="{% if products|length == 0 %}display:none{% endif %}">
 
         <!-- LEFT -->
-        <div class="cart-items" id="cartItems">
+        <div class="cart-items cart-items-list" id="cartItems">
             {% for p in products %}
-            <div class="cart-card" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">
+            <div class="cart-card cart-item-card" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">
 
-                <img src="{{ p.image_url or '/static/images/default.png' }}" class="product-img">
+                <img src="{{ p.image_url or '/static/images/default.png' }}" class="product-img cart-item-image">
 
-                <div class="details">
+                <div class="details cart-item-details">
                     <h3>{{ p.name }}</h3>
                     {% if p.color_name %}
                     <p class="cart-variant">
@@ -33,18 +33,18 @@
                  <p class="price" id="price-{{ p.id }}">₹{{ p.price }}</p>
                  </div>
 
-                 <div class="right-box">
+                 <div class="right-box cart-item-actions">
                  <p class="item-total" id="item-total-{{ p.id }}">
     Total: ₹{{ p.price * p.quantity }}
 </p>
 
-                    <div class="qty-box">
+                    <div class="qty-box cart-qty-control">
                         <button class="qty-btn minus" data-id="{{ p.id }}">−</button>
                         <span class="qty-number" id="qty-{{ p.id }}">{{ p.quantity }}</span>
                         <button class="qty-btn plus" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">+</button>
                     </div>
 
-   <div class="actions">
+   <div class="actions cart-action-buttons">
     <button class="removeBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">Remove</button>
     <button class="wishBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">Move to Wishlist</button>
 </div>
@@ -54,7 +54,7 @@
         </div>
 
         <!-- RIGHT -->
-        <div class="cart-summary">
+        <div class="cart-summary order-summary-card">
 
             <h2>Order Summary</h2>
 
@@ -98,8 +98,8 @@
 
         <hr>
 
-        <button class="secondary-btn" onclick="document.getElementById('reviewModal').style.display='none'">Back</button>
-        <button class="confirm-btn" onclick="proceedToCheckout()">Continue to Address</button>
+        <button type="button" class="secondary-btn" onclick="document.getElementById('reviewModal').style.display='none'">Back</button>
+        <button type="button" class="confirm-btn" id="reviewContinueBtn" onclick="proceedToCheckout()">Continue to Address</button>
 
     </div>
 </div>
@@ -117,13 +117,24 @@
         <!-- FORM -->
         <div id="addressForm" style="display:none;">
             <input placeholder="Full Name" id="full_name">
-            <input placeholder="Phone" id="phone">
-            <input placeholder="Address" id="address_line">
+            <input placeholder="Address" id="address_line" class="address-wide-field">
             <input placeholder="City" id="city">
             <input placeholder="State" id="state">
-            <input placeholder="Pincode" id="pincode">
+            <input placeholder="Pincode" id="pincode" inputmode="numeric" maxlength="6">
 
-            <button class="save-btn" onclick="saveAddress()">Save Address</button>
+            <label class="alternate-phone-toggle">
+                <input type="checkbox" id="useAlternatePhone" onchange="toggleAlternatePhone()">
+                <span>Use different delivery phone</span>
+            </label>
+
+            <div class="alternate-phone-field" id="alternatePhoneField" style="display:none;">
+                <input placeholder="Enter alternate delivery phone" id="alternate_phone" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/\D/g, '').slice(0, 10)">
+                <p class="address-form-error" id="alternatePhoneError"></p>
+            </div>
+
+            <p class="address-form-message" id="addressFormMessage"></p>
+
+            <button type="button" class="save-btn" onclick="saveAddress()">Save Address</button>
         </div>
 
         <hr>
@@ -131,17 +142,231 @@
         <h2>Payment Method</h2>
 
         <div class="payment-options">
-            <label><input type="radio" name="payment" value="cod" checked> Cash on Delivery</label>
-            <label><input type="radio" name="payment" value="upi"> UPI</label>
-            <label><input type="radio" name="payment" value="card"> Card</label>
+            <label><input type="radio" name="payment" value="razorpay" checked> Pay Securely Online</label>
         </div>
 
-        <button class="secondary-btn" onclick="document.getElementById('checkoutModal').style.display='none'">Back</button>
-        <button class="confirm-btn" onclick="placeOrder()">Confirm Order</button>
+        <button type="button" class="secondary-btn" onclick="document.getElementById('checkoutModal').style.display='none'">Back</button>
+        <button type="button" class="confirm-btn" id="confirmOrderBtn">Confirm Order</button>
 
     </div>
 </div>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+async function startRazorpayPayment(payment){
+    const confirmBtn = document.getElementById("confirmOrderBtn");
+
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = "Starting Payment...";
+    }
+
+    let createdOrderData = null;
+    let verificationStarted = false;
+
+    async function checkPaymentFallback() {
+        if (!createdOrderData || verificationStarted) return;
+
+        console.log("Checking Razorpay fallback payment status...");
+
+        try {
+            const statusRes = await fetch("/check-razorpay-order-status", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({
+                    pending_order_id: createdOrderData.pending_order_id || createdOrderData.order_id || createdOrderData.local_order_id,
+                    local_order_id: createdOrderData.local_order_id || createdOrderData.order_id || createdOrderData.pending_order_id,
+                    order_id: createdOrderData.order_id || createdOrderData.pending_order_id || createdOrderData.local_order_id,
+                    razorpay_order_id: createdOrderData.razorpay_order_id
+                })
+            });
+
+            const statusData = await statusRes.json();
+            console.log("Fallback payment status response:", statusData);
+
+            if (statusData.success && statusData.payment_status === "Paid") {
+                alert("Payment successful! Order confirmed.");
+                if (typeof updateNavbarCounts === "function") {
+                    updateNavbarCounts();
+                }
+                window.location.href = statusData.redirect_url || statusData.redirect || `/order-success/${statusData.order_id}`;
+                return;
+            }
+
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "Confirm Order";
+            }
+
+            alert(statusData.message || "Payment was not completed. Your cart is safe.");
+
+        } catch (err) {
+            console.error("Fallback payment status error:", err);
+
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "Confirm Order";
+            }
+
+            alert("If payment was deducted, please contact support. Your order is still pending.");
+        }
+    }
+
+    try {
+        const res = await fetch('/create-razorpay-order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                address_index: selectedAddress,
+                payment: payment,
+                payment_method: "razorpay"
+            })
+        });
+
+        const data = await res.json();
+        createdOrderData = data;
+
+        console.log("CREATE RAZORPAY ORDER RESPONSE:", data);
+
+        if (!data.success) {
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "Confirm Order";
+            }
+
+            if (data.error_type === "missing_phone") {
+                alert(data.message || "Please add your phone number before placing order.");
+                return;
+            }
+
+            alert(data.message || "Payment could not be started");
+            return;
+        }
+
+        if (typeof Razorpay === "undefined") {
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "Confirm Order";
+            }
+            alert("Payment service could not load. Please refresh and try again.");
+            return;
+        }
+
+        const options = {
+            key: data.key || data.key_id,
+            amount: data.amount,
+            currency: data.currency || "INR",
+            name: data.name || "Belt Purse",
+            description: data.description || "Order Payment",
+            order_id: data.razorpay_order_id,
+
+            prefill: {
+                name: data.user_name || data.customer?.name || "",
+                email: data.user_email || data.customer?.email || "",
+                contact: data.user_phone || data.customer?.phone || ""
+            },
+
+            handler: async function(response) {
+                verificationStarted = true;
+
+                console.log("RAZORPAY PAYMENT SUCCESS:", response);
+                console.log("Calling /verify-payment...");
+
+                try {
+                    const verifyRes = await fetch('/verify-payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                            pending_order_id: data.pending_order_id || data.order_id || data.local_order_id,
+                            local_order_id: data.local_order_id || data.order_id || data.pending_order_id,
+                            order_id: data.order_id || data.pending_order_id || data.local_order_id
+                        })
+                    });
+
+                    const verifyData = await verifyRes.json();
+                    console.log("VERIFY PAYMENT RESPONSE:", verifyData);
+
+                    if (verifyData.success) {
+                        alert("Payment successful! Order confirmed.");
+
+                        if (typeof updateNavbarCounts === "function") {
+                            updateNavbarCounts();
+                        }
+
+                        window.location.href = verifyData.redirect_url || verifyData.redirect || `/order-success/${verifyData.order_id || data.order_id}`;
+                    } else {
+                        verificationStarted = false;
+
+                        console.warn("Normal verify failed. Trying fallback check...");
+                        await checkPaymentFallback();
+                    }
+
+                } catch (err) {
+                    verificationStarted = false;
+
+                    console.error("VERIFY PAYMENT ERROR:", err);
+                    console.warn("Trying fallback check after verify error...");
+
+                    await checkPaymentFallback();
+                }
+            },
+
+            modal: {
+                ondismiss: async function() {
+                    console.log("Razorpay popup closed. Running fallback check...");
+
+                    setTimeout(async function() {
+                        await checkPaymentFallback();
+                    }, 1200);
+                }
+            },
+
+            theme: {
+                color: "#0A5C56"
+            }
+        };
+
+        const razorpayCheckout = new Razorpay(options);
+
+        razorpayCheckout.on('payment.failed', function(response) {
+            console.error("RAZORPAY PAYMENT FAILED:", response.error);
+
+            verificationStarted = false;
+
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "Confirm Order";
+            }
+
+            alert(response.error?.description || "Payment failed. Please try again.");
+        });
+
+        razorpayCheckout.open();
+
+    } catch (err) {
+        console.error("CREATE RAZORPAY ORDER ERROR:", err);
+
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Confirm Order";
+        }
+
+        alert("Payment could not be started. Please try again.");
+    }
+}
+</script>
 <!-- JS -->
 <script>
 
@@ -186,22 +411,22 @@ function loadGuestCart() {
             total += price * qty;
 
             const div = document.createElement("div");
-            div.className = "cart-card";
+            div.className = "cart-card cart-item-card";
             div.innerHTML = `
-                <img src="${product.images?.[0] || '/static/images/default.png'}" class="product-img">
-                <div class="details">
+                <img src="${product.images?.[0] || '/static/images/default.png'}" class="product-img cart-item-image">
+                <div class="details cart-item-details">
                     <h3>${product.name}</h3>
                     ${product.color_variant ? `<p class="cart-variant"><span style="background:${product.color_variant.code}"></span>${product.color_variant.name}</p>` : ""}
                     <p class="price">₹${price}</p>
                 </div>
-                <div class="right-box">
+                <div class="right-box cart-item-actions">
                     <p class="item-total">Total: ₹${price * qty}</p>
-                    <div class="qty-box">
+                    <div class="qty-box cart-qty-control">
                         <button class="qty-btn minus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, -1, this)">−</button>
                         <span class="qty-number">${qty}</span>
                         <button class="qty-btn plus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, 1, this)">+</button>
                     </div>
-                    <div class="actions">
+                    <div class="actions cart-action-buttons">
                         <button class="removeBtn" onclick="guestRemoveCart(${item.productId}, ${item.colorId || null})">Remove</button>
                     </div>
                 </div>
@@ -278,31 +503,69 @@ function updateCartUI(){
     document.getElementById("finalTotal").innerText = "₹" + finalTotal;
 }
 
+function formatMoney(value){
+    const number = Number(value || 0);
+    return "₹" + (Number.isInteger(number) ? number : number.toFixed(0));
+}
+
+function updateCartSummary(data){
+    if(!data) return;
+    if(document.getElementById("subtotal")) document.getElementById("subtotal").innerText = Number(data.subtotal || 0).toFixed(0);
+    if(document.getElementById("bagTotal")) document.getElementById("bagTotal").innerText = formatMoney(data.bag_total);
+    if(document.getElementById("discount")) document.getElementById("discount").innerText = "- " + formatMoney(data.discount);
+    if(document.getElementById("finalTotal")) document.getElementById("finalTotal").innerText = formatMoney(data.payable);
+    if(typeof updateNavbarCounts === "function"){
+        updateNavbarCounts(data.cart_count, data.wishlist_count);
+    }
+    updateCartEmptyState(data.is_empty || Number(data.cart_count || 0) <= 0);
+}
+
+function updateCartEmptyState(isEmpty){
+    const emptyDiv = document.getElementById("cartEmpty");
+    const gridDiv = document.getElementById("cartGrid");
+    if(emptyDiv) emptyDiv.style.display = isEmpty ? "block" : "none";
+    if(gridDiv) gridDiv.style.display = isEmpty ? "none" : "";
+}
+
+function showLiveToast(message, type = "success"){
+    if(typeof showToast === "function"){
+        showToast(message, type);
+    }
+}
+
+function smoothRemoveCard(card){
+    if(!card) return Promise.resolve();
+    if(typeof removeElementSmoothly === "function"){
+        return removeElementSmoothly(card);
+    }
+    card.remove();
+    return Promise.resolve();
+}
+
 
 
 document.querySelectorAll(".removeBtn").forEach(btn => {
     btn.addEventListener("click", function () {
+        if(this.dataset.loading === "true") return;
 
         let card = this.closest(".cart-card");
         let id = this.dataset.id || card.dataset.id;
         let color = this.dataset.color || card.dataset.color || "";
         let size = this.dataset.size || card.dataset.size || "";
+        const restore = typeof setButtonLoading === "function" ? setButtonLoading(this, "Removing...") : (()=>{});
 
         fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`)
         .then(res => res.json())
         .then(data => {
 
             if (data.success) {
-                card.remove();
-                updateCartUI();
-
-                // 🔥 FORCE refresh navbar count
-                setTimeout(() => {
-                    updateNavbarCounts(); 
-                }, 50);
+                smoothRemoveCard(card).then(() => updateCartSummary(data));
+                showLiveToast(data.message || "Removed from cart", "success");
             }
 
-        });
+        })
+        .catch(() => showLiveToast("Something went wrong. Please try again.", "error"))
+        .finally(restore);
     });
 });
 
@@ -314,21 +577,26 @@ window.addEventListener("pageshow", function () {
 // MOVE TO WISHLIST
 document.querySelectorAll(".wishBtn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
+        if(btn.dataset.loading === "true") return;
         let card = btn.closest(".cart-card");
         let id = btn.dataset.id || card.dataset.id;
         let color = btn.dataset.color || card.dataset.color || "";
         let size = btn.dataset.size || card.dataset.size || "";
+        const restore = typeof setButtonLoading === "function" ? setButtonLoading(btn, "Moving...") : (()=>{});
 
         fetch(`/add_to_wishlist/${id}?color_id=${color}`)
         .then(()=>{
             return fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`);
         })
-        .then(()=>{
-            alert("Moved to wishlist ❤️");
-            updateCartUI();
-        updateNavbarCounts(); 
-
-        });
+        .then(res=>res.json())
+        .then(data=>{
+            if(data.success){
+                smoothRemoveCard(card).then(() => updateCartSummary(data));
+                showLiveToast("Moved to wishlist", "success");
+            }
+        })
+        .catch(() => showLiveToast("Something went wrong. Please try again.", "error"))
+        .finally(restore);
     });
 });
 let selectedAddress = null;
@@ -342,36 +610,48 @@ function openCheckout(){
     loadCheckoutReview();
 }
 
+function reviewPhoneHTML(phone){
+    if(phone){
+        return `<p class="review-phone-display"><b>Phone:</b> <span id="reviewSavedPhone">${phone}</span></p>`;
+    }
+
+    return `
+        <div class="review-phone-editor" id="reviewPhoneEditor">
+            <label for="reviewPhoneInput">Phone:</label>
+            <input type="tel" id="reviewPhoneInput" maxlength="10" inputmode="numeric" autocomplete="tel" placeholder="Enter phone number" oninput="this.value=this.value.replace(/\\D/g, '').slice(0, 10)">
+            <button type="button" id="saveReviewPhoneBtn" onclick="saveReviewPhone()">Save Phone Number</button>
+            <p class="review-phone-error" id="reviewPhoneError"></p>
+        </div>
+    `;
+}
+
 function loadCheckoutReview(){
     fetch('/api/checkout-review')
     .then(res=>res.json())
     .then(data=>{
         let reviewHTML = `
-        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <h3>👤 Your Details</h3>
+        <div class="review-card review-details-card">
+            <h3>Your Details</h3>
             <p><b>Name:</b> ${data.user.name}</p>
             <p><b>Email:</b> ${data.user.email}</p>
-            <p><b>Phone:</b> ${data.user.phone ? data.user.phone : '⚠️ Not Set'}</p>
-            ${data.user.phone_warning ? `<p style="color: red; font-weight: 400;">${data.user.phone_warning}</p>` : ''}
+            ${reviewPhoneHTML(data.user.phone)}
             <p><b>DOB:</b> ${data.user.dob || 'Not Set'}</p>
-            
-            <p style="margin-top: 10px; font-size: 12px; color: #666;">❌ Can't change name/email here? Go to <a href="/account">Profile Settings</a></p>
         </div>
 
-        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <h3>🛒 Order Items (${data.cart_count})</h3>
+        <div class="review-card">
+            <h3>Order Items (${data.cart_count})</h3>
         `;
 
         data.cart.forEach(item=>{
             reviewHTML += `
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+            <div class="review-item-row">
                 <span>${item.product_name} × ${item.quantity}</span>
                 <span>₹${item.item_total}</span>
             </div>`;
         });
 
         reviewHTML += `
-            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 400; font-size: 16px; margin-top: 10px;">
+            <div class="review-total-row">
                 <span>Total:</span>
                 <span>₹${data.total}</span>
             </div>
@@ -380,12 +660,76 @@ function loadCheckoutReview(){
 
         document.getElementById("reviewContent").innerHTML = reviewHTML;
         document.getElementById("reviewModal").style.display = "flex";
+        const reviewContinueBtn = document.getElementById("reviewContinueBtn");
+        if(reviewContinueBtn){
+            reviewContinueBtn.disabled = !data.user.phone;
+        }
     })
     .catch(err=>{
         console.error("Error:", err);
         alert("Error loading checkout review");
     });
 }
+
+function saveReviewPhone(){
+    const phoneInput = document.getElementById("reviewPhoneInput");
+    const errorEl = document.getElementById("reviewPhoneError");
+    const saveBtn = document.getElementById("saveReviewPhoneBtn");
+    const phone = phoneInput ? phoneInput.value.trim() : "";
+
+    if(errorEl){
+        errorEl.innerText = "";
+    }
+
+    if(!/^[6-9]\d{9}$/.test(phone)){
+        if(errorEl){
+            errorEl.innerText = "Please enter a valid 10 digit phone number";
+        }
+        return;
+    }
+
+    if(saveBtn){
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Saving...";
+    }
+
+    fetch('/profile/update-phone', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ phone })
+    })
+    .then(res=>res.json().then(data=>({ ok: res.ok, data })))
+    .then(({ ok, data })=>{
+        if(!ok || !data.success){
+            if(errorEl){
+                errorEl.innerText = data.message || "Please enter a valid 10 digit phone number";
+            }
+            return;
+        }
+
+        const editor = document.getElementById("reviewPhoneEditor");
+        if(editor){
+            editor.outerHTML = `<p class="review-phone-display"><b>Phone:</b> <span id="reviewSavedPhone">${data.phone}</span></p>`;
+        }
+
+        const reviewContinueBtn = document.getElementById("reviewContinueBtn");
+        if(reviewContinueBtn){
+            reviewContinueBtn.disabled = false;
+        }
+    })
+    .catch(()=>{
+        if(errorEl){
+            errorEl.innerText = "Please enter a valid 10 digit phone number";
+        }
+    })
+    .finally(()=>{
+        if(saveBtn){
+            saveBtn.disabled = false;
+            saveBtn.innerText = "Save Phone Number";
+        }
+    });
+}
+
 function proceedToCheckout(){
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
     if (!isLoggedIn) {
@@ -398,8 +742,14 @@ function proceedToCheckout(){
     .then(res=>res.json())
     .then(data=>{
         if(!data.user.phone){
-            alert("⚠️ Phone number required! Please add in Profile Settings.");
-            location.href = "/account";
+            const errorEl = document.getElementById("reviewPhoneError");
+            const phoneInput = document.getElementById("reviewPhoneInput");
+            if(errorEl){
+                errorEl.innerText = "Please enter a valid 10 digit phone number";
+            }
+            if(phoneInput){
+                phoneInput.focus();
+            }
             return;
         }
         document.getElementById("reviewModal").style.display = "none";
@@ -409,13 +759,13 @@ function proceedToCheckout(){
 }
 
 function loadAddresses(){
-    fetch('/get_addresses')
+    return fetch('/get_addresses')
     .then(res=>res.json())
     .then(data=>{
         let html = "";
 
         if(data.length === 0){
-            html = "<p>No address found</p>";
+            html = `<div class="empty-address-state">No saved address found. Add a delivery address to continue.</div>`;
         } else {
             data.forEach((a, i)=>{
                 html += `
@@ -423,11 +773,13 @@ function loadAddresses(){
                     <p><b>${a.full_name}</b></p>
                     <p>${a.address_line}</p>
                     <p>${a.city}, ${a.state} - ${a.pincode}</p>
+                    <p class="address-phone">Delivery phone: ${a.phone || 'Saved account phone'}</p>
                 </div>`;
             });
         }
 
         document.getElementById("addressList").innerHTML = html;
+        return data;
     });
 }
 
@@ -442,25 +794,76 @@ function selectAddress(index){
 }
 
 function showAddressForm(){
-    document.getElementById("addressForm").style.display = "block";
+    const addressForm = document.getElementById("addressForm");
+    if(addressForm){
+        addressForm.style.display = "grid";
+    }
+    const message = document.getElementById("addressFormMessage");
+    const alternateError = document.getElementById("alternatePhoneError");
+    if(message) message.innerText = "";
+    if(alternateError) alternateError.innerText = "";
+}
+
+function toggleAlternatePhone(){
+    const checkbox = document.getElementById("useAlternatePhone");
+    const field = document.getElementById("alternatePhoneField");
+    const input = document.getElementById("alternate_phone");
+    const error = document.getElementById("alternatePhoneError");
+
+    if(!checkbox || !field){
+        return;
+    }
+
+    field.style.display = checkbox.checked ? "block" : "none";
+
+    if(!checkbox.checked){
+        if(input) input.value = "";
+        if(error) error.innerText = "";
+    }
 }
 
 
 function saveAddress(){
     const full_name = document.getElementById("full_name");
-    const phone = document.getElementById("phone");
     const address_line = document.getElementById("address_line");
     const city = document.getElementById("city");
     const state = document.getElementById("state");
     const pincode = document.getElementById("pincode");
+    const useAlternatePhone = document.getElementById("useAlternatePhone");
+    const alternatePhone = document.getElementById("alternate_phone");
+    const alternatePhoneError = document.getElementById("alternatePhoneError");
+    const message = document.getElementById("addressFormMessage");
+    const saveBtn = document.querySelector("#addressForm .save-btn");
+    const alternatePhoneValue = useAlternatePhone && useAlternatePhone.checked && alternatePhone
+        ? alternatePhone.value.trim()
+        : "";
 
-    if(!/^\d{10}$/.test(phone.value)){
-        alert("❌ Invalid phone number (10 digits required)");
+    if(message){
+        message.innerText = "";
+        message.classList.remove("error");
+    }
+    if(alternatePhoneError){
+        alternatePhoneError.innerText = "";
+    }
+
+    if(useAlternatePhone && useAlternatePhone.checked && !/^[6-9]\d{9}$/.test(alternatePhoneValue)){
+        if(alternatePhoneError){
+            alternatePhoneError.innerText = "Please enter a valid 10 digit phone number";
+        }
         return;
     }
+
     if(!/^\d{6}$/.test(pincode.value)){
-        alert("❌ Invalid pincode (6 digits required)");
+        if(message){
+            message.innerText = "Please enter a valid 6 digit pincode";
+            message.classList.add("error");
+        }
         return;
+    }
+
+    if(saveBtn){
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Saving...";
     }
 
     fetch('/add_address',{
@@ -468,20 +871,49 @@ function saveAddress(){
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
             full_name: full_name.value,
-            phone: phone.value,
             address_line: address_line.value,
             city: city.value,
             state: state.value,
-            pincode: pincode.value
+            pincode: pincode.value,
+            alternate_phone: alternatePhoneValue
         })
     })
-    .then(res=>res.json())
-    .then(d=>{
-        alert(d.message);
-        loadAddresses();
+    .then(res=>res.json().then(data=>({ ok: res.ok, data })))
+    .then(({ ok, data })=>{
+        if(!ok){
+            if(message){
+                message.innerText = data.message || "Could not save address";
+                message.classList.add("error");
+            }
+            return;
+        }
+
+        if(message){
+            message.innerText = data.message || "Address saved";
+            message.classList.remove("error");
+        }
+        loadAddresses().then(addresses => {
+            if(addresses && addresses.length){
+                selectAddress(addresses.length - 1);
+            }
+        });
         document.getElementById("addressForm").style.display = "none";
+    })
+    .catch(()=>{
+        if(message){
+            message.innerText = "Could not save address";
+            message.classList.add("error");
+        }
+    })
+    .finally(()=>{
+        if(saveBtn){
+            saveBtn.disabled = false;
+            saveBtn.innerText = "Save Address";
+        }
     });
 }
+
+
 
 function placeOrder(){
 
@@ -501,6 +933,9 @@ function placeOrder(){
         return;
     }
 
+    startRazorpayPayment(payment);
+    return;
+
     fetch('/checkout', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -514,8 +949,7 @@ function placeOrder(){
 
         // backend safety check
         if(d.error_type === "missing_phone"){
-            alert("⚠️ Phone number required!");
-            window.location.href = "/account";
+            alert(d.message || "Please add your phone number before placing order.");
             return;
         }
 
@@ -524,58 +958,88 @@ function placeOrder(){
     });
 }
 
+const confirmOrderBtn = document.getElementById("confirmOrderBtn");
+if (confirmOrderBtn && confirmOrderBtn.dataset.listenerAttached !== "true") {
+    confirmOrderBtn.dataset.listenerAttached = "true";
+    confirmOrderBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        placeOrder();
+    });
+}
+
 document.querySelectorAll(".plus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
+        if(btn.dataset.loading === "true") return;
         let card = btn.closest(".cart-card");
         let id = btn.dataset.id || card.dataset.id;
         let color = btn.dataset.color || card.dataset.color || "";
         let size = btn.dataset.size || card.dataset.size || "";
+        const restore = typeof setButtonLoading === "function" ? setButtonLoading(btn, "...") : (()=>{});
 
         fetch(`/update_quantity/${id}/plus?color_id=${color}&size_id=${size}`)
         .then(res=>res.json())
         .then(data=>{
+            if(!data.success && data.status !== "ok"){
+                showLiveToast(data.message || "Could not update cart", "error");
+                return;
+            }
             let qtyEl = card.querySelector(".qty-number");
             qtyEl.innerText = data.quantity;
-
-            updateCartUI();
-            updateNavbarCounts();
-        });
+            let itemEl = card.querySelector(".item-total");
+            if(itemEl) itemEl.innerText = "Total: " + formatMoney(data.item_total);
+            updateCartSummary(data);
+        })
+        .catch(() => showLiveToast("Something went wrong. Please try again.", "error"))
+        .finally(restore);
     });
 });
 
 // ➖ Decrease Quantity
 document.querySelectorAll(".minus").forEach(btn=>{
     btn.addEventListener("click", ()=>{
+        if(btn.dataset.loading === "true") return;
         let card = btn.closest(".cart-card");
         let id = btn.dataset.id || card.dataset.id;
         let color = btn.dataset.color || card.dataset.color || "";
         let size = btn.dataset.size || card.dataset.size || "";
+        const restore = typeof setButtonLoading === "function" ? setButtonLoading(btn, "...") : (()=>{});
 
         fetch(`/update_quantity/${id}/minus?color_id=${color}&size_id=${size}`)
         .then(res=>res.json())
         .then(data=>{
+            if(!data.success && data.status !== "ok"){
+                showLiveToast(data.message || "Could not update cart", "error");
+                return;
+            }
             let qtyEl = card.querySelector(".qty-number");
 
             if(data.quantity > 0){
                 qtyEl.innerText = data.quantity;
+                let itemEl = card.querySelector(".item-total");
+                if(itemEl) itemEl.innerText = "Total: " + formatMoney(data.item_total);
             } else {
-                btn.closest(".cart-card").remove();
+                smoothRemoveCard(card);
             }
 
-            updateCartUI();
-            updateNavbarCounts();
-        });
+            updateCartSummary(data);
+        })
+        .catch(() => showLiveToast("Something went wrong. Please try again.", "error"))
+        .finally(restore);
     });
 });
 
 
 function removeItem(id, color = "", size = ""){
     fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`)
-    .then(()=>{
-       updateCartUI();
-        updateNavbarCounts(); 
-
-    });
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success){
+            updateCartSummary(data);
+            showLiveToast(data.message || "Removed from cart", "success");
+        }
+    })
+    .catch(() => showLiveToast("Something went wrong. Please try again.", "error"));
 }
 
 function moveToWishlist(id, color = "", size = ""){
@@ -583,12 +1047,14 @@ function moveToWishlist(id, color = "", size = ""){
     .then(()=>{
         return fetch(`/remove_cart/${id}?color_id=${color}&size_id=${size}`);
     })
-    .then(()=>{
-        alert("Moved to wishlist ❤️");
-      updateCartUI();
-        updateNavbarCounts(); 
-
-    });
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success){
+            updateCartSummary(data);
+            showLiveToast("Moved to wishlist", "success");
+        }
+    })
+    .catch(() => showLiveToast("Something went wrong. Please try again.", "error"));
 }
 </script>
 
@@ -596,36 +1062,44 @@ function moveToWishlist(id, color = "", size = ""){
 <style>
 
 .cart-container{
-    padding-top: 30px;
-    padding-right: 50px;
-    padding-bottom: 50px;
-    padding-left: 50px;
+    max-width:1200px;
+    margin:0 auto;
+    padding: 30px 32px 50px;
     background:linear-gradient(#f8fafc,#eef3f7);
     font-family: 'Gotham', sans-serif;
 }
 
 .cart-grid{
     display:grid;
-    grid-template-columns:2fr 1fr;
+    grid-template-columns:minmax(0, 2.1fr) minmax(300px, 1fr);
     gap:30px;
+    align-items:start;
+}
+
+.cart-items{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
 }
 
 .cart-card{
     display:grid;
-    gap:15px;
-    grid-template-columns: 120px 1fr auto;  /* 🔥 left | content | right */
+    grid-template-columns:150px minmax(0, 1fr) 230px;
+    gap:22px;
     align-items:center;
-    padding: 18px;
-    border-radius:15px;
-    background:rgba(255,255,255,0.7);
-    backdrop-filter:blur(10px);
-    box-shadow:0 10px 25px rgba(0,0,0,0.08);
+    box-sizing:border-box;
+    padding:18px 20px;
+    margin-bottom:0;
+    border-radius:18px;
+    background:#fff;
+    border:1px solid rgba(0,0,0,0.04);
+    box-shadow:0 8px 24px rgba(0,0,0,0.04);
 }
 
 .cart-variant {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     margin: 4px 0;
     color: #58706c;
     font-size: 13px;
@@ -640,51 +1114,91 @@ function moveToWishlist(id, color = "", size = ""){
 .details{
     display:flex;
     flex-direction:column;
-    gap:6px;  
-     /* 🔥 gap reduce */
-    margin-left: 20px;
+    gap:6px;
+    min-width:0;
+    margin-left: 0;
+}
+
+.details h3{
+    margin:0 0 14px;
+    color:#1d2f2d;
+    font-size:18px;
+    line-height:1.3;
 }
 
 .right-box{
     display:flex;
     flex-direction:column;
-    align-items:flex-end;   /* 🔥 right align */
-    gap:8px;
+    align-items:flex-end;
+    gap:14px;
+    text-align:right;
 }
 .product-img{
-    width:140px;
-    border-radius:12px;
+    width:150px;
+    height:150px;
+    border-radius:14px;
+    object-fit:contain;
+    background:#faf7f2;
 }
 
-.price{font-weight: 400;}
+.price{
+    margin-top:12px;
+    font-weight:700;
+    color:#083E3A;
+}
+
+.item-total{
+    margin:0 0 4px;
+    font-size:16px;
+    color:#173b37;
+    font-weight:700;
+}
 
 .qty-box{
     display:flex;
     align-items:center;
-    gap:6px;
+    gap:10px;
+}
+
+.qty-number{
+    min-width:24px;
+    text-align:center;
+    font-weight:700;
+    color:#1d2f2d;
 }
 
 .qty-btn{
-    background: var(--btn-gradient);
+    width:34px;
+    height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
     color:#fff;
     border:none;
-    padding:6px 10px;
-    border-radius:6px;
+    padding:0;
+    border-radius:8px;
     cursor:pointer;
+    font-size:16px;
+    font-weight:700;
 }
 .actions {
     display: flex;
-    gap: 6px;   /* 🔥 spacing between buttons */
-    margin-top: 10px;
+    justify-content:flex-end;
+    gap: 8px;
+    margin-top: 0;
 }
 .wishBtn {
     background: #e6f7ff;   /* light blue */
     border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    color: var(--btn-gradient);
+    min-height:36px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #083E3A;
     cursor: pointer;
     transition: 0.3s;
+    font-weight:700;
+    white-space:nowrap;
 }
 
 .wishBtn:hover {
@@ -694,11 +1208,14 @@ function moveToWishlist(id, color = "", size = ""){
 .removeBtn {
     background: #ffecec;
     border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    color: red;
+    min-height:36px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #c62828;
     cursor: pointer;
     transition: 0.3s;
+    font-weight:700;
+    white-space:nowrap;
 }
 
 .removeBtn:hover {
@@ -707,11 +1224,40 @@ function moveToWishlist(id, color = "", size = ""){
 }
 
 .cart-summary{
-    padding:20px;
-    border-radius:15px;
+    padding:28px;
+    border-radius:18px;
     background:#fff;
+    border:1px solid rgba(0,0,0,0.04);
+    box-shadow:0 8px 24px rgba(0,0,0,0.04);
     position:sticky;
     top:100px;
+}
+
+.cart-summary h2{
+    margin:0 0 18px;
+    color:#1d2f2d;
+}
+
+.summary-row{
+    display:flex;
+    justify-content:space-between;
+    gap:16px;
+    padding:10px 0;
+    color:#365b57;
+}
+
+.summary-row.total{
+    margin-top:8px;
+    padding-top:16px;
+    border-top:1px solid rgba(0,0,0,0.08);
+    color:#083E3A;
+    font-weight:700;
+    font-size:18px;
+}
+
+.subtotal{
+    margin:12px 0 18px;
+    color:#58706c;
 }
 
 .checkout-btn{
@@ -730,19 +1276,24 @@ function moveToWishlist(id, color = "", size = ""){
     left:0;
     width:100%;
     height:100%;
+    padding:18px;
     background:rgba(0,0,0,0.6);
     justify-content:center;
     align-items:center;
     z-index:9999;
+    overflow-y:auto;
 }
 
 .checkout-content{
     width:420px;
-    max-height: 80vh;
+    max-width:100%;
+    max-height: calc(100vh - 36px);
     overflow-y: auto;
+    scroll-behavior:smooth;
     padding:25px;
     border-radius:20px;
     background:#fff;
+    margin:auto;
 }
 .checkout-content::-webkit-scrollbar{
     width:6px;
@@ -750,6 +1301,86 @@ function moveToWishlist(id, color = "", size = ""){
 .checkout-content::-webkit-scrollbar-thumb{
     background:#ccc;
     border-radius:10px;
+}
+.review-card{
+    background:#f7faf9;
+    padding:16px;
+    border:1px solid rgba(10,92,86,0.12);
+    border-radius:12px;
+    margin-bottom:15px;
+}
+.review-card h3{
+    margin:0 0 12px;
+    color:#083E3A;
+    font-size:18px;
+}
+.review-card p{
+    margin:8px 0;
+    color:#223936;
+}
+.review-phone-editor{
+    display:grid;
+    gap:10px;
+    margin:10px 0 8px;
+}
+.review-phone-editor label{
+    font-weight:700;
+    color:#223936;
+}
+.review-phone-editor input{
+    width:100%;
+    padding:12px 14px;
+    border:1px solid rgba(10,92,86,0.22);
+    border-radius:10px;
+    outline:none;
+    font-size:15px;
+    color:#1d2f2d;
+    background:#fff;
+}
+.review-phone-editor input:focus{
+    border-color:#0A5C56;
+    box-shadow:0 0 0 3px rgba(10,92,86,0.12);
+}
+.review-phone-editor button{
+    width:100%;
+    padding:12px 14px;
+    border:none;
+    border-radius:10px;
+    background:linear-gradient(135deg, #0A5C56, #083E3A);
+    color:#fff;
+    font-weight:700;
+    cursor:pointer;
+}
+.review-phone-editor button:disabled,
+.confirm-btn:disabled{
+    opacity:0.6;
+    cursor:not-allowed;
+}
+.review-phone-error{
+    min-height:18px;
+    margin:0;
+    color:#c62828 !important;
+    font-size:13px;
+}
+.review-phone-display{
+    color:#173b37;
+}
+.review-item-row,
+.review-total-row{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+}
+.review-item-row{
+    padding:8px 0;
+    border-bottom:1px solid rgba(10,92,86,0.12);
+}
+.review-total-row{
+    padding:12px 0 0;
+    font-weight:700;
+    font-size:16px;
+    margin-top:6px;
+    color:#083E3A;
 }
 #addressList{
     margin-top:10px;
@@ -767,35 +1398,144 @@ function moveToWishlist(id, color = "", size = ""){
 .address-card:hover{
         background: rgba(10,92,86,0.08);
 }
+.address-phone{
+    color:#58706c;
+    font-size:13px;
+}
+.empty-address-state{
+    padding:14px;
+    margin-top:10px;
+    border:1px dashed rgba(10,92,86,0.24);
+    border-radius:12px;
+    background:#f7faf9;
+    color:#365b57;
+    text-align:center;
+}
 .add-address-btn,.save-btn{
     margin-top:10px;
     width:100%;
-    padding:10px;
-    background: var(--btn-gradient);
+    padding:12px 14px;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
     color:#fff;
     border:none;
-    border-radius:8px;
+    border-radius:10px;
+    font-weight:700;
+    cursor:pointer;
 }
 
 .checkout-content #addressForm {
     margin-top: 14px;
     display: grid;
+    grid-template-columns:1fr 1fr;
     gap: 12px;
 }
 
 .checkout-content #addressForm input {
     margin: 0;
+    width:100%;
+    padding:12px 14px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    font:inherit;
+    outline:none;
+    background:#fff;
+}
+
+.checkout-content #addressForm input:focus{
+    border-color:#0A5C56;
+    box-shadow:0 0 0 3px rgba(10,92,86,0.10);
+}
+
+.address-wide-field,
+.alternate-phone-toggle,
+.alternate-phone-field,
+.address-form-message,
+.checkout-content #addressForm .save-btn{
+    grid-column:1 / -1;
+}
+
+.alternate-phone-toggle{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#24413e;
+    font-size:14px;
+    cursor:pointer;
+}
+
+.alternate-phone-toggle input{
+    width:16px !important;
+    height:16px;
+    padding:0 !important;
+    border:none !important;
+    box-shadow:none !important;
+    accent-color:#0A5C56;
+}
+
+.address-form-error{
+    min-height:18px;
+    margin:6px 0 0;
+    color:#c62828;
+    font-size:13px;
+}
+
+.address-form-message{
+    min-height:18px;
+    margin:0;
+    color:#0A5C56;
+    font-size:13px;
+}
+
+.address-form-message.error{
+    color:#c62828;
 }
 
 .checkout-content #addressForm .save-btn {
     margin-top: 2px;
 }
 
+.payment-options{
+    display:grid;
+    gap:10px;
+    margin:10px 0 14px;
+}
+
+.payment-options label{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 14px;
+    border:1px solid rgba(10,92,86,0.16);
+    border-radius:12px;
+    background:#f7faf9;
+    color:#1f3d39;
+}
+
+.payment-options input{
+    accent-color:#0A5C56;
+}
+
+.secondary-btn{
+    width:100%;
+    padding:11px 14px;
+    border:1px solid rgba(10,92,86,0.22);
+    border-radius:10px;
+    background:#fff;
+    color:#083E3A;
+    font-weight:700;
+    cursor:pointer;
+}
+
 .confirm-btn{
     margin-top:15px;
     width:100%;
     padding:12px;
-        background: linear-gradient(135deg, #0A5C56, #083E3A);
+    border:none;
+    border-radius:10px;
+    background: linear-gradient(135deg, #0A5C56, #083E3A);
+    color:#fff;
+    font-weight:700;
+    cursor:pointer;
 }
 .shop-btn{
     padding:12px 25px;
@@ -833,54 +1573,73 @@ function moveToWishlist(id, color = "", size = ""){
     /* CARD NORMAL VERTICAL */
     .cart-card {
         width: 100%;
-        flex-direction: row; /* image + details side by side */
+        grid-template-columns:110px 1fr;
         gap: 12px;
-        padding: 12px;
+        padding: 14px 16px;
+        border-radius:16px;
     }
 
     /* IMAGE SMALL */
     .product-img {
-        width: 90px;
-        height: 90px;
+        width: 110px;
+        height: 110px;
         object-fit: contain;
     }
 
     /* TEXT COMPACT */
     .details h3 {
         font-size: 14px;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+    }
+
+    .details{
+        margin-left:0;
     }
 
     .price {
         font-size: 13px;
+        margin-top:6px;
+    }
+
+    .right-box{
+        grid-column:1 / -1;
+        align-items:flex-start;
+        text-align:left;
+        gap:10px;
     }
 
     .item-total {
-        font-size: 12px;
+        font-size: 13px;
         margin: 2px 0;
     }
 
     /* QTY */
     .qty-box {
-        gap: 6px;
+        gap: 8px;
     }
 
     .qty-btn {
-        padding: 4px 8px;
+        width:32px;
+        height:32px;
+        padding: 0;
         font-size: 12px;
     }
 
     /* BUTTONS */
     .actions {
         display: flex;
-        gap: 6px;
+        gap: 8px;
         flex-wrap: wrap;
+        justify-content:flex-start;
+        width:100%;
     }
 
     .removeBtn,
     .wishBtn {
         font-size: 11px;
-        padding: 6px 8px;
+        min-height:34px;
+        padding: 7px 10px;
+        flex:1 1 auto;
     }
 
     /* ✅ ORDER SUMMARY NICHE */
@@ -894,6 +1653,26 @@ function moveToWishlist(id, color = "", size = ""){
     .checkout-btn {
         font-size: 14px;
         padding: 10px;
+    }
+
+    .checkout-modal{
+        align-items:flex-start;
+        padding:12px;
+    }
+
+    .checkout-content{
+        width:100%;
+        max-height:calc(100vh - 24px);
+        padding:18px;
+        border-radius:16px;
+    }
+
+    .review-phone-editor button{
+        width:100%;
+    }
+
+    .checkout-content #addressForm{
+        grid-template-columns:1fr;
     }
 }
 

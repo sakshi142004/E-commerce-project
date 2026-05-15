@@ -81,6 +81,28 @@ function applyWishlistSwatches(root = document) {
     });
 }
 
+function wishlistToast(message, type = "success") {
+    if (typeof showToast === "function") showToast(message, type);
+}
+
+function refreshWishlistEmptyState() {
+    const grid = document.getElementById("wishlistGrid");
+    const empty = document.getElementById("wishlistEmpty");
+    const hasItems = grid && grid.querySelector(".card");
+    if (grid) grid.classList.toggle("is-hidden", !hasItems);
+    if (empty) empty.classList.toggle("is-hidden", !!hasItems);
+}
+
+function removeWishlistCard(card) {
+    const done = () => refreshWishlistEmptyState();
+    if (typeof removeElementSmoothly === "function") {
+        removeElementSmoothly(card).then(done);
+    } else if (card) {
+        card.remove();
+        done();
+    }
+}
+
 function loadGuestWishlist() {
     const guestWishlist = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
     const grid    = document.getElementById("wishlistGrid");
@@ -231,20 +253,62 @@ document.addEventListener("DOMContentLoaded", () => {
     // ✅ ADD TO CART BUTTON
     document.querySelectorAll(".addCartBtn").forEach(btn => {
         btn.addEventListener("click", function () {
+            if (this.dataset.loading === "true") return;
             let id = this.getAttribute("data-id");
             let color = this.getAttribute("data-color") || "";
-            openSizeModal(id, color);
+            const card = this.closest(".card");
+            const restore = typeof setButtonLoading === "function" ? setButtonLoading(this, "Moving...") : (()=>{});
+
+            fetch(`/product/sizes/${id}`)
+            .then(res => res.json())
+            .then(sizes => {
+                if (!sizes || sizes.length === 0) throw {message: "No sizes available"};
+                return fetch(`/add_to_cart/${id}`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({size_id: sizes[0].id, color_id: color || null})
+                });
+            })
+            .then(res => res.json())
+            .then(cartData => fetch(`/remove_wishlist/${id}?color_id=${color}`)
+                .then(res => res.json())
+                .then(wishData => ({cartData, wishData})))
+            .then(({cartData, wishData}) => {
+                removeWishlistCard(card);
+                if (typeof updateNavbarCounts === "function") {
+                    updateNavbarCounts(cartData.cart_count || cartData.count, wishData.wishlist_count);
+                }
+                wishlistToast("Moved to cart", "success");
+            })
+            .catch(err => wishlistToast(err.message || "Something went wrong. Please try again.", "error"))
+            .finally(restore);
         });
     });
 
     // ✅ REMOVE FROM WISHLIST
     document.querySelectorAll(".removeBtn").forEach(btn => {
         btn.addEventListener("click", function () {
+            if (this.dataset.loading === "true") return;
             let id = this.getAttribute("data-id");
             let color = this.getAttribute("data-color") || "";
+            const card = this.closest(".card");
+            const restore = typeof setButtonLoading === "function" ? setButtonLoading(this, "...") : (()=>{});
 
             fetch(`/remove_wishlist/${id}?color_id=${color}`)
-                .then(() => location.reload());
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        wishlistToast(data.message || "Could not remove item", "error");
+                        return;
+                    }
+                    removeWishlistCard(card);
+                    if (typeof updateNavbarCounts === "function") {
+                        updateNavbarCounts(data.cart_count, data.wishlist_count);
+                    }
+                    wishlistToast(data.message || "Removed from wishlist", "success");
+                })
+                .catch(() => wishlistToast("Something went wrong. Please try again.", "error"))
+                .finally(restore);
         });
     });
 
@@ -279,7 +343,7 @@ function moveAllToCart() {
 
                     let sizeId = sizes[0].id;
 
-                    return fetch(`/cart/toggle/${id}`, {
+                    return fetch(`/add_to_cart/${id}`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
@@ -288,20 +352,27 @@ function moveAllToCart() {
                             size_id: sizeId,
                             color_id: color || null
                         })
-                    }).then(() => fetch(`/remove_wishlist/${id}?color_id=${color}`))
-                      .then(() => {
-                          const card = btn.closest(".card");
-                          if (card) card.remove();
-                      });
+                    }).then(res => res.json())
+                      .then(cartData => fetch(`/remove_wishlist/${id}?color_id=${color}`)
+                          .then(res => res.json())
+                          .then(wishData => ({ cartData, wishData })))
+                      .then(({ cartData, wishData }) => {
+                           const card = btn.closest(".card");
+                           if (card) card.remove();
+                           if (typeof updateNavbarCounts === "function") {
+                               updateNavbarCounts(cartData.cart_count || cartData.count, wishData.wishlist_count);
+                           }
+                       });
                 });
         })
     )
     .then(() => {
-        alert('Moved all wishlist items to cart ✅');
-        updateNavbarCounts();
+        refreshWishlistEmptyState();
+        wishlistToast('Moved all wishlist items to cart', 'success');
+        if (typeof updateNavbarCounts === "function") updateNavbarCounts();
     })
     .catch(() => {
-        alert('Something went wrong while moving items.');
+        wishlistToast('Something went wrong while moving items.', 'error');
     });
 }
 

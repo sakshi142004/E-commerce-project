@@ -188,10 +188,18 @@ class Order(db.Model):
 
     total_amount = db.Column(db.Float)
     status = db.Column(db.String(50), default='Pending')
+    order_status = db.Column(db.String(50), default='Pending')
+    payment_status = db.Column(db.String(50), default='Pending')
     tracking_number = db.Column(db.String(100))
+    courier_partner = db.Column(db.String(100))
+    tracking_url = db.Column(db.String(500))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     payment_method = db.Column(db.String(50))
+    razorpay_order_id = db.Column(db.String(100), nullable=True)
+    razorpay_payment_id = db.Column(db.String(100), nullable=True)
+    razorpay_signature = db.Column(db.String(255), nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=True)
     items = db.relationship('OrderItem', backref='order', lazy=True)
 
 
@@ -205,7 +213,12 @@ class OrderItem(db.Model):
 
     quantity = db.Column(db.Integer)
     price = db.Column(db.Float)
+    size_id = db.Column(db.Integer, db.ForeignKey('product_sizes.id'), nullable=True)
     color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
+
+    product = db.relationship('Product')
+    size = db.relationship('ProductSize')
+    color = db.relationship('Color')
 
 
 # Wishlist association table
@@ -306,6 +319,10 @@ class Warranty(db.Model):
 
     address = db.Column(db.Text)
     purchase = db.Column(db.String(50))  # online/offline/website
+    order_id = db.Column(db.String(100))
+    product_name = db.Column(db.String(255))
+    purchase_date = db.Column(db.String(50))
+    message = db.Column(db.Text)
 
     bill = db.Column(db.String(255))  # uploaded file name
 

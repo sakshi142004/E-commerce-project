@@ -71,6 +71,21 @@
     color: #ff4d6d;
 }
 
+.paid, .confirmed {
+    background: rgba(0,170,110,0.15);
+    color: #008f5d;
+}
+
+.failed, .payment-failed {
+    background: rgba(255,60,80,0.15);
+    color: #ff4d6d;
+}
+
+.processing {
+    background: rgba(120,90,255,0.15);
+    color: #6d5dfc;
+}
+
 /* FORM */
 .card h3 {
     color: #000;
@@ -146,28 +161,65 @@ button:hover {
         </div>
 
         <div>
-            <p><strong>Status</strong></p>
-            <span class="status {{ order.status|lower|replace(' ', '-') }}">
-                {{ order.status }}
+            <p><strong>Order Status</strong></p>
+            <span id="orderStatusBadge" class="status {{ (order.order_status or order.status)|lower|replace(' ', '-') }}">
+                {{ order.order_status or order.status }}
             </span>
         </div>
+    </div>
+
+    <div class="card order-grid">
+        <div>
+            <p><strong>Customer</strong></p>
+            <p>{{ order.user.username if order.user else 'User #' ~ order.user_id }}</p>
+            <p>{{ order.user.email if order.user else '-' }}</p>
+            <p>{{ address.phone if address else (order.user.phone if order.user else '-') }}</p>
+        </div>
+
+        <div>
+            <p><strong>Payment Status</strong></p>
+            <span class="status {{ (order.payment_status or 'Pending')|lower|replace(' ', '-') }}">
+                {{ 'Pending Payment' if (order.payment_status or 'Pending') == 'Pending' else order.payment_status }}
+            </span>
+            <p><strong>Method</strong> {{ order.payment_method or '-' }}</p>
+            <p><strong>Payment ID</strong> {{ order.razorpay_payment_id or '-' }}</p>
+            <p><strong>Razorpay Order ID</strong> {{ order.razorpay_order_id or '-' }}</p>
+        </div>
+
+        <div>
+            <p><strong>Dates</strong></p>
+            <p>Created: {{ order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '-' }}</p>
+            <p>Paid: {{ order.paid_at.strftime('%Y-%m-%d %H:%M') if order.paid_at else '-' }}</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Delivery Address</h3>
+        {% if address %}
+            <p><strong>{{ address.full_name }}</strong></p>
+            <p>{{ address.phone }}</p>
+            <p>{{ address.address_line }}</p>
+            <p>{{ address.city }}, {{ address.state }} - {{ address.pincode }}</p>
+        {% else %}
+            <p>No address saved for this order.</p>
+        {% endif %}
     </div>
 
     <!-- UPDATE -->
     <div class="card">
         <h3>Update Order</h3>
 
-        <form method="POST" action="/admin/orders/update/{{ order.id }}">
+        <form method="POST" action="/admin/orders/update/{{ order.id }}" id="adminOrderUpdateForm">
             
             <select name="status">
-                <option>Pending</option>
-                <option>Shipped</option>
-                <option>Out for Delivery</option>
-                <option>Delivered</option>
-                <option>Cancelled</option>
+                {% for status in ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'] %}
+                    <option value="{{ status }}" {% if (order.order_status or order.status) == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
             </select>
 
-            <input type="text" name="tracking_number" placeholder="Tracking Number">
+            <input type="text" name="tracking_number" placeholder="Tracking Number" value="{{ order.tracking_number or '' }}">
+            <input type="text" name="courier_partner" placeholder="Courier Partner" value="{{ order.courier_partner or '' }}">
+            <input type="url" name="tracking_url" placeholder="Tracking URL" value="{{ order.tracking_url or '' }}">
 
             <button type="submit">Update Order</button>
         </form>
@@ -179,7 +231,10 @@ button:hover {
 
         {% for item in items %}
             <div class="item">
-                Product ID: {{ item.product_id }} |
+                <img src="{{ order_item_image_url(item) }}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;margin-right:10px;vertical-align:middle;">
+                Product: {{ item.product.name if item.product else 'Product #' ~ item.product_id }} |
+                Size: {{ item.size.size_label if item.size else '-' }} |
+                Color: {{ item.color.name if item.color else '-' }} |
                 Qty: {{ item.quantity }} |
                 Price: ₹{{ item.price }}
             </div>
