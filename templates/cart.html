@@ -18,6 +18,7 @@
         <!-- LEFT -->
         <div class="cart-items cart-items-list" id="cartItems">
             {% for p in products %}
+            {% set variant_key = p.id|string ~ '-' ~ (p.color_id or 'no-color')|string ~ '-' ~ (p.size_id or 'no-size')|string %}
             <div class="cart-card cart-item-card" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">
 
                 <img src="{{ p.image_url or '/static/images/default.png' }}" class="product-img cart-item-image">
@@ -27,26 +28,32 @@
                     {% if p.color_name %}
                     <p class="cart-variant">
                         <span style="background: {{ p.color_code }}"></span>
-                        {{ p.color_name }}
+                        Color: {{ p.color_name }}
                     </p>
                     {% endif %}
-                 <p class="price" id="price-{{ p.id }}">₹{{ p.price }}</p>
+                    <p class="cart-variant cart-size-row">
+                        <span class="cart-size-dot"></span>
+                        Size: {{ p.size_label or 'Not selected' }}
+                    </p>
+                 <p class="price" id="price-{{ variant_key }}">₹{{ p.price }}</p>
                  </div>
 
                  <div class="right-box cart-item-actions">
-                 <p class="item-total" id="item-total-{{ p.id }}">
+                 <p class="item-total" id="item-total-{{ variant_key }}">
     Total: ₹{{ p.price * p.quantity }}
 </p>
 
                     <div class="qty-box cart-qty-control">
-                        <button class="qty-btn minus" data-id="{{ p.id }}">−</button>
-                        <span class="qty-number" id="qty-{{ p.id }}">{{ p.quantity }}</span>
+                        <button class="qty-btn minus" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">−</button>
+                        <span class="qty-number" id="qty-{{ variant_key }}">{{ p.quantity }}</span>
                         <button class="qty-btn plus" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">+</button>
                     </div>
 
    <div class="actions cart-action-buttons">
     <button class="removeBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">Remove</button>
+    <!-- Wishlist hidden temporarily - keep code for future use
     <button class="wishBtn" data-id="{{ p.id }}" data-color="{{ p.color_id or '' }}" data-size="{{ p.size_id or '' }}">Move to Wishlist</button>
+    -->
 </div>
                 </div>
             </div>
@@ -416,18 +423,19 @@ function loadGuestCart() {
                 <img src="${product.images?.[0] || '/static/images/default.png'}" class="product-img cart-item-image">
                 <div class="details cart-item-details">
                     <h3>${product.name}</h3>
-                    ${product.color_variant ? `<p class="cart-variant"><span style="background:${product.color_variant.code}"></span>${product.color_variant.name}</p>` : ""}
+                    ${product.color_variant ? `<p class="cart-variant"><span style="background:${product.color_variant.code}"></span>Color: ${product.color_variant.name}</p>` : ""}
+                    <p class="cart-variant cart-size-row"><span class="cart-size-dot"></span>Size: ${item.sizeLabel || item.sizeId || "Not selected"}</p>
                     <p class="price">₹${price}</p>
                 </div>
                 <div class="right-box cart-item-actions">
                     <p class="item-total">Total: ₹${price * qty}</p>
                     <div class="qty-box cart-qty-control">
-                        <button class="qty-btn minus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, -1, this)">−</button>
+                        <button class="qty-btn minus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, ${item.sizeId || null}, -1, this)">−</button>
                         <span class="qty-number">${qty}</span>
-                        <button class="qty-btn plus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, 1, this)">+</button>
+                        <button class="qty-btn plus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, ${item.sizeId || null}, 1, this)">+</button>
                     </div>
                     <div class="actions cart-action-buttons">
-                        <button class="removeBtn" onclick="guestRemoveCart(${item.productId}, ${item.colorId || null})">Remove</button>
+                        <button class="removeBtn" onclick="guestRemoveCart(${item.productId}, ${item.colorId || null}, ${item.sizeId || null})">Remove</button>
                     </div>
                 </div>
             `;
@@ -438,14 +446,14 @@ function loadGuestCart() {
     });
 }
 
-function guestQtyChange(productId, colorId, delta, btn) {
+function guestQtyChange(productId, colorId, sizeId, delta, btn) {
     let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
-    const item = guestCart.find(i => i.productId == productId && i.colorId == colorId);
+    const item = guestCart.find(i => i.productId == productId && i.colorId == colorId && String(i.sizeId || null) === String(sizeId || null));
     if (!item) return;
 
     item.qty = (item.qty || 1) + delta;
     if (item.qty <= 0) {
-        guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId));
+        guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId && String(i.sizeId || null) === String(sizeId || null)));
     }
 
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
@@ -453,9 +461,9 @@ function guestQtyChange(productId, colorId, delta, btn) {
     updateGuestCounts();
 }
 
-function guestRemoveCart(productId, colorId) {
+function guestRemoveCart(productId, colorId, sizeId = null) {
     let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
-    guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId));
+    guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId && String(i.sizeId || null) === String(sizeId || null)));
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
     loadGuestCart();
     updateGuestCounts();
@@ -643,9 +651,13 @@ function loadCheckoutReview(){
         `;
 
         data.cart.forEach(item=>{
+            const meta = [
+                item.color_name ? `Color: ${item.color_name}` : "",
+                item.size_label ? `Size: ${item.size_label}` : "Size: Not selected"
+            ].filter(Boolean).join(" | ");
             reviewHTML += `
             <div class="review-item-row">
-                <span>${item.product_name} × ${item.quantity}</span>
+                <span>${item.product_name} × ${item.quantity}<small>${meta ? `<br>${meta}` : ""}</small></span>
                 <span>₹${item.item_total}</span>
             </div>`;
         });
@@ -1110,6 +1122,15 @@ function moveToWishlist(id, color = "", size = ""){
     height: 14px;
     border-radius: 50%;
     border: 1px solid rgba(0,0,0,0.12);
+}
+
+.cart-size-row {
+    color: #58706c;
+}
+
+.cart-size-dot {
+    background: #f5f2ed;
+    border-color: rgba(10,92,86,0.22) !important;
 }
 .details{
     display:flex;

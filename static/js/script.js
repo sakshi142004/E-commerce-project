@@ -154,7 +154,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     body: JSON.stringify({ email, password, remember })
                 })
                 .then(r => r.json())
-                .then(data => {
+                .then(async data => {
                     if (data.name) {
                         msg.style.color = "green";
                         msg.innerText   = "Login Success ✅";
@@ -163,10 +163,12 @@ document.addEventListener("DOMContentLoaded", function () {
                         const navRight = document.getElementById("navRight");
                         if (navRight) {
                             navRight.innerHTML = `
+                                <!-- Wishlist hidden temporarily - keep code for future use
                                 <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Wishlist" onclick="window.location='/wishlist'">
                                     <i class="fa-solid fa-heart"></i>
                                     <span class="badge" id="wishlistCount">0</span>
                                 </div>
+                                -->
                                 <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Cart" onclick="window.location='/cart'">
                                     <i class="fa-solid fa-cart-shopping"></i>
                                     <span class="badge" id="cartCount">0</span>
@@ -177,26 +179,25 @@ document.addEventListener("DOMContentLoaded", function () {
                             `;
                         }
 
-                        // Guest sync ONLY here, after login
-                        const gCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
-                        const gWish = JSON.parse(localStorage.getItem("guestWishlist") || "[]");
+                        msg.innerText = "Login Success. Syncing cart...";
 
-                        if (gCart.length) {
-                            fetch('/api/sync-guest-cart', {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ items: gCart })
-                            }).then(() => { localStorage.removeItem("guestCart"); updateNavbarCounts(); });
+                        try {
+                            const cartSync = await syncGuestCartAfterLogin();
+                            await syncGuestWishlistAfterLogin();
+                            if (cartSync?.cart_count !== undefined) {
+                                updateNavbarCounts(cartSync.cart_count, cartSync.wishlist_count ?? null);
+                            } else {
+                                await updateNavbarCounts();
+                            }
+                        } catch (err) {
+                            showToast(err.message || "Login done, but guest cart sync failed. Please refresh and try again.", "error");
+                            await updateNavbarCounts();
                         }
-
-                        if (gWish.length) {
-                            fetch('/api/sync-guest-wishlist', {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ items: gWish })
-                            }).then(() => { localStorage.removeItem("guestWishlist"); updateNavbarCounts(); });
-                        }
-
-                        updateNavbarCounts();
                         window.dispatchEvent(new Event("user-login"));
+                        if (window.location.pathname === "/cart") {
+                            window.location.reload();
+                            return;
+                        }
                         setTimeout(() => { if (msg) msg.innerText = ""; }, 1500);
                     } else {
                         msg.innerText = data.message || "Login failed";
@@ -228,6 +229,62 @@ function isUserLoggedIn() {
     return document.querySelector(".avatar, .avatar-img") !== null;
 }
 
+function readLocalStorageArray(key) {
+    try {
+        const value = JSON.parse(localStorage.getItem(key) || "[]");
+        return Array.isArray(value) ? value : [];
+    } catch (err) {
+        return [];
+    }
+}
+
+function normalizeGuestCartForSync(items) {
+    return (items || []).map(item => ({
+        product_id: item.product_id ?? item.productId ?? item.id,
+        color_id: item.color_id ?? item.colorId ?? item.product_color_id ?? null,
+        size_id: item.size_id ?? item.sizeId ?? item.selected_size_id ?? null,
+        quantity: item.quantity ?? item.qty ?? 1
+    })).filter(item => item.product_id);
+}
+
+async function syncGuestCartAfterLogin() {
+    const guestCart = readLocalStorageArray("guestCart");
+    if (!guestCart.length) return null;
+
+    const response = await fetch("/api/sync-guest-cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: normalizeGuestCartForSync(guestCart) })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+        throw new Error(data.message || "Could not sync guest cart");
+    }
+
+    localStorage.removeItem("guestCart");
+    return data;
+}
+
+async function syncGuestWishlistAfterLogin() {
+    const guestWishlist = readLocalStorageArray("guestWishlist");
+    if (!guestWishlist.length) return null;
+
+    const response = await fetch("/api/sync-guest-wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: guestWishlist })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(data.message || "Could not sync guest wishlist");
+    }
+
+    localStorage.removeItem("guestWishlist");
+    return data;
+}
+
 // ================= NAVBAR COUNTS =================
 function updateNavbarCounts(cartCount = null, wishlistCount = null) {
     if (cartCount !== null || wishlistCount !== null) {
@@ -240,7 +297,7 @@ function updateNavbarCounts(cartCount = null, wishlistCount = null) {
     }
 
     if (isUserLoggedIn()) {
-        fetch("/get_counts")
+        return fetch("/get_counts")
             .then(r => r.json())
             .then(d => {
                 const c = document.getElementById("cartCount");
@@ -251,6 +308,7 @@ function updateNavbarCounts(cartCount = null, wishlistCount = null) {
             }).catch(() => {});
     } else {
         updateGuestCounts();
+        return Promise.resolve();
     }
 }
 window.addEventListener("user-login", updateNavbarCounts);
@@ -398,7 +456,8 @@ function addToGuestCart(productId, colorId = null, sizeId = null) {
     let gCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
     const existing = gCart.find(i =>
         String(i.productId) === String(productId) &&
-        String(i.colorId || null) === String(colorId || null));
+        String(i.colorId || null) === String(colorId || null) &&
+        String(i.sizeId || null) === String(sizeId || null));
     if (existing) { existing.qty = (existing.qty || 1) + 1; }
     else { gCart.push({ productId, colorId, sizeId, qty: 1 }); }
     localStorage.setItem("guestCart", JSON.stringify(gCart));

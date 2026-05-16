@@ -310,9 +310,143 @@ def cart_line_total(user_id, product_id, color_id=None, size_id=None):
         JOIN products p ON p.id = c.product_id
         WHERE c.user_id=:uid AND c.product_id=:pid
         AND ((c.color_id IS NULL AND :cid IS NULL) OR c.color_id=:cid)
-        AND (:sid IS NULL OR c.size_id=:sid)
+        AND ((c.size_id IS NULL AND :sid IS NULL) OR c.size_id=:sid)
         LIMIT 1
     """), {"uid": user_id, "pid": product_id, "cid": color_id, "sid": size_id}).scalar() or 0
+
+
+def consolidate_cart_duplicates(user_id):
+    grouped = defaultdict(list)
+    items = Cart.query.filter_by(user_id=user_id).order_by(Cart.id.asc()).all()
+
+    for item in items:
+        grouped[(item.product_id, item.color_id, item.size_id)].append(item)
+
+    changed = False
+    for duplicates in grouped.values():
+        if len(duplicates) <= 1:
+            continue
+
+        keeper = duplicates[0]
+        keeper.quantity = sum(int(item.quantity or 0) for item in duplicates)
+        for duplicate in duplicates[1:]:
+            db.session.delete(duplicate)
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+
+def add_cart_item(user, product_id, color_id=None, size_id=None, quantity=1):
+    quantity = max(int(quantity or 1), 1)
+
+    existing_items = Cart.query.filter_by(
+        user_id=user.id,
+        product_id=product_id,
+        color_id=color_id,
+        size_id=size_id
+    ).order_by(Cart.id.asc()).all()
+
+    if existing_items:
+        existing = existing_items[0]
+        existing.quantity = int(existing.quantity or 0) + quantity
+        for duplicate in existing_items[1:]:
+            existing.quantity += int(duplicate.quantity or 0)
+            db.session.delete(duplicate)
+        return existing
+
+    cart_item = Cart(
+        user_id=user.id,
+        product_id=product_id,
+        color_id=color_id,
+        size_id=size_id,
+        quantity=quantity
+    )
+    db.session.add(cart_item)
+    return cart_item
+
+
+def normalize_guest_cart_item(item):
+    if not isinstance(item, dict):
+        return None
+
+    product_id = normalize_optional_int(
+        item.get("productId")
+        or item.get("product_id")
+        or item.get("id")
+    )
+    if not product_id:
+        return None
+
+    color_id = normalize_optional_int(
+        item.get("colorId")
+        or item.get("color_id")
+        or item.get("product_color_id")
+    )
+    size_id = normalize_optional_int(
+        item.get("sizeId")
+        or item.get("size_id")
+        or item.get("selected_size_id")
+    )
+
+    try:
+        quantity = int(item.get("qty") or item.get("quantity") or 1)
+    except (TypeError, ValueError):
+        quantity = 1
+
+    return {
+        "product_id": product_id,
+        "color_id": color_id,
+        "size_id": size_id,
+        "quantity": max(quantity, 1),
+    }
+
+
+def merge_guest_cart_items_to_user(user, items):
+    merged_count = 0
+    for item in items or []:
+        normalized = normalize_guest_cart_item(item)
+        if not normalized:
+            continue
+
+        product = Product.query.get(normalized["product_id"])
+        if not product or product.is_archived:
+            continue
+
+        add_cart_item(
+            user,
+            normalized["product_id"],
+            normalized["color_id"],
+            normalized["size_id"],
+            normalized["quantity"]
+        )
+        merged_count += normalized["quantity"]
+
+    if merged_count:
+        db.session.commit()
+        consolidate_cart_duplicates(user.id)
+
+    return merged_count
+
+
+def merge_session_guest_cart_to_user(user):
+    guest_items = []
+    for key in ("cart", "guest_cart", "cart_items"):
+        value = session.get(key)
+        if not value:
+            continue
+        if isinstance(value, dict):
+            guest_items.extend(value.values())
+        elif isinstance(value, list):
+            guest_items.extend(value)
+
+    merged_count = merge_guest_cart_items_to_user(user, guest_items)
+
+    for key in ("cart", "guest_cart", "cart_items"):
+        session.pop(key, None)
+    session.modified = True
+
+    return merged_count
 
 
 def send_resend_email(subject, body="", attachments=None, to_email=None, html=None):
@@ -374,6 +508,7 @@ def get_razorpay_client():
 
 
 def cart_snapshot_for_user(user_id):
+    consolidate_cart_duplicates(user_id)
     cart_items = Cart.query.filter_by(user_id=user_id).all()
     order_lines = []
     total = 0.0
@@ -2039,6 +2174,12 @@ def login():
     if not check_password_hash(user.password, password):
         return jsonify({"message": "Wrong password"}), 401
 
+    preserved_guest_cart = {
+        key: session.get(key)
+        for key in ("cart", "guest_cart", "cart_items")
+        if session.get(key)
+    }
+
     session.clear()
     session.permanent = remember
 
@@ -2047,11 +2188,17 @@ def login():
     session['email'] = user.email
     session['is_admin'] = user.is_admin
 
+    for key, value in preserved_guest_cart.items():
+        session[key] = value
+
+    session_merged_count = merge_session_guest_cart_to_user(user)
+
     return jsonify({
         "message": "Login successful",
         "name": user.username,   # ✅ IMPORTANT FIX
         "email": user.email,
-        "id": user.id
+        "id": user.id,
+        "session_cart_merged": session_merged_count
     }), 200
 
 
@@ -2674,6 +2821,8 @@ def cart_page():
         session.clear()
         return redirect('/')
 
+    consolidate_cart_duplicates(user.id)
+
     # ✅ PostgreSQL compatible query (SQLAlchemy)
     rows = db.session.execute(text("""
         SELECT 
@@ -2683,6 +2832,7 @@ def cart_page():
             p.price,
             c.color_id,
             c.size_id,
+            COALESCE(ps.size_label, '') AS size_label,
             COALESCE(co.name, '') AS color_name,
             COALESCE(co.code, '') AS color_code,
             COALESCE(
@@ -2708,7 +2858,9 @@ def cart_page():
         FROM cart c
         JOIN products p ON c.product_id = p.id
         LEFT JOIN colors co ON co.id = c.color_id
+        LEFT JOIN product_sizes ps ON ps.id = c.size_id
         WHERE c.user_id = :uid
+        ORDER BY c.id ASC
     """), {"uid": user.id}).fetchall()
 
     total = 0
@@ -2734,6 +2886,7 @@ def cart_page():
             "image_url": p['image_url'],
             "color_id": p['color_id'],
             "size_id": p['size_id'],
+            "size_label": p['size_label'],
             "color_name": p['color_name'],
             "color_code": p['color_code']
         })
@@ -2757,7 +2910,7 @@ def remove_cart(id):
     db.session.execute(text("""
         DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
         AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-        AND (:sid IS NULL OR size_id=:sid)
+        AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
     """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
@@ -2784,7 +2937,7 @@ def decrease_cart(id):
         SELECT quantity FROM cart
         WHERE user_id=:uid AND product_id=:pid
         AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-        AND (:sid IS NULL OR size_id=:sid)
+        AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
         LIMIT 1
     """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id}).fetchone()
 
@@ -2794,13 +2947,13 @@ def decrease_cart(id):
                 UPDATE cart SET quantity = quantity - 1
                 WHERE user_id=:uid AND product_id=:pid
                 AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-                AND (:sid IS NULL OR size_id=:sid)
+                AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
             """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
         else:
             db.session.execute(text("""
                 DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
                 AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-                AND (:sid IS NULL OR size_id=:sid)
+                AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
             """), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
@@ -2818,28 +2971,13 @@ def add_to_cart(id):
     color_id = request_color_id(data)
     size_id  = normalize_optional_int(data.get('size_id')  or request.args.get('size_id'))
 
-    print(f"add_to_cart user={user.id} product={id} color={color_id} size={size_id}")
+    if ProductSize.query.filter_by(product_id=id).first() and not size_id:
+        return jsonify({"error": "size_required", "message": "Please select a size before adding to cart."}), 400
 
-    existing = db.session.execute(text(
-        "SELECT quantity FROM cart WHERE user_id=:uid AND product_id=:pid "
-        "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid) "
-        "AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)"
-    ), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id}).fetchone()
-
-    if existing:
-        db.session.execute(text(
-            "UPDATE cart SET quantity = quantity + 1 "
-            "WHERE user_id=:uid AND product_id=:pid "
-            "AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid) "
-            "AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)"
-        ), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
-    else:
-        db.session.execute(text(
-            "INSERT INTO cart (user_id, product_id, color_id, size_id, quantity) "
-            "VALUES (:uid, :pid, :cid, :sid, 1)"
-        ), {"uid": user.id, "pid": id, "cid": color_id, "sid": size_id})
+    add_cart_item(user, id, color_id, size_id, 1)
 
     db.session.commit()
+    consolidate_cart_duplicates(user.id)
 
     payload = cart_totals_payload(user.id)
     return jsonify({
@@ -3018,7 +3156,7 @@ def check_wishlist(product_id):
 def toggle_wishlist(product_id):
     if 'email' not in session:
         return jsonify({"error": "Login required"}), 401
-    product = Product.query.get(id)
+    product = Product.query.get(product_id)
     if not product or product.is_archived:
         return jsonify({"error": "Product is not available"}), 404
     user = get_user()
@@ -3067,21 +3205,21 @@ def toggle_cart(product_id):
         return jsonify({"error": "login required"}), 401
     
     data = request.get_json() or {}
-    size_id = data.get("size_id")
+    size_id = normalize_optional_int(data.get("size_id"))
     color_id = request_color_id(data)
-    product = Product.query.get(id)
+    product = Product.query.get(product_id)
     if not product or product.is_archived:
         return jsonify({"error": "Product is not available"}), 404
     user = get_user()
 
-    if not size_id:
+    if ProductSize.query.filter_by(product_id=product_id).first() and not size_id:
         return jsonify({"error": "size_required"}), 400
 
     existing = db.session.execute(text("""
         SELECT 1 FROM cart 
         WHERE user_id=:uid 
         AND product_id=:pid 
-        AND size_id=:sid
+        AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
         AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
     """), {
         "uid": user.id,
@@ -3095,7 +3233,7 @@ def toggle_cart(product_id):
             DELETE FROM cart 
             WHERE user_id=:uid 
             AND product_id=:pid 
-            AND size_id=:sid
+            AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
             AND ((color_id IS NULL AND :cid IS NULL) OR color_id = :cid)
         """), {
             "uid": user.id,
@@ -3184,7 +3322,7 @@ def update_quantity(product_id, action):
         SELECT * FROM cart
         WHERE user_id=:uid AND product_id=:pid
         AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-        AND (:sid IS NULL OR size_id=:sid)
+        AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
         LIMIT 1
     """), {"uid": user.id, "pid": product_id, "cid": color_id, "sid": size_id}).fetchone()
 
@@ -3202,13 +3340,13 @@ def update_quantity(product_id, action):
         db.session.execute(text("""
             DELETE FROM cart WHERE user_id=:uid AND product_id=:pid
             AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-            AND (:sid IS NULL OR size_id=:sid)
+            AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
         """), {"uid": user.id, "pid": product_id, "cid": color_id, "sid": size_id})
     else:
         db.session.execute(text("""
             UPDATE cart SET quantity=:q WHERE user_id=:uid AND product_id=:pid
             AND ((color_id IS NULL AND :cid IS NULL) OR color_id=:cid)
-            AND (:sid IS NULL OR size_id=:sid)
+            AND ((size_id IS NULL AND :sid IS NULL) OR size_id=:sid)
         """), {"q": qty, "uid": user.id, "pid": product_id, "cid": color_id, "sid": size_id})
 
     db.session.commit()
@@ -3398,11 +3536,15 @@ def checkout_review():
     if not user:
         return jsonify({"message": "User not found"}), 404
 
+    consolidate_cart_duplicates(user.id)
+
     # ✅ Fetch cart items
     cart_items = db.session.execute(text("""
-        SELECT product_id, color_id, quantity 
-        FROM cart 
-        WHERE user_id = :uid
+        SELECT c.product_id, c.color_id, c.size_id, c.quantity, ps.size_label
+        FROM cart c
+        LEFT JOIN product_sizes ps ON ps.id = c.size_id
+        WHERE c.user_id = :uid
+        ORDER BY c.id ASC
     """), {"uid": user.id}).fetchall()
 
     if not cart_items:
@@ -3427,6 +3569,8 @@ def checkout_review():
                 "product_name": product.name,
                 "color_id": item.color_id,
                 "color_name": color.name if color else None,
+                "size_id": item.size_id,
+                "size_label": item.size_label,
                 "quantity": item.quantity,
                 "price": product.price,
                 "item_total": item_total
@@ -3492,35 +3636,25 @@ def update_profile_phone():
     })
 
 @app.route('/api/sync-guest-cart', methods=['POST'])
+@app.route('/cart/sync-guest', methods=['POST'])
 def sync_guest_cart():
     if 'email' not in session:
         return jsonify({"message": "Not logged in"}), 401
     user = User.query.filter_by(email=session['email']).first()
-    items = request.get_json().get('items', [])
-    for item in items:
-        color_id = normalize_optional_int(item.get('colorId') or item.get('color_id') or item.get('product_color_id'))
-        size_id = normalize_optional_int(item.get('sizeId') or item.get('size_id'))
-        qty = int(item.get('qty', 1) or 1)
+    if not user:
+        return jsonify({"message": "Not logged in"}), 401
 
-        existing = Cart.query.filter_by(
-            user_id=user.id,
-            product_id=item['productId'],
-            color_id=color_id,
-            size_id=size_id
-        ).first()
-        if existing:
-            existing.quantity = (existing.quantity or 0) + qty
-        else:
-            cart_item = Cart(
-                user_id=user.id,
-                product_id=item['productId'],
-                quantity=qty,
-                color_id=color_id,
-                size_id=size_id
-            )
-            db.session.add(cart_item)
-    db.session.commit()
-    return jsonify({"message": "Cart synced"})
+    payload = request.get_json(silent=True) or {}
+    merged_count = merge_guest_cart_items_to_user(user, payload.get('items', []))
+    cart_count, wishlist_count = user_counts(user.id)
+
+    return jsonify({
+        "success": True,
+        "message": "Cart synced",
+        "merged_count": merged_count,
+        "cart_count": cart_count,
+        "wishlist_count": wishlist_count
+    })
 
 @app.route('/api/sync-guest-wishlist', methods=['POST'])
 def sync_guest_wishlist():

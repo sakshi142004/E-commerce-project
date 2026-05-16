@@ -14,10 +14,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>{% block title %}Belt Purse | Premium Wallets, Belts & Fashion Accessories{% endblock %}</title>
+    <title>{% block title %}Belt Purse | Premium Belts & Fashion Accessories{% endblock %}</title>
 
     <meta name="description" content="Belt Purse offers premium leather wallets, stylish belts,men's belts, purses and fashion accessories with quality craftsmanship. Shop luxury accessories online in India.">
-    <meta name="keywords" content="belt purse,belt purse shop,leather wallet, luxury wallet, men's wallet, women's purse, leather belt, belt , handbag, fashion accessories, premium wallet, online accessories store India">
+    <meta name="keywords" content="belt purse,belt purse shop,leather wallet, luxury wallet, men's wallet, women's purse, leather belt, belt , handbag, fashion accessories, premium wallet, online accessories store India,belt for men,best belts for men,bestbelt brands for men,leather belt,belt purse shop,belt purse for men,belt purse combo,belt purse shop near me,formal belt for men,formal belt for men black,formal belt">
     <meta name="author" content="Belt Purse">
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_logo.jpeg') }}">
@@ -2215,7 +2215,9 @@ body::before {
     <div class="nav-center" id="navCenter">
         <a href="/">Home</a>
         <a href="/products-page" class="mobile-menu-only">Shop</a>
+        <!-- Wishlist hidden temporarily - keep code for future use
         <a href="/wishlist" class="mobile-menu-only">Wishlist</a>
+        -->
         <a href="/cart" class="mobile-menu-only">Cart</a>
         <a href="/blogs">Blogs</a>
         <a href="/about">About Us</a>
@@ -2257,10 +2259,12 @@ body::before {
         </div>
 
         <!-- ❤️ WISHLIST -->
+        <!-- Wishlist hidden temporarily - keep code for future use
         <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Wishlist" onclick="window.location='/wishlist'">
             <i class="fa-solid fa-heart"></i>
             <span class="badge" id="wishlistCount">{{ wishlist_count }}</span>
         </div>
+        -->
 
         <!-- 🛒 CART -->
         <div class="icon-box premium-icon desktop-count-icon" tabindex="0" aria-label="Cart" onclick="window.location='/cart'">
