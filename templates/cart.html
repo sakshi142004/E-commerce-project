@@ -406,15 +406,28 @@ function loadGuestCart() {
 
         let total = 0;
 
+        const exactSizeLabel = (product, item) => {
+            const savedLabel = item.sizeLabel || item.size_label;
+            if (savedLabel) return savedLabel;
+            const sizeId = item.sizeId || item.size_id;
+            if (!sizeId) return "Not selected";
+            const exactSize = (product.sizes || []).find(size => String(size.id) === String(sizeId));
+            return exactSize?.label || "Not selected";
+        };
+
         guestCart.forEach(item => {
+            const itemProductId = item.productId || item.product_id;
+            const itemColorId = item.colorId || item.color_id || null;
+            const itemSizeId = item.sizeId || item.size_id || null;
             const product = allProducts.find(p =>
-                (p.product_id || p.id) == item.productId &&
-                String(p.color_variant?.id || p.colors?.[0]?.id || null) === String(item.colorId || null)
-            ) || allProducts.find(p => (p.product_id || p.id) == item.productId);
+                (p.product_id || p.id) == itemProductId &&
+                String(p.color_variant?.id || p.colors?.[0]?.id || null) === String(itemColorId || null)
+            ) || allProducts.find(p => (p.product_id || p.id) == itemProductId);
             if (!product) return;
 
             const price = product.price;
             const qty = item.qty || 1;
+            const sizeLabel = exactSizeLabel(product, item);
             total += price * qty;
 
             const div = document.createElement("div");
@@ -424,18 +437,18 @@ function loadGuestCart() {
                 <div class="details cart-item-details">
                     <h3>${product.name}</h3>
                     ${product.color_variant ? `<p class="cart-variant"><span style="background:${product.color_variant.code}"></span>Color: ${product.color_variant.name}</p>` : ""}
-                    <p class="cart-variant cart-size-row"><span class="cart-size-dot"></span>Size: ${item.sizeLabel || item.sizeId || "Not selected"}</p>
+                    <p class="cart-variant cart-size-row"><span class="cart-size-dot"></span>Size: ${sizeLabel}</p>
                     <p class="price">₹${price}</p>
                 </div>
                 <div class="right-box cart-item-actions">
                     <p class="item-total">Total: ₹${price * qty}</p>
                     <div class="qty-box cart-qty-control">
-                        <button class="qty-btn minus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, ${item.sizeId || null}, -1, this)">−</button>
+                        <button class="qty-btn minus" onclick="guestQtyChange(${itemProductId}, ${itemColorId || null}, ${itemSizeId || null}, -1, this)">−</button>
                         <span class="qty-number">${qty}</span>
-                        <button class="qty-btn plus" onclick="guestQtyChange(${item.productId}, ${item.colorId || null}, ${item.sizeId || null}, 1, this)">+</button>
+                        <button class="qty-btn plus" onclick="guestQtyChange(${itemProductId}, ${itemColorId || null}, ${itemSizeId || null}, 1, this)">+</button>
                     </div>
                     <div class="actions cart-action-buttons">
-                        <button class="removeBtn" onclick="guestRemoveCart(${item.productId}, ${item.colorId || null}, ${item.sizeId || null})">Remove</button>
+                        <button class="removeBtn" onclick="guestRemoveCart(${itemProductId}, ${itemColorId || null}, ${itemSizeId || null})">Remove</button>
                     </div>
                 </div>
             `;
@@ -448,12 +461,21 @@ function loadGuestCart() {
 
 function guestQtyChange(productId, colorId, sizeId, delta, btn) {
     let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
-    const item = guestCart.find(i => i.productId == productId && i.colorId == colorId && String(i.sizeId || null) === String(sizeId || null));
+    const item = guestCart.find(i =>
+        (i.productId || i.product_id) == productId &&
+        String(i.colorId || i.color_id || null) === String(colorId || null) &&
+        String(i.sizeId || i.size_id || null) === String(sizeId || null)
+    );
     if (!item) return;
 
     item.qty = (item.qty || 1) + delta;
+    item.quantity = item.qty;
     if (item.qty <= 0) {
-        guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId && String(i.sizeId || null) === String(sizeId || null)));
+        guestCart = guestCart.filter(i => !(
+            (i.productId || i.product_id) == productId &&
+            String(i.colorId || i.color_id || null) === String(colorId || null) &&
+            String(i.sizeId || i.size_id || null) === String(sizeId || null)
+        ));
     }
 
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
@@ -463,7 +485,11 @@ function guestQtyChange(productId, colorId, sizeId, delta, btn) {
 
 function guestRemoveCart(productId, colorId, sizeId = null) {
     let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
-    guestCart = guestCart.filter(i => !(i.productId == productId && i.colorId == colorId && String(i.sizeId || null) === String(sizeId || null)));
+    guestCart = guestCart.filter(i => !(
+        (i.productId || i.product_id) == productId &&
+        String(i.colorId || i.color_id || null) === String(colorId || null) &&
+        String(i.sizeId || i.size_id || null) === String(sizeId || null)
+    ));
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
     loadGuestCart();
     updateGuestCounts();

@@ -366,6 +366,16 @@ def add_cart_item(user, product_id, color_id=None, size_id=None, quantity=1):
     return cart_item
 
 
+def product_requires_size(product_id):
+    return ProductSize.query.filter_by(product_id=product_id).first() is not None
+
+
+def is_valid_product_size(product_id, size_id):
+    if not size_id:
+        return not product_requires_size(product_id)
+    return ProductSize.query.filter_by(id=size_id, product_id=product_id).first() is not None
+
+
 def normalize_guest_cart_item(item):
     if not isinstance(item, dict):
         return None
@@ -411,6 +421,8 @@ def merge_guest_cart_items_to_user(user, items):
 
         product = Product.query.get(normalized["product_id"])
         if not product or product.is_archived:
+            continue
+        if not is_valid_product_size(product.id, normalized["size_id"]):
             continue
 
         add_cart_item(
@@ -2315,6 +2327,14 @@ def products():
     result = []
 
     for p in all_products:
+        product_sizes = [
+            {
+                "id": size.id,
+                "label": size.size_label,
+                "value": size.size_value
+            }
+            for size in ProductSize.query.filter_by(product_id=p.id).order_by(ProductSize.id.asc()).all()
+        ]
 
         # 📦 related data
         images = ProductImage.query.filter_by(product_id=p.id).order_by(
@@ -2354,7 +2374,8 @@ def products():
                 "images": fallback_images if fallback_images else [images[0].image_url],
 
                 "color_variant": None,
-                "colors": []
+                "colors": [],
+                "sizes": product_sizes
             })
 
         # =========================
@@ -2396,7 +2417,8 @@ def products():
                         "name": pc.color.name,
                         "code": pc.color.code
                     }
-                ]
+                ],
+                "sizes": product_sizes
             })
 
     return jsonify(result)
@@ -2971,8 +2993,10 @@ def add_to_cart(id):
     color_id = request_color_id(data)
     size_id  = normalize_optional_int(data.get('size_id')  or request.args.get('size_id'))
 
-    if ProductSize.query.filter_by(product_id=id).first() and not size_id:
+    if product_requires_size(id) and not size_id:
         return jsonify({"error": "size_required", "message": "Please select a size before adding to cart."}), 400
+    if size_id and not is_valid_product_size(id, size_id):
+        return jsonify({"error": "invalid_size", "message": "Invalid size selected"}), 400
 
     add_cart_item(user, id, color_id, size_id, 1)
 
@@ -3212,8 +3236,10 @@ def toggle_cart(product_id):
         return jsonify({"error": "Product is not available"}), 404
     user = get_user()
 
-    if ProductSize.query.filter_by(product_id=product_id).first() and not size_id:
+    if product_requires_size(product_id) and not size_id:
         return jsonify({"error": "size_required"}), 400
+    if size_id and not is_valid_product_size(product_id, size_id):
+        return jsonify({"error": "invalid_size", "message": "Invalid size selected"}), 400
 
     existing = db.session.execute(text("""
         SELECT 1 FROM cart 

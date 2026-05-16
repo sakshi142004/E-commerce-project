@@ -616,6 +616,7 @@ let activeColorFilter = new URLSearchParams(window.location.search).get("color")
 let selectedProductId = null;
 let selectedProductCardColorId = null;
 let selectedSizeId = null;
+let selectedSizeLabel = null;
 let selectedProductCardButton = null;
 
 function getProductBaseId(product) {
@@ -692,12 +693,9 @@ function applyProductFilters() {
 function legacyImmediateToggleCart(productId, btn, colorId = null) {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img");
     if (!isLoggedIn) {
-        addToGuestCart(productId, colorId, null);
-        if (btn) {
-            btn.classList.add("active");
-            btn.innerText = "✓ Added";
-            setTimeout(() => { btn.innerText = "Add to Cart"; }, 1500);
-        }
+        selectedProductId = productId;
+        selectedProductCardButton = btn;
+        openProductSizeModal(productId, colorId);
         return;
     }
 
@@ -742,6 +740,7 @@ function legacyImmediateOpenSizeModal(productId, colorId = null) {
 
                 btn.onclick = () => {
                     selectedSizeId = s.id;
+                    selectedSizeLabel = s.label;
 
                     document.querySelectorAll("#sizeList button")
                         .forEach(b => b.classList.remove("active"));
@@ -775,6 +774,7 @@ function legacyImmediateOpenSizeModal(productId, colorId = null) {
                         document.getElementById("sizeModal").classList.add("hidden");
                         selectedProductId = null;
                         selectedSizeId = null;
+                        selectedSizeLabel = null;
                     });
                 };
 
@@ -791,6 +791,7 @@ function closeSizeModal() {
     selectedProductId = null;
     selectedProductCardColorId = null;
     selectedSizeId = null;
+    selectedSizeLabel = null;
     selectedProductCardButton = null;
 }
 
@@ -830,6 +831,7 @@ function openProductSizeModal(productId, colorId = null) {
     selectedProductId = productId;
     selectedProductCardColorId = colorId || null;
     selectedSizeId = null;
+    selectedSizeLabel = null;
 
     fetch(`/product/sizes/${productId}`)
         .then(res => res.json())
@@ -860,6 +862,7 @@ function openSizeModal(productId, colorId = null) {
 
 function selectProductCardSize(sizeId, element) {
     selectedSizeId = sizeId;
+    selectedSizeLabel = element ? element.textContent.trim() : null;
 
     document.querySelectorAll("#sizeList button")
         .forEach(btn => btn.classList.remove("active"));
@@ -870,7 +873,7 @@ function confirmProductCardAddToCart() {
     if (!selectedProductId) return;
 
     if (!selectedSizeId) {
-        alert("Please select size first");
+        alert("Please select a size before adding to cart.");
         return;
     }
 
@@ -879,7 +882,7 @@ function confirmProductCardAddToCart() {
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
-        addProductCardGuestCart(productId, colorId, selectedSizeId);
+        addProductCardGuestCart(productId, colorId, selectedSizeId, selectedSizeLabel);
         updateProductCardCartButton(productId, colorId, selectedSizeId);
         updateGuestCartCount();
         closeSizeModal();
@@ -919,7 +922,7 @@ function updateProductCardCartButton(productId, colorId, sizeId) {
     cartBtn.dataset.size = sizeId || "";
 }
 
-function addProductCardGuestCart(productId, colorId, sizeId) {
+function addProductCardGuestCart(productId, colorId, sizeId, sizeLabel = null) {
     let guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
     const existing = guestCart.find(item =>
         String(item.productId) === String(productId) &&
@@ -929,8 +932,22 @@ function addProductCardGuestCart(productId, colorId, sizeId) {
 
     if (existing) {
         existing.qty = (existing.qty || 1) + 1;
+        existing.quantity = existing.qty;
+        if (sizeLabel) existing.sizeLabel = sizeLabel;
+        if (sizeLabel) existing.size_label = sizeLabel;
     } else {
-        guestCart.push({ productId, colorId, sizeId, qty: 1 });
+        guestCart.push({
+            productId,
+            product_id: productId,
+            colorId,
+            color_id: colorId,
+            sizeId,
+            size_id: sizeId,
+            sizeLabel,
+            size_label: sizeLabel,
+            qty: 1,
+            quantity: 1
+        });
     }
 
     localStorage.setItem("guestCart", JSON.stringify(guestCart));

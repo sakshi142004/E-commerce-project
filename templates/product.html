@@ -2334,6 +2334,7 @@ let isLightboxDragging = false;
 
 const DETAIL_PRODUCT_ID = Number("{{ product.id }}");
 let selectedSize = null;
+let selectedSizeLabel = null;
 let selectedColorId = new URLSearchParams(window.location.search).get("color") || null;
 
 /* ================= SIZE SELECT ================= */
@@ -2344,20 +2345,21 @@ function selectSize(el) {
 
     el.classList.add("active");
     selectedSize = el.dataset.size;
+    selectedSizeLabel = el.textContent.trim();
 }
 
 /* ================= CART TOGGLE ================= */
 function toggleCart(productId, btn) {
 
     if (!selectedSize) {
-        alert("Please select size first");
+        alert("Please select a size before adding to cart.");
         return;
     }
 
     const isLoggedIn = document.querySelector(".avatar, .avatar-img") !== null;
 
     if (!isLoggedIn) {
-        addToGuestCart(productId, selectedColorId, selectedSize);
+        addToGuestCart(productId, selectedColorId, selectedSize, selectedSizeLabel);
         return;
     }
 
@@ -2909,6 +2911,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.querySelectorAll(".size-chip").forEach(chip => {
                     if (chip.dataset.size == data.size_id) {
                         chip.classList.add("active");
+                        selectedSizeLabel = chip.textContent.trim();
                     }
                 });
             }

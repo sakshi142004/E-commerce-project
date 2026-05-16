@@ -243,6 +243,7 @@ function normalizeGuestCartForSync(items) {
         product_id: item.product_id ?? item.productId ?? item.id,
         color_id: item.color_id ?? item.colorId ?? item.product_color_id ?? null,
         size_id: item.size_id ?? item.sizeId ?? item.selected_size_id ?? null,
+        size_label: item.size_label ?? item.sizeLabel ?? null,
         quantity: item.quantity ?? item.qty ?? 1
     })).filter(item => item.product_id);
 }
@@ -452,14 +453,32 @@ function addToCart(productId, colorId = null, sizeId = null) {
 }
 
 // Alias used by products.html
-function addToGuestCart(productId, colorId = null, sizeId = null) {
+function addToGuestCart(productId, colorId = null, sizeId = null, sizeLabel = null) {
     let gCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
     const existing = gCart.find(i =>
         String(i.productId) === String(productId) &&
         String(i.colorId || null) === String(colorId || null) &&
         String(i.sizeId || null) === String(sizeId || null));
-    if (existing) { existing.qty = (existing.qty || 1) + 1; }
-    else { gCart.push({ productId, colorId, sizeId, qty: 1 }); }
+    if (existing) {
+        existing.qty = (existing.qty || 1) + 1;
+        existing.quantity = existing.qty;
+        if (sizeLabel) existing.sizeLabel = sizeLabel;
+        if (sizeLabel) existing.size_label = sizeLabel;
+    }
+    else {
+        gCart.push({
+            productId,
+            product_id: productId,
+            colorId,
+            color_id: colorId,
+            sizeId,
+            size_id: sizeId,
+            sizeLabel,
+            size_label: sizeLabel,
+            qty: 1,
+            quantity: 1
+        });
+    }
     localStorage.setItem("guestCart", JSON.stringify(gCart));
     updateGuestCounts();
     showGuestToast("Added to cart! Login to checkout 🛒");
